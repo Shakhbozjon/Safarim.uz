@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: "Inter", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #f9fafb;
+  color: #111827;
+  font-family: var(--font-inter), sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+
+  .shimmer-bg {
+    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+    background-size: 200% 100%;
+  }
+
+  .gradient-hero {
+    background: linear-gradient(160deg, #fff7ed 0%, #ffffff 50%, #fff7ed 100%);
+  }
+}
+
+@layer components {
+  .route-dot {
+    @apply w-2.5 h-2.5 rounded-full border-2 border-white ring-2;
+  }
+  .route-dot-from {
+    @apply route-dot bg-primary-500 ring-primary-200;
+  }
+  .route-dot-to {
+    @apply route-dot bg-gray-800 ring-gray-200;
+  }
+}

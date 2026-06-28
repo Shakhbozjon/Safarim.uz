@@ -1,0 +1,34 @@
+# ── Sirlar (HECH QACHON commit qilinmasin) ──
+.env
+.env.*
+!.env.example
+!.env.production.example
+**/.env
+**/.env.local
+**/.env.production
+
+# ── Python ──
+venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# ── Node / Next.js ──
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+out/
+
+# ── Backup / ma'lumotlar ──
+*.sql.gz
+backups/
+deploy/certbot/
+
+# ── IDE / OS ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
