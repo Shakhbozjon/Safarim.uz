@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { isAuthenticated } from "@/lib/auth";
 import api from "@/lib/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const MENU_ITEMS = [
   { icon: User,   href: "/profile/edit",     label: "Profilni tahrirlash",  desc: "Ism, rasm, haqida" },
@@ -44,17 +44,17 @@ export default function ProfilePage() {
     // 404 → ariza topshirilmagan, xato emas
   });
 
-  if (isLoading) {
+  // Kirmagan foydalanuvchini login'ga yo'naltirish (render paytida emas — SSR xavfsizligi)
+  useEffect(() => {
+    if (!isLoading && !user) router.push("/login");
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user) {
     return (
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
         <ProfileSkeleton />
       </div>
     );
-  }
-
-  if (!user) {
-    router.push("/login");
-    return null;
   }
 
   const memberYear = new Date(user.created_at).getFullYear();

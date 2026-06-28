@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   description: "Haydovchi va yo'lovchilarni bog'lovchi carpooling platformasi",
 };
 
+// Bu auth-gated interaktiv app — statik prerender o'rniga dinamik (SSR) render.
+// useSearchParams / client-only logikadagi prerender xatolarini bartaraf etadi.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="uz">
