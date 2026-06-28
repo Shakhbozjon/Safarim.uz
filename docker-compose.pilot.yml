@@ -1,0 +1,107 @@
+# Safarim.uz — PILOT stack (IP orqali, HTTP, domensiz, SMS'siz).
+# Ishga tushirish:
+#   docker compose -f docker-compose.pilot.yml --env-file .env.production up -d --build
+#
+# Real domen+HTTPS+SMS uchun docker-compose.prod.yml ishlatiladi.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    # Media (rasm/avatar) brauzerdan ko'rinishi uchun 9000 ochiq.
+    # ⚠️ GCP firewall'da ham tcp:9000 ochilishi kerak.
+    ports:
+      - "9000:9000"
+    volumes:
+      - minio_data:/data
+
+  api:
+    build:
+      context: ./safarim-backend
+      dockerfile: Dockerfile.prod
+    image: safarim-api:latest
+    restart: always
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+    depends_on:
+      db:
+        condition: service_healthy
+
+  celery:
+    image: safarim-api:latest
+    restart: always
+    command: celery -A app.tasks.celery_app worker --loglevel=info -Q default,notifications
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+    depends_on:
+      - api
+      - redis
+
+  celery-beat:
+    image: safarim-api:latest
+    restart: always
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - api
+      - redis
+
+  frontend:
+    build:
+      context: ./safarim-frontend
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    image: safarim-frontend:latest
+    restart: always
+    depends_on:
+      - api
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx-pilot:/etc/nginx/conf.d:ro
+    depends_on:
+      - api
+      - frontend
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
