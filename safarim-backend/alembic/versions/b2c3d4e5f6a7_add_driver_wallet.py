@@ -7,7 +7,7 @@ Create Date: 2026-06-04 10:00:00.000000
 """
 from typing import Sequence, Union
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ENUM
 from alembic import op
 
 revision: str = 'b2c3d4e5f6a7'
@@ -49,8 +49,10 @@ def upgrade() -> None:
         sa.Column('wallet_id', UUID(as_uuid=True),
                   sa.ForeignKey('driver_wallets.id'), nullable=False),
         sa.Column('amount', sa.Integer, nullable=False),
-        sa.Column('tx_type', sa.Enum('cash_commission', 'online_earning', 'topup',
-                                     'withdrawal', 'refund', name='wallettxtype'),
+        # create_type=False — enum yuqorida op.execute bilan yaratilgan (ikki marta yaratmaslik)
+        sa.Column('tx_type', ENUM('cash_commission', 'online_earning', 'topup',
+                                  'withdrawal', 'refund', name='wallettxtype',
+                                  create_type=False),
                   nullable=False),
         sa.Column('booking_id', UUID(as_uuid=True),
                   sa.ForeignKey('bookings.id'), nullable=True),
