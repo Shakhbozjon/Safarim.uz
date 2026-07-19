@@ -238,17 +238,24 @@ async def handle_click_callback(db: AsyncSession, data: dict) -> dict:
     # Wallet topup ekanmi?
     if booking_id.startswith(WALLET_TOPUP_PREFIX):
         topup_id = booking_id[len(WALLET_TOPUP_PREFIX):]
+        try:
+            topup_uid = uuid_lib.UUID(topup_id)
+        except ValueError:
+            return {"click_trans_id": click_trans_id, "merchant_trans_id": booking_id,
+                    "error": -5, "error_note": "TOPUP NOT FOUND"}
+        result = await db.execute(
+            select(WalletTopupPayment).where(WalletTopupPayment.id == topup_uid)
+        )
+        topup = result.scalar_one_or_none()
+        if not topup:
+            return {"click_trans_id": click_trans_id, "merchant_trans_id": booking_id,
+                    "error": -5, "error_note": "TOPUP NOT FOUND"}
+        # Miqdor topup yaratilganda belgilangan summaga mos bo'lishi shart
+        if abs(float(topup.amount) - float(amount)) > 1:
+            return {"click_trans_id": click_trans_id, "merchant_trans_id": booking_id,
+                    "error": -2, "error_note": "INCORRECT AMOUNT"}
         if action == 0:
-            # PREPARE — topup mavjudligini tekshir
-            result = await db.execute(
-                select(WalletTopupPayment).where(
-                    WalletTopupPayment.id == uuid_lib.UUID(topup_id)
-                )
-            )
-            topup = result.scalar_one_or_none()
-            if not topup:
-                return {"click_trans_id": click_trans_id, "merchant_trans_id": booking_id,
-                        "error": -5, "error_note": "TOPUP NOT FOUND"}
+            # PREPARE
             return {
                 "click_trans_id": click_trans_id,
                 "merchant_trans_id": booking_id,
@@ -438,6 +445,9 @@ async def _payme_create(db: AsyncSession, request_id: int, params: dict) -> dict
             return _payme_error(request_id, PAYME_ERRORS["invalid_account"])
         if not topup:
             return _payme_error(request_id, PAYME_ERRORS["invalid_account"])
+        # Miqdor topup yaratilganda belgilangan summaga mos bo'lishi shart (tiyinda)
+        if amount is None or abs(topup.amount * 100 - amount) > 100:
+            return _payme_error(request_id, PAYME_ERRORS["invalid_amount"])
         if topup.transaction_id and topup.transaction_id != payme_id:
             return _payme_error(request_id, PAYME_ERRORS["already_done"])
         topup.transaction_id = payme_id
@@ -458,6 +468,10 @@ async def _payme_create(db: AsyncSession, request_id: int, params: dict) -> dict
     booking = result.scalar_one_or_none()
     if not booking:
         return _payme_error(request_id, PAYME_ERRORS["invalid_account"])
+
+    # Miqdor bron summasiga mos bo'lishi shart (tiyinda)
+    if amount is None or abs(booking.total_price * 100 - amount) > 100:
+        return _payme_error(request_id, PAYME_ERRORS["invalid_amount"])
 
     # Mavjud payment tekshirish
     pay_result = await db.execute(select(Payment).where(Payment.booking_id == uid))

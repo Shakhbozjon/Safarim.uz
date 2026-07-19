@@ -39,6 +39,14 @@ class Settings(BaseSettings):
 
     # Pilot rejim — SMS'siz sinov: OTP javobda qaytariladi (faqat yopiq pilot uchun!)
     PILOT_MODE: bool = False
+    # Vergul bilan ajratilgan tester raqamlari (masalan "+998901112233,+998907654321").
+    # Bo'sh bo'lmasa — pilot_otp FAQAT shu raqamlarga qaytariladi; boshqalarga
+    # OTP Telegram admin-chat orqali yetkaziladi (impersonatsiya himoyasi).
+    PILOT_OTP_ALLOWLIST: str = ""
+
+    @property
+    def pilot_otp_allowlist(self) -> set[str]:
+        return {p.strip() for p in self.PILOT_OTP_ALLOWLIST.split(",") if p.strip()}
 
     # Guvohnoma rasmi OCR tekshiruvi (tesseract o'rnatilgan bo'lsa True qiling)
     LICENSE_OCR_ENABLED: bool = False

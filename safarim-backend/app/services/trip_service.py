@@ -1,5 +1,4 @@
 from datetime import date, datetime, time, timedelta
-from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
@@ -10,10 +9,11 @@ from app.models.driver import DriverProfile
 from app.models.user import User
 from app.models.booking import Booking
 from app.models.enums import (
-    TripStatus, BookingStatus, DriverStatus, CancelledBy, PaymentType,
-    PaymentMethod, NotificationRefType,
+    TripStatus, BookingStatus, BookingPaymentStatus, DriverStatus, CancelledBy,
+    PaymentType, PaymentMethod, NotificationRefType,
 )
 from app.schemas.trip import TripCreate, TripSearchParams, TripDriverInfo, TripResponse, WaypointResponse, LocationBrief
+from app.core.timeutils import now_tashkent_naive
 from app.services import notification_service, wallet_service
 
 
@@ -304,7 +304,7 @@ async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
     Berilmasa — barchasi (Celery task). Tasdiqlangan bron bor safarlarga tegmaydi.
     O'zgarish bo'lganda commit qiladi. Expired qilingan safarlar sonini qaytaradi.
     """
-    now = datetime.now(ZoneInfo("Asia/Tashkent")).replace(tzinfo=None)
+    now = now_tashkent_naive()
     today = now.date()
     grace = timedelta(hours=TRIP_EXPIRY_GRACE_HOURS)
 
@@ -333,11 +333,18 @@ async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
             )
         )).scalars().all()
         for booking in pending:
+            from app.services.booking_service import flag_refund_due
             booking.status = BookingStatus.cancelled
             booking.cancelled_by = CancelledBy.driver
             booking.cancellation_reason = "Safar vaqti o'tdi — so'rov avtomatik bekor qilindi"
             booking.cancelled_at = now
-            booking.refund_amount = booking.total_price
+            online_paid = (
+                booking.payment_method != PaymentMethod.cash
+                and booking.payment_status == BookingPaymentStatus.paid
+            )
+            refund = booking.total_price if online_paid else 0
+            booking.refund_amount = refund
+            await flag_refund_due(db, booking, refund)
             # Komissiya safar tugaganda ushiladi — bu pending bronlarda komissiya yo'q
             await notification_service.create(
                 db,
@@ -396,23 +403,43 @@ async def cancel_trip(db: AsyncSession, trip_id: str, user: User, reason: str | 
     )
     bookings = result.scalars().all()
 
+    # Jo'nash vaqtidan keyin bronli safarni bekor qilib bo'lmaydi —
+    # aks holda haydovchi komissiyadan qochib qutuladi (tasdiq oqimi hal qiladi)
+    departure_dt = datetime.combine(trip.departure_date, trip.departure_time)
+    if bookings and now_tashkent_naive() >= departure_dt:
+        raise HTTPException(
+            status_code=400,
+            detail="Safar vaqti boshlangan — endi bekor qilib bo'lmaydi. Safar holatini tasdiq so'rovida belgilang.",
+        )
+
+    from app.services.booking_service import flag_refund_due
+
     now = datetime.utcnow()
     for booking in bookings:
         booking.status = BookingStatus.cancelled
         booking.cancelled_by = CancelledBy.driver
         booking.cancellation_reason = reason or "Haydovchi safarni bekor qildi"
         booking.cancelled_at = now
-        booking.refund_amount = booking.total_price  # yo'lovchiga 100% qaytariladi
+
+        # Refund faqat online to'langan bronда — naqdda hech narsa olinmagan
+        online_paid = (
+            booking.payment_method != PaymentMethod.cash
+            and booking.payment_status == BookingPaymentStatus.paid
+        )
+        refund = booking.total_price if online_paid else 0
+        booking.refund_amount = refund
+        await flag_refund_due(db, booking, refund)
 
         # Komissiya faqat safar tugaganda ushiladi — tugamagan bron bekor qilinsa
         # qaytariladigan komissiya yo'q.
 
         # Har bir yo'lovchiga bildirishnoma
+        refund_note = f" {refund:,} so'm qaytariladi." if refund > 0 else ""
         await notification_service.create(
             db,
             user_id=booking.passenger_id,
             title="Safar bekor qilindi",
-            body=f"Haydovchi safarni bekor qildi. {booking.total_price:,} so'm qaytariladi.",
+            body=f"Haydovchi safarni bekor qildi.{refund_note}",
             ref_type=NotificationRefType.booking,
             ref_id=booking.id,
         )

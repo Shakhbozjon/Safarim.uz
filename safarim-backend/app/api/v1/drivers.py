@@ -250,24 +250,6 @@ async def get_wallet(
 
 
 @router.post(
-    "/me/wallet/topup",
-    summary="Hamyonni to'ldirish (to'lov tasdiqlanganidan keyin chaqiriladi)",
-)
-async def topup_wallet(
-    amount: int,
-    current_user: User = Depends(get_current_driver),
-    db: AsyncSession = Depends(get_db),
-):
-    wallet = await wallet_service.topup(db, current_user.id, amount)
-    await db.commit()
-    return {
-        "message": f"Hamyon {amount:,} so'mga to'ldirildi",
-        "new_balance": wallet.balance,
-        "is_blocked": wallet.is_blocked,
-    }
-
-
-@router.post(
     "/me/wallet/withdraw",
     summary="Hamyondan pul yechib olish (karta raqami talab qilinadi)",
 )

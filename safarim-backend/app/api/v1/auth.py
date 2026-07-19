@@ -26,11 +26,14 @@ router = APIRouter()
 async def send_otp(data: SendOtpRequest, request: Request, db: AsyncSession = Depends(get_db)):
     await limit_send_otp(request, data.phone)
     code = await auth_service.send_otp(db, data.phone, data.purpose)
+    # Pilot rejimda OTP javobda qaytadi (SMS yo'q). Allowlist berilgan bo'lsa —
+    # faqat shu raqamlarga; boshqalar OTP'ni Telegram/SMS orqali oladi.
+    allowlist = settings.pilot_otp_allowlist
+    show_otp = settings.PILOT_MODE and (not allowlist or data.phone in allowlist)
     return SendOtpResponse(
         message="Tasdiqlash kodi yuborildi",
         expires_in=settings.OTP_EXPIRE_MINUTES * 60,
-        # Pilot rejimda OTP javobda qaytadi (SMS yo'q). Prod'da PILOT_MODE=false → None.
-        pilot_otp=code if settings.PILOT_MODE else None,
+        pilot_otp=code if show_otp else None,
     )
 
 

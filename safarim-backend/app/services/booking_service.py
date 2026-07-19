@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -18,6 +17,7 @@ from app.models.enums import (
 from app.schemas.booking import BookingCreate
 from app.core.security import calculate_commission
 from app.core.config import settings
+from app.core.timeutils import now_tashkent_naive
 from app.services import notification_service, wallet_service
 from app.models.enums import NotificationRefType
 
@@ -37,11 +37,12 @@ def _load_options():
 
 
 async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate) -> Booking:
-    # Safar mavjudmi?
+    # Safar mavjudmi? (row-lock: parallel bronlarda oversell oldini oladi)
     result = await db.execute(
         select(Trip)
         .options(selectinload(Trip.driver).selectinload(User.driver_profile))
         .where(Trip.id == data.trip_id)
+        .with_for_update(of=Trip)
     )
     trip = result.scalar_one_or_none()
     if not trip:
@@ -177,6 +178,26 @@ async def _update_monthly_commission(db: AsyncSession, driver_id, amount: int) -
         ))
 
 
+async def flag_refund_due(db: AsyncSession, booking: Booking, refund_amount: int) -> None:
+    """Online to'langan bron bekor bo'ldi → refund navbatga: status + admin xabari.
+
+    Pilotда avtomatik pul qaytarish yo'q — admin Click/Payme kabinetidan qo'lda
+    qaytaradi. Bu funksiya faqat belgilaydi va adminга Telegram xabar yuboradi.
+    """
+    from app.services.sms_service import sms_service
+
+    if refund_amount <= 0:
+        return
+    booking.payment_status = BookingPaymentStatus.refunded
+    await sms_service.notify_admin(
+        f"💸 <b>Refund kerak (qo'lda)</b>\n\n"
+        f"Bron: <code>{booking.id}</code>\n"
+        f"Miqdor: <b>{refund_amount:,} so'm</b>\n"
+        f"Usul: <b>{booking.payment_method.value}</b>\n"
+        f"Yo'lovchiga Click/Payme kabineti orqali qaytaring."
+    )
+
+
 async def cancel_booking(
     db: AsyncSession,
     booking_id: str,
@@ -188,6 +209,7 @@ async def cancel_booking(
         select(Booking)
         .options(selectinload(Booking.trip))
         .where(Booking.id == uuid_lib.UUID(booking_id))
+        .with_for_update(of=Booking)
     )
     booking = result.scalar_one_or_none()
     if not booking:
@@ -203,19 +225,37 @@ async def cancel_booking(
     if booking.status not in [BookingStatus.pending, BookingStatus.confirmed]:
         raise HTTPException(status_code=400, detail="Bu bronni bekor qilib bo'lmaydi")
 
-    now = datetime.utcnow()
+    # departure_date/time mahalliy (Toshkent) vaqtda — solishtirish ham shunda
+    now_local = now_tashkent_naive()
     departure_dt = datetime.combine(booking.trip.departure_date, booking.trip.departure_time)
-    hours_left = (departure_dt - now).total_seconds() / 3600
+
+    # Jo'nash vaqtidan keyin bekor qilib bo'lmaydi — safar bo'ldi/bo'lmadi
+    # masalasi tasdiq (confirmation/no-show) oqimi orqali hal qilinadi
+    if now_local >= departure_dt:
+        raise HTTPException(
+            status_code=400,
+            detail="Safar vaqti boshlangan — endi bekor qilib bo'lmaydi. Safar bo'lmagan bo'lsa, tasdiq so'ralganda 'Yo'q' deb belgilang.",
+        )
+
+    hours_left = (departure_dt - now_local).total_seconds() / 3600
+
+    # Refund faqat haqiqatan online to'langan bronda bo'ladi (naqdda pul olinmagan)
+    online_paid = (
+        booking.payment_method != PaymentMethod.cash
+        and booking.payment_status == BookingPaymentStatus.paid
+    )
 
     # Refund hisoblash
     if is_driver:
         # Haydovchi bekor qilsa — yo'lovchiga 100%
-        refund_amount = booking.total_price
+        refund_amount = booking.total_price if online_paid else 0
         cancelled_by = CancelledBy.driver
     else:
         # Yo'lovchi bekor qilsa
         cancelled_by = CancelledBy.passenger
-        if hours_left >= 24:
+        if not online_paid:
+            refund_amount = 0
+        elif hours_left >= 24:
             refund_amount = booking.total_price        # 100%
         else:
             refund_amount = booking.total_price // 2  # 50%
@@ -223,17 +263,19 @@ async def cancel_booking(
     booking.status = BookingStatus.cancelled
     booking.cancelled_by = cancelled_by
     booking.cancellation_reason = reason
-    booking.cancelled_at = now
+    booking.cancelled_at = datetime.utcnow()
     booking.refund_amount = refund_amount
+    await flag_refund_due(db, booking, refund_amount)
 
     # Bildirishnomalar
     if is_driver:
         # Yo'lovchiga xabar
+        refund_note = f" {refund_amount:,} so'm qaytariladi." if refund_amount > 0 else ""
         await notification_service.create(
             db,
             user_id=booking.passenger_id,
             title="Bron bekor qilindi",
-            body=f"Haydovchi bronni bekor qildi. {refund_amount:,} so'm qaytariladi.",
+            body=f"Haydovchi bronni bekor qildi.{refund_note}",
             ref_type=NotificationRefType.booking,
             ref_id=booking.id,
         )
@@ -253,8 +295,10 @@ async def cancel_booking(
                 ref_id=booking.id,
             )
 
-    # O'rinlarni qaytarish
-    trip_result = await db.execute(select(Trip).where(Trip.id == booking.trip_id))
+    # O'rinlarni qaytarish (row-lock: parallel bron/bekor bilan to'qnashmasin)
+    trip_result = await db.execute(
+        select(Trip).where(Trip.id == booking.trip_id).with_for_update(of=Trip)
+    )
     trip = trip_result.scalar_one()
     trip.available_seats += booking.seats_count
     if trip.status == TripStatus.full:
@@ -293,7 +337,6 @@ async def _apply_completion(db: AsyncSession, booking: Booking, driver_id) -> No
     """Safar bo'ldi → status, statistika, hamyon (komissiya/daromad)."""
     booking.status = BookingStatus.completed
     booking.completed_at = datetime.utcnow()
-    booking.payment_status = BookingPaymentStatus.paid
 
     dp_result = await db.execute(
         select(DriverProfile).where(DriverProfile.user_id == driver_id)
@@ -302,22 +345,35 @@ async def _apply_completion(db: AsyncSession, booking: Booking, driver_id) -> No
     if dp:
         dp.total_trips += 1
 
-    if booking.payment_method == PaymentMethod.cash:
-        # Naqd: platforma komissiyasini hamyondan ushib qolish
+    # Online to'lov faqat payment-provider callback'i booking.payment_status=paid
+    # qilganda "to'langan" hisoblanadi — bu yerda uni o'zimiz paid qilmaymiz.
+    online_paid = (
+        booking.payment_method != PaymentMethod.cash
+        and booking.payment_status == BookingPaymentStatus.paid
+    )
+
+    if online_paid:
+        # Online (haqiqatan to'langan): haydovchi ulushini hamyonga o'tkazish
+        await wallet_service.add_earning(
+            db, driver_id, booking.driver_amount, booking_id=booking.id
+        )
+    else:
+        # Naqd yoki to'lanmagan online (pul qo'lda berilgan) —
+        # platforma komissiyasini hamyondan ushib qolish
+        booking.payment_status = BookingPaymentStatus.paid
         await wallet_service.deduct_commission(
             db, driver_id, booking.commission_amount, booking_id=booking.id
         )
         await _update_monthly_commission(db, driver_id, booking.commission_amount)
-    else:
-        # Online: haydovchi ulushini hamyonga o'tkazish
-        await wallet_service.add_earning(
-            db, driver_id, booking.driver_amount, booking_id=booking.id
-        )
 
 
 async def _apply_not_happened(db: AsyncSession, booking: Booking) -> None:
-    """Safar bo'lmadi → komissiya yo'q (tugamadi). Online bo'lsa yo'lovchiga qaytarma."""
-    refund = 0 if booking.payment_method == PaymentMethod.cash else booking.total_price
+    """Safar bo'lmadi → komissiya yo'q (tugamadi). Online to'langan bo'lsa yo'lovchiga qaytarma."""
+    online_paid = (
+        booking.payment_method != PaymentMethod.cash
+        and booking.payment_status == BookingPaymentStatus.paid
+    )
+    refund = booking.total_price if online_paid else 0
     if booking.driver_confirmed == CONFIRM_NO:
         # Haydovchi "kelmadi" dedi → no-show
         booking.status = BookingStatus.no_show
@@ -328,6 +384,7 @@ async def _apply_not_happened(db: AsyncSession, booking: Booking) -> None:
         booking.cancelled_by = CancelledBy.passenger
         booking.cancelled_at = datetime.utcnow()
     booking.refund_amount = refund
+    await flag_refund_due(db, booking, refund)
     # Komissiya ushilmaydi — safar tugamadi
 
 
@@ -452,6 +509,7 @@ async def confirm_booking(
         select(Booking)
         .options(selectinload(Booking.trip))
         .where(Booking.id == uuid_lib.UUID(booking_id))
+        .with_for_update(of=Booking)
     )
     booking = result.scalar_one_or_none()
     if not booking:
@@ -465,9 +523,9 @@ async def confirm_booking(
     if booking.status not in (BookingStatus.confirmed, BookingStatus.awaiting_confirmation):
         raise HTTPException(status_code=400, detail="Bu bron tasdiq bosqichida emas")
 
-    # Safar vaqti hali kelmagan bo'lsa tasdiqlab bo'lmaydi
+    # Safar vaqti hali kelmagan bo'lsa tasdiqlab bo'lmaydi (mahalliy vaqtda)
     departure_dt = datetime.combine(booking.trip.departure_date, booking.trip.departure_time)
-    if datetime.utcnow() < departure_dt:
+    if now_tashkent_naive() < departure_dt:
         raise HTTPException(status_code=400, detail="Safar vaqti hali kelmagan")
 
     # Tasdiq oynasini boshlash (agar hali boshlanmagan bo'lsa)
@@ -527,7 +585,7 @@ async def report_no_show(db: AsyncSession, booking_id: str, driver: User) -> Boo
 
 async def request_due_confirmations(db: AsyncSession) -> int:
     """Jo'nash + grace o'tgan tasdiqlangan bronlar uchun tasdiq oynasini ochadi."""
-    now_local = datetime.now(ZoneInfo("Asia/Tashkent")).replace(tzinfo=None)
+    now_local = now_tashkent_naive()
     grace = timedelta(hours=settings.CONFIRMATION_GRACE_HOURS)
 
     rows = (await db.execute(
@@ -565,7 +623,7 @@ async def admin_resolve_dispute(
     result = await db.execute(
         select(Booking).options(selectinload(Booking.trip)).where(
             Booking.id == uuid_lib.UUID(booking_id)
-        )
+        ).with_for_update(of=Booking)
     )
     booking = result.scalar_one_or_none()
     if not booking:
@@ -614,7 +672,7 @@ async def resolve_due_confirmations(db: AsyncSession) -> int:
             Booking.status == BookingStatus.awaiting_confirmation,
             Booking.confirmation_requested_at.is_not(None),
             Booking.confirmation_requested_at <= cutoff,
-        )
+        ).with_for_update(of=Booking, skip_locked=True)
     )).scalars().all()
 
     resolved = 0

@@ -232,5 +232,6 @@ async def test_cancel_booking_by_passenger(
     data = resp.json()
     assert data["status"] == "cancelled"
     assert data["cancelled_by"] == "passenger"
-    # 2 kun keyin safar → 24h+ oldin → 100% refund
-    assert data["refund_amount"] == 100_000
+    # Naqd bron — hech narsa to'lanmagan, demak refund ham yo'q (0).
+    # (Online to'langan bron bo'lsa 24h+ oldin 100% bo'lar edi.)
+    assert data["refund_amount"] == 0
