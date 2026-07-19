@@ -97,12 +97,19 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                     )}
                   </Link>
 
-                  {/* Create trip */}
-                  {user.is_driver && (
+                  {/* Create trip / Become a driver */}
+                  {user.is_driver ? (
                     <Link href="/create-trip" className="hidden sm:block">
                       <Button size="sm" className="gap-1.5">
                         <Plus size={15} />
                         Safar qo'shish
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link href="/create-trip" className="hidden sm:block">
+                      <Button size="sm" variant="outline" className="gap-1.5">
+                        <Car size={15} />
+                        Haydovchi bo'lish
                       </Button>
                     </Link>
                   )}
@@ -141,7 +148,8 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                                   { href: "/create-trip", icon: Plus, label: "Safar qo'shish" },
                                 ]
                               : [
-                                  { href: "/my-trips", icon: Car, label: "Safarlarim" },
+                                  { href: "/my-trips",    icon: Car,  label: "Safarlarim" },
+                                  { href: "/create-trip", icon: Plus, label: "Haydovchi bo'lish" },
                                 ]),
                           ].map(({ href, icon: Icon, label }) => (
                             <Link

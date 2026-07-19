@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +15,10 @@ import Button from "@/components/ui/Button";
 import LocationPicker, { LocationValue, EMPTY_LOCATION } from "@/components/ui/LocationPicker";
 import { clsx } from "clsx";
 import api from "@/lib/api";
-import { getApiError } from "@/lib/auth";
+import { getApiError, isAuthenticated } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
+import BecomeDriver from "@/components/driver/BecomeDriver";
+import { ProfileSkeleton } from "@/components/ui/Skeleton";
 
 const schema = z.object({
   from_region_id:   z.number({ required_error: "Viloyat tanlang" }).positive("Viloyat tanlang"),
@@ -40,6 +43,20 @@ const STEPS = ["Marshrut", "Vaqt va joy", "Narx", "Qo'shimcha"];
 
 export default function CreateTripPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
+  // Haydovchi bo'lmaganlar uchun ariza holati (gate uchun)
+  const { data: driverStatus, isLoading: statusLoading } = useQuery<{
+    status: "pending" | "approved" | "rejected";
+  }>({
+    queryKey: ["driver-status"],
+    queryFn: async () => {
+      const { data } = await api.get("/drivers/me/status");
+      return data;
+    },
+    enabled: isAuthenticated() && !!user && !user.is_driver,
+    retry: false, // 404 → ariza topshirilmagan, xato emas
+  });
 
   const [step, setStep] = useState(1);
   const [apiError, setApiError] = useState("");
@@ -117,6 +134,25 @@ export default function CreateTripPage() {
     setApiError(msg);
     const targetStep = FIELD_STEP[firstKey];
     if (targetStep) setStep(targetStep);
+  }
+
+  // ── Haydovchi darvozasi ──────────────────────────────────────────────────
+  // Kirmagan yoki haydovchi bo'lmagan foydalanuvchi formani emas,
+  // "Haydovchi bo'ling" onboarding ekranini ko'radi (403 o'rniga).
+  const gateLoading =
+    (isAuthenticated() && authLoading) ||
+    (!!user && !user.is_driver && statusLoading);
+
+  if (gateLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+        <ProfileSkeleton />
+      </div>
+    );
+  }
+
+  if (!user || !user.is_driver) {
+    return <BecomeDriver user={user} applicationStatus={driverStatus?.status} />;
   }
 
   if (mutation.isSuccess) {
