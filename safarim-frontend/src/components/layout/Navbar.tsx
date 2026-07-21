@@ -78,6 +78,20 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                   {link.label}
                 </Link>
               ))}
+              {/* Mehmonga ham haydovchi funnel'i ko'rinsin (kirganlarga o'ngdagi tugma bor) */}
+              {!user && (
+                <Link
+                  href="/create-trip"
+                  className={clsx(
+                    "px-4 py-2 rounded-xl text-sm font-medium transition-colors",
+                    pathname === "/create-trip"
+                      ? "text-primary-600 bg-primary-50"
+                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  )}
+                >
+                  Haydovchi bo'lish
+                </Link>
+              )}
             </nav>
 
             {/* Right */}
@@ -217,6 +231,22 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                   {link.label}
                 </Link>
               ))}
+              {/* Haydovchi bo'lmaganlarga (mehmon ham, yo'lovchi ham) — haydovchi funnel'i */}
+              {!user?.is_driver && (
+                <Link
+                  href="/create-trip"
+                  onClick={() => setMobileOpen(false)}
+                  className={clsx(
+                    "flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
+                    pathname === "/create-trip"
+                      ? "text-primary-600 bg-primary-50"
+                      : "text-gray-700 hover:bg-gray-50"
+                  )}
+                >
+                  <Car size={16} className="text-gray-400" />
+                  Haydovchi bo'lish
+                </Link>
+              )}
               {!user && (
                 <Link
                   href="/login"
