@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, User, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { Phone, User, Lock, Eye, EyeOff, CheckCircle2, Car, Users, ChevronRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,6 +35,7 @@ const STEPS = ["Telefon", "Tasdiqlash", "Ma'lumotlar"];
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [role, setRole] = useState<"passenger" | "driver" | null>(null);
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -106,8 +107,9 @@ export default function RegisterPage() {
         password: data.password,
       });
       saveTokens(tokens);
-      // Yangi foydalanuvchi yo'lovchi — o'z dashboardiga
-      router.push("/my-trips");
+      // Haydovchi bo'lishni tanlagan bo'lsa — to'g'ridan-to'g'ri ariza formasiga
+      // (mashina + guvohnoma → tekshiruv). Aks holda yo'lovchi dashboardiga.
+      router.push(role === "driver" ? "/profile/driver-apply" : "/my-trips");
     } catch (err: any) {
       const msg = getApiError(err);
       if (msg.toLowerCase().includes("otp") || msg.toLowerCase().includes("kod")) {
@@ -129,6 +131,68 @@ export default function RegisterPage() {
           Kirish
         </Link>
       </p>
+
+      {/* ── Rol tanlash (birinchi qadam) ── */}
+      {!role && (
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-gray-700 mb-1">Kim sifatida ro'yxatdan o'tasiz?</p>
+
+          <button
+            type="button"
+            onClick={() => { setRole("passenger"); setStep(1); }}
+            className="w-full flex items-center gap-4 bg-white rounded-2xl border border-gray-200 p-5 text-left hover:border-primary-300 hover:shadow-card transition-all"
+          >
+            <div className="w-11 h-11 bg-primary-50 rounded-xl flex items-center justify-center shrink-0">
+              <Users size={20} className="text-primary-500" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-gray-900">Yo'lovchi</p>
+              <p className="text-sm text-gray-500 mt-0.5">Safar qidiring va band qiling</p>
+            </div>
+            <ChevronRight size={18} className="text-gray-300" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setRole("driver"); setStep(1); }}
+            className="w-full flex items-center gap-4 bg-white rounded-2xl border border-gray-200 p-5 text-left hover:border-primary-300 hover:shadow-card transition-all"
+          >
+            <div className="w-11 h-11 bg-primary-50 rounded-xl flex items-center justify-center shrink-0">
+              <Car size={20} className="text-primary-500" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-gray-900">Haydovchi</p>
+              <p className="text-sm text-gray-500 mt-0.5">Safar e'lon qiling va daromad qiling</p>
+            </div>
+            <ChevronRight size={18} className="text-gray-300" />
+          </button>
+
+          <p className="text-xs text-gray-400 text-center pt-2 leading-relaxed">
+            Haydovchi bo'lish uchun avval hisob yaratasiz, so'ng mashina
+            ma'lumotlari va guvohnomangizni yuklaysiz (1–3 ish kuni tekshiruv).
+          </p>
+        </div>
+      )}
+
+      {/* ── Ro'yxatdan o'tish qadamlari (rol tanlangach) ── */}
+      {role && (
+      <>
+      {/* Tanlangan rol + o'zgartirish */}
+      <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5 mb-6">
+        <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          {role === "driver"
+            ? <Car size={15} className="text-primary-500" />
+            : <Users size={15} className="text-primary-500" />}
+          {role === "driver" ? "Haydovchi" : "Yo'lovchi"} sifatida
+        </span>
+        <button
+          type="button"
+          onClick={() => { setRole(null); setStep(1); }}
+          className="text-xs text-primary-600 font-medium hover:underline"
+        >
+          O'zgartirish
+        </button>
+      </div>
 
       {/* Step indikator */}
       <div className="flex items-center gap-2 mb-8">
@@ -315,6 +379,8 @@ export default function RegisterPage() {
             </Button>
           </div>
         </form>
+      )}
+      </>
       )}
     </>
   );
