@@ -21,20 +21,28 @@ const MAKES = [
 ];
 
 const MODELS_BY_MAKE: Record<string, string[]> = {
-  "Chevrolet": ["Malibu", "Lacetti", "Gentra", "Cobalt", "Spark", "Equinox", "Captiva", "Silverado"],
-  "Hyundai":   ["Accent", "Elantra", "Sonata", "Tucson", "Santa Fe", "Creta"],
-  "Kia":       ["Rio", "Cerato", "Optima", "Sportage", "Sorento", "K5"],
-  "Toyota":    ["Camry", "Corolla", "RAV4", "Prado", "Hilux", "Yaris"],
-  "Nexia (Ravon)": ["Nexia 3", "Damas", "Labo", "R2", "R3", "R4"],
-  "Daewoo":    ["Nexia", "Matiz", "Damas", "Tico"],
-  "Mercedes-Benz": ["C-Class", "E-Class", "S-Class", "GLE", "GLC"],
-  "BMW":       ["3 Series", "5 Series", "7 Series", "X3", "X5", "X6"],
-  "Volkswagen":["Polo", "Passat", "Tiguan", "Golf"],
-  "Honda":     ["Civic", "Accord", "CR-V", "HR-V"],
-  "Nissan":    ["Sentra", "Almera", "Qashqai", "X-Trail", "Patrol"],
-  "Mitsubishi":["Lancer", "Outlander", "Pajero", "Eclipse Cross"],
+  "Chevrolet": [
+    "Cobalt", "Gentra", "Lacetti", "Nexia 3", "Malibu", "Malibu 2",
+    "Spark", "Matiz", "Onix", "Tracker", "Tracker 2", "Captiva",
+    "Orlando", "Epica", "Aveo", "Monza", "Damas", "Labo",
+    "Equinox", "Traverse", "Tahoe", "Trailblazer", "Silverado",
+  ],
+  "Hyundai":   ["Accent", "Elantra", "Sonata", "Tucson", "Santa Fe", "Creta", "Solaris", "i30", "Grandeur", "Palisade", "Staria", "H-1"],
+  "Kia":       ["Rio", "Cerato", "Optima", "K5", "Sportage", "Sorento", "Sonet", "Seltos", "Carnival", "Picanto", "Soul"],
+  "Toyota":    ["Camry", "Corolla", "RAV4", "Prado", "Land Cruiser", "Hilux", "Yaris", "Avalon", "Highlander", "Fortuner", "Venza"],
+  "Nexia (Ravon)": ["Nexia 3", "Gentra", "Cobalt", "R2", "R3", "R4", "Matiz", "Damas"],
+  "Daewoo":    ["Nexia", "Nexia 2", "Matiz", "Damas", "Labo", "Tico", "Gentra", "Lacetti"],
+  "Mercedes-Benz": ["C-Class", "E-Class", "S-Class", "A-Class", "GLA", "GLC", "GLE", "GLS", "Sprinter", "Vito", "Viano"],
+  "BMW":       ["3 Series", "5 Series", "7 Series", "X1", "X3", "X5", "X6", "X7"],
+  "Volkswagen":["Polo", "Jetta", "Passat", "Golf", "Tiguan", "Touareg", "Caravelle", "Transporter"],
+  "Honda":     ["Civic", "Accord", "CR-V", "HR-V", "Pilot", "Odyssey"],
+  "Nissan":    ["Sentra", "Almera", "Sunny", "Qashqai", "X-Trail", "Murano", "Patrol", "Pathfinder"],
+  "Mitsubishi":["Lancer", "ASX", "Outlander", "Pajero", "Montero", "Eclipse Cross", "L200"],
   "Boshqa":    [],
 };
+
+// Model select oxirida "o'zi kiritish" varianti uchun sentinel qiymati
+const MODEL_CUSTOM = "__custom__";
 
 const COLORS = [
   { value: "Oq",        hex: "#ffffff" },
@@ -130,6 +138,14 @@ function Step1Form({
   const models = data.vehicle_make ? (MODELS_BY_MAKE[data.vehicle_make] ?? []) : [];
   const currentYear = new Date().getFullYear();
 
+  // Ro'yxatda modeli yo'q haydovchi o'zi yozishi mumkin.
+  // "Boshqa" brend yoki bo'sh ro'yxat — doim qo'lda kiritish.
+  const [customModel, setCustomModel] = useState(false);
+  // Brend o'zgarganda qo'lda-kiritish rejimini tiklash
+  useEffect(() => { setCustomModel(false); }, [data.vehicle_make]);
+
+  const useTextModel = customModel || data.vehicle_make === "Boshqa" || !models.length;
+
   const plateEntered = data.vehicle_plate.trim().length > 0;
   const plateValid = isValidUzPlate(data.vehicle_plate);
 
@@ -164,21 +180,42 @@ function Step1Form({
         {/* Model */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Model</label>
-          {data.vehicle_make === "Boshqa" || !models.length ? (
-            <Input
-              placeholder="Masalan: Nexia, Camry..."
-              value={data.vehicle_model}
-              onChange={(e) => onChange("vehicle_model", e.target.value)}
-            />
+          {useTextModel ? (
+            <>
+              <Input
+                placeholder="Modelni yozing (masalan: Nexia, Camry...)"
+                value={data.vehicle_model}
+                onChange={(e) => onChange("vehicle_model", e.target.value)}
+                autoFocus={customModel}
+              />
+              {/* Ro'yxat mavjud bo'lsa — unga qaytish imkoni */}
+              {models.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setCustomModel(false); onChange("vehicle_model", ""); }}
+                  className="text-xs text-primary-600 hover:text-primary-700 mt-1.5"
+                >
+                  ← Ro'yxatdan tanlash
+                </button>
+              )}
+            </>
           ) : (
             <select
               value={data.vehicle_model}
-              onChange={(e) => onChange("vehicle_model", e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === MODEL_CUSTOM) {
+                  setCustomModel(true);
+                  onChange("vehicle_model", "");
+                } else {
+                  onChange("vehicle_model", e.target.value);
+                }
+              }}
               disabled={!data.vehicle_make}
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white appearance-none outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50"
             >
               <option value="">Model tanlang</option>
               {models.map((m) => <option key={m} value={m}>{m}</option>)}
+              <option value={MODEL_CUSTOM}>Boshqa (o'zim kiritaman)…</option>
             </select>
           )}
         </div>
