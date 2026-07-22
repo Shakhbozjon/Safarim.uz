@@ -249,7 +249,7 @@ function Step1Form({
                   "w-9 h-9 rounded-xl border-2 transition-all flex items-center justify-center",
                   data.vehicle_color === value
                     ? "border-primary-500 scale-110 shadow-md"
-                    : "border-transparent hover:border-gray-300"
+                    : "border-gray-200 hover:border-gray-300"
                 )}
                 style={{ background: hex }}
               >
