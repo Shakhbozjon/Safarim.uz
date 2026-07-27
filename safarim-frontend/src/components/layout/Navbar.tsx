@@ -7,6 +7,7 @@ import { Menu, X, Bell, Plus, User, LogOut, ChevronDown, Car } from "lucide-reac
 import { clsx } from "clsx";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
+import Logo from "@/components/ui/Logo";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadCount } from "@/hooks/useNotifications";
 
@@ -53,13 +54,8 @@ export default function Navbar({ transparent = false }: NavbarProps) {
           <div className="flex items-center justify-between h-16">
 
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 shrink-0">
-              <div className="w-8 h-8 bg-primary-500 rounded-xl flex items-center justify-center shadow-sm">
-                <Car size={16} className="text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">
-                Safarim<span className="text-primary-500">.uz</span>
-              </span>
+            <Link href="/" className="shrink-0">
+              <Logo size={36} />
             </Link>
 
             {/* Desktop nav */}

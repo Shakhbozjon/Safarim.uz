@@ -9,27 +9,44 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Asosiy — ko'k/indigo (redesign: oklch hue ~258)
         primary: {
-          50:  "#fff7ed",
-          100: "#ffedd5",
-          200: "#fed7aa",
-          300: "#fdba74",
-          400: "#fb923c",
-          500: "#f97316",
-          600: "#ea580c",
-          700: "#c2410c",
-          800: "#9a3412",
-          900: "#7c2d12",
+          50:  "#eef3fc",
+          100: "#dde6fa",
+          200: "#c2d1f6",
+          300: "#9db3f0",
+          400: "#6d8bea",
+          500: "#3b5bdb",
+          600: "#2f49c2",
+          700: "#2839a0",
+          800: "#243081",
+          900: "#20295f",
+        },
+        // Urg'u — yashil (.uz, narxlar, tasdiqlangan)
+        accent: {
+          50:  "#e7f7ef",
+          100: "#c8efdb",
+          200: "#93e0bb",
+          300: "#56cd97",
+          400: "#22b877",
+          500: "#12a65f",
+          600: "#0b8c4e",
+          700: "#0b7a44",
+          800: "#0a6338",
+          900: "#084f2d",
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "sans-serif"],
+        sans: ["var(--font-manrope)", "var(--font-inter)", "sans-serif"],
       },
       boxShadow: {
         card: "0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04)",
         "card-hover": "0 8px 24px 0 rgb(0 0 0 / 0.09), 0 2px 6px -1px rgb(0 0 0 / 0.06)",
         "card-lg": "0 12px 40px 0 rgb(0 0 0 / 0.10)",
         "nav": "0 1px 0 0 rgb(0 0 0 / 0.06)",
+        // Redesign — rangli yumshoq soyalar
+        "primary-glow": "0 8px 20px -8px rgb(59 91 219 / 0.55)",
+        "float": "0 24px 56px -24px rgb(35 48 129 / 0.28), 0 2px 6px -2px rgb(35 48 129 / 0.08)",
       },
       animation: {
         "fade-in": "fadeIn 0.2s ease-out",

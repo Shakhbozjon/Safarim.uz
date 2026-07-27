@@ -1,428 +1,288 @@
 import Link from "next/link";
-import { Shield, Star, MapPin, ChevronRight, Users, Car, TrendingUp, UserPlus, FileText, CheckCircle } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import SearchBar from "@/components/trips/SearchBar";
-import Button from "@/components/ui/Button";
+import HeroSearchCard from "@/components/trips/HeroSearchCard";
 
-const POPULAR_ROUTES = [
-  { from: "Toshkent", to: "Samarqand", duration: "3s 30d", price: 45_000, tripsPerDay: 24 },
-  { from: "Toshkent", to: "Namangan",  duration: "4s 20d", price: 55_000, tripsPerDay: 18 },
-  { from: "Toshkent", to: "Buxoro",    duration: "5s 10d", price: 65_000, tripsPerDay: 12 },
-  { from: "Samarqand", to: "Buxoro",   duration: "2s 15d", price: 30_000, tripsPerDay: 10 },
-  { from: "Toshkent", to: "Farg'ona",  duration: "4s 50d", price: 60_000, tripsPerDay: 16 },
-  { from: "Toshkent", to: "Nukus",     duration: "9s",     price: 120_000, tripsPerDay: 6 },
+const QUICK = [
+  { from: "Toshkent", to: "Samarqand" },
+  { from: "Toshkent", to: "Namangan" },
+  { from: "Toshkent", to: "Buxoro" },
+];
+
+const STATS = [
+  { value: "50 000+", label: "Foydalanuvchi" },
+  { value: "120 000+", label: "Muvaffaqiyatli safar" },
+  { value: "14", label: "Viloyat qamrovi" },
+  { value: "4.8 ★", label: "O'rtacha reyting" },
 ];
 
 const STEPS = [
-  {
-    icon: MapPin,
-    title: "Safar toping",
-    desc: "Kerakli shahar va sanani kiriting. Yuzlab safarlar ichidan eng qulayin tanlang.",
-    color: "bg-blue-50 text-blue-600",
-  },
-  {
-    icon: Users,
-    title: "Joy band qiling",
-    desc: "Haydovchi va safar ma'lumotlarini ko'rib, xavfsiz to'lov orqali joy band qiling.",
-    color: "bg-primary-50 text-primary-600",
-  },
-  {
-    icon: Car,
-    title: "Safaringizni boshlang",
-    desc: "Haydovchi bilan bog'laning va yo'lga chiqing. Arzon va qulay safar sizni kutadi!",
-    color: "bg-green-50 text-green-600",
-  },
+  { n: 1, title: "Safar toping", desc: "Shahar va sanani kiriting. Yuzlab safarlar ichidan eng qulayini tanlang." },
+  { n: 2, title: "Joy band qiling", desc: "Haydovchi profili va reytingini ko'rib, xavfsiz joy band qiling." },
+  { n: 3, title: "Yo'lga chiqing", desc: "Haydovchi bilan bog'laning va safarni boshlang — arzon, tez va qulay." },
+];
+
+const ROUTES = [
+  { from: "Toshkent", to: "Samarqand", dur: "3s 30d", freq: "kuniga 24 safar", price: "45 000" },
+  { from: "Toshkent", to: "Namangan", dur: "4s 20d", freq: "kuniga 18 safar", price: "55 000" },
+  { from: "Toshkent", to: "Buxoro", dur: "5s 10d", freq: "kuniga 12 safar", price: "65 000" },
+  { from: "Samarqand", to: "Buxoro", dur: "2s 15d", freq: "kuniga 10 safar", price: "30 000" },
+  { from: "Toshkent", to: "Farg'ona", dur: "4s 50d", freq: "kuniga 16 safar", price: "60 000" },
+  { from: "Toshkent", to: "Nukus", dur: "9s", freq: "kuniga 6 safar", price: "120 000" },
+];
+
+const SAFETY = [
+  { title: "Tasdiqlangan haydovchilar", desc: "Barcha haydovchilar hujjat tekshiruvi va reyting tizimidan o'tadi." },
+  { title: "Reyting va sharhlar", desc: "Har safardan keyin yo'lovchi va haydovchi bir-birini baholaydi." },
+  { title: "Raqam himoyasi", desc: "Telefon raqamlar faqat bron tasdiqlangandan keyin ko'rinadi." },
+];
+
+const EARNINGS = [
+  { value: "0%", label: "Ro'yxatdan o'tish to'lovi" },
+  { value: "2–5%", label: "Faqat muvaffaqiyatli brondan" },
+  { value: "1–2 kun", label: "Ariza tasdiqlash muddati" },
 ];
 
 const TESTIMONIALS = [
-  {
-    name: "Nodira Karimova",
-    city: "Toshkent",
-    text: "Har hafta Samarqandga boradigan bo'ldim. Safarim.uz orqali har doim qulay joy topaman va narxi juda qulay!",
-    rating: 5,
-    initials: "NK",
-    color: "bg-violet-500",
-  },
-  {
-    name: "Jasur Rahimov",
-    city: "Samarqand",
-    desc: "Haydovchi",
-    text: "Toshkentga har kuni ketaman. Safarim.uz orqali yo'lovchi topaman va yoqilg'i xarajatimni qoplayman.",
-    rating: 5,
-    initials: "JR",
-    color: "bg-blue-500",
-  },
-  {
-    name: "Malika Yusupova",
-    city: "Farg'ona",
-    text: "Xavfsiz va qulay. Haydovchilar tasdiqlangan, reyting tizimi bor. Ishonch bilan foydalanaman.",
-    rating: 5,
-    initials: "MY",
-    color: "bg-pink-500",
-  },
+  { name: "Nodira Karimova", city: "Toshkent", initials: "NK", text: "Har hafta Samarqandga boraman. Safarim.uz orqali har doim qulay joy topaman, narxi ham arzon." },
+  { name: "Jasur Rahimov", city: "Samarqand", initials: "JR", text: "Toshkentga har kuni qatnayman. Yo'lovchi topib, yoqilg'i xarajatimni to'liq qoplayapman." },
+  { name: "Malika Yusupova", city: "Farg'ona", initials: "MY", text: "Xavfsiz va qulay. Haydovchilar tasdiqlangan, reyting tizimi bor — ishonch bilan foydalanaman." },
 ];
 
-function formatPrice(n: number) {
-  return new Intl.NumberFormat("uz-UZ").format(n);
-}
+const H2 = "text-[clamp(26px,4vw,38px)] font-extrabold tracking-tight text-gray-900";
+const EYEBROW = "text-[12.5px] font-bold uppercase tracking-[0.08em] text-primary-600 mb-3";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Navbar transparent />
 
-      {/* ═══ HERO ═══════════════════════════════════════════════════════ */}
-      <section className="gradient-hero pt-24 pb-16 sm:pt-32 sm:pb-24 relative overflow-hidden">
-        {/* Decorative blobs */}
-        <div className="absolute -top-20 -right-20 w-96 h-96 bg-primary-100/60 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-primary-50/80 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm text-primary-700 text-sm font-medium px-4 py-2 rounded-full border border-primary-100 mb-6 shadow-sm">
-            <TrendingUp size={14} />
-            O'zbekistondagi #1 carpooling platformasi
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 leading-tight tracking-tight mb-5 text-balance">
-            O'zbekiston bo'ylab{" "}
-            <span className="text-primary-500">qulay safar</span>
-          </h1>
-
-          <p className="text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Haydovchi va yo'lovchilarni birlashtiruvchi platforma. Yoqilg'i xarajatini bo'ling, arzon boring.
-          </p>
-
-          <div className="max-w-5xl mx-auto">
-            <SearchBar />
-          </div>
-
-          {/* Quick routes */}
-          <div className="flex flex-wrap justify-center gap-2 mt-6">
-            {["Toshkent → Samarqand", "Toshkent → Namangan", "Toshkent → Buxoro"].map((route) => (
-              <Link
-                key={route}
-                href={`/trips?from=${route.split(" → ")[0]}&to=${route.split(" → ")[1]}`}
-                className="text-sm text-gray-500 hover:text-primary-600 bg-white/70 hover:bg-primary-50 border border-gray-200 hover:border-primary-200 px-4 py-2 rounded-full transition-colors"
-              >
-                {route}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ STATS ═══════════════════════════════════════════════════════ */}
-      <section className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { value: "50,000+", label: "Foydalanuvchi" },
-              { value: "120,000+", label: "Muvaffaqiyatli safar" },
-              { value: "14", label: "Viloyat qamrovi" },
-              { value: "4.8 ★", label: "O'rtacha reyting" },
-            ].map(({ value, label }) => (
-              <div key={label} className="text-center">
-                <p className="text-3xl font-bold text-gray-900 tabular-nums">{value}</p>
-                <p className="text-sm text-gray-500 mt-1">{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ HOW IT WORKS ═══════════════════════════════════════════════ */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-              Qanday ishlaydi?
-            </h2>
-            <p className="text-gray-500 text-lg max-w-lg mx-auto">
-              3 ta oddiy qadam bilan safaringizni boshlang
+      {/* ═══ HERO ═══ */}
+      <section className="relative overflow-hidden gradient-hero">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-14 sm:pt-16 sm:pb-20 grid gap-10 lg:gap-14 items-center lg:grid-cols-2">
+          {/* Left */}
+          <div className="min-w-0">
+            <h1 className="text-[clamp(32px,5.6vw,54px)] leading-[1.06] font-extrabold tracking-[-0.035em] text-gray-900 mb-4 text-balance">
+              O'zbekiston bo'ylab<br />qulay safar
+            </h1>
+            <p className="text-[clamp(16px,1.6vw,18px)] leading-relaxed text-gray-500 mb-8 max-w-[460px]">
+              Haydovchi va yo'lovchilarni birlashtiruvchi platforma. Yoqilg'i xarajatini bo'ling — arzon, tez va xavfsiz boring.
             </p>
-          </div>
 
-          <div className="grid sm:grid-cols-3 gap-8">
-            {STEPS.map(({ icon: Icon, title, desc, color }, i) => (
-              <div key={i} className="bg-white rounded-2xl p-8 border border-gray-100 hover:shadow-card-hover transition-shadow text-center relative">
-                <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center mx-auto mb-5`}>
-                  <Icon size={26} />
-                </div>
-                <div className="absolute -top-3 -right-3 w-7 h-7 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-xs font-bold text-gray-400 shadow-sm">
-                  {i + 1}
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            <HeroSearchCard />
 
-      {/* ═══ POPULAR ROUTES ═══════════════════════════════════════════ */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-end justify-between mb-10">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Mashhur yo'nalishlar</h2>
-              <p className="text-gray-500">Eng ko'p qidirilgan marshrutlar</p>
-            </div>
-            <Link href="/trips" className="hidden sm:flex items-center gap-1 text-primary-600 text-sm font-medium hover:gap-2 transition-all">
-              Barchasi <ChevronRight size={16} />
-            </Link>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {POPULAR_ROUTES.map((route) => (
-              <Link
-                key={`${route.from}-${route.to}`}
-                href={`/trips?from=${route.from}&to=${route.to}`}
-                className="group flex items-center justify-between bg-gray-50 hover:bg-primary-50 border border-gray-100 hover:border-primary-200 rounded-2xl px-5 py-4 transition-all duration-200"
-              >
-                <div>
-                  <div className="flex items-center gap-2 text-base font-semibold text-gray-900 mb-1">
-                    <span>{route.from}</span>
-                    <ChevronRight size={14} className="text-gray-400 group-hover:text-primary-500 transition-colors" />
-                    <span>{route.to}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
-                    <span>{route.duration}</span>
-                    <span>·</span>
-                    <span>Kuniga {route.tripsPerDay} ta safar</span>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-base font-bold text-gray-900 tabular-nums">
-                    {formatPrice(route.price)} so'm
-                  </p>
-                  <p className="text-xs text-gray-400">dan boshlab</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-6 text-center sm:hidden">
-            <Link href="/trips">
-              <Button variant="outline">Barcha safarlarni ko'rish</Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ SAFETY ═══════════════════════════════════════════════════ */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 text-sm font-medium px-4 py-2 rounded-full mb-6">
-                <Shield size={14} />
-                Xavfsizlik prioritet
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-5 leading-tight">
-                Ishonchli va <br />xavfsiz safar
-              </h2>
-              <p className="text-gray-500 text-lg leading-relaxed mb-8">
-                Har bir haydovchi tekshirilgan va tasdiqlanadi. Sizning xavfsizligingiz biz uchun eng muhim.
-              </p>
-              <div className="space-y-4">
-                {[
-                  { icon: Shield, title: "Tasdiqlangan haydovchilar", desc: "Barcha haydovchilar hujjat tekshiruv va reyting tizimidan o'tadi" },
-                  { icon: Star, title: "Reyting va sharhlar", desc: "Har bir safardan keyin yo'lovchi va haydovchi bir-birini baholaydi" },
-                  { icon: Users, title: "Telefon raqam himoyasi", desc: "Raqamlar faqat bron tasdiqlangandan keyin ko'rinadi" },
-                ].map(({ icon: Icon, title, desc }) => (
-                  <div key={title} className="flex gap-4">
-                    <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
-                      <Icon size={18} className="text-primary-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{title}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Illustration card */}
-            <div className="relative hidden md:block">
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-card-lg p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">JR</div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Jasur Rahimov</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {[1,2,3,4,5].map(i => <Star key={i} size={12} className="fill-yellow-400 text-yellow-400" />)}
-                      <span className="text-xs text-gray-400 ml-1">4.9 (127 sharh)</span>
-                    </div>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="bg-green-50 text-green-700 text-xs font-medium px-3 py-1 rounded-full">Tasdiqlangan ✓</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl">
-                    <div className="route-dot-from" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Toshkent</p>
-                      <p className="text-xs text-gray-400">08:00</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl">
-                    <div className="route-dot-to" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Samarqand</p>
-                      <p className="text-xs text-gray-400">11:30</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-50">
-                  <div>
-                    <p className="text-xs text-gray-400">Narx</p>
-                    <p className="text-lg font-bold text-gray-900">45,000 so'm</p>
-                  </div>
-                  <Button size="sm">Joy band qilish</Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ DRIVER CTA ═══════════════════════════════════════════════ */}
-      <section className="py-20 bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-
-          {/* ── Sarlavha ── */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-primary-500/10 text-primary-400 text-sm font-medium px-4 py-2 rounded-full mb-4">
-              <Car size={14} />
-              Haydovchilar uchun
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-              Haydovchi bo'lish — 4 ta qadam
-            </h2>
-            <p className="text-gray-400 text-lg max-w-xl mx-auto">
-              Ariza yuboring, hujjatlaringizni tasdiqlating va safardan pul ishlashni boshlang
-            </p>
-          </div>
-
-          {/* ── 4 qadam ── */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
-            {[
-              {
-                icon: UserPlus,
-                step: "1",
-                title: "Ro'yxatdan o'ting",
-                desc: "Telefon raqamingiz bilan bir daqiqada ro'yxatdan o'ting",
-              },
-              {
-                icon: Car,
-                step: "2",
-                title: "Avtomobil ma'lumotlari",
-                desc: "Mashina modeli, yili, rangi va o'rindiqlar sonini kiriting",
-              },
-              {
-                icon: FileText,
-                step: "3",
-                title: "Hujjat yuklang",
-                desc: "Haydovchilik guvohnomasi va texnik pasport rasmini yuklang",
-              },
-              {
-                icon: CheckCircle,
-                step: "4",
-                title: "Tasdiqlashni kuting",
-                desc: "Admin 1–2 ish kuni ichida arizangizni ko'rib, tasdiqlaydi",
-              },
-            ].map(({ icon: Icon, step, title, desc }) => (
-              <div key={step} className="relative bg-gray-800 rounded-2xl p-6 border border-gray-700 hover:border-primary-500/40 transition-colors">
-                <span className="absolute top-4 right-5 text-5xl font-black text-gray-700 leading-none select-none">
-                  {step}
-                </span>
-                <div className="w-11 h-11 bg-primary-500/15 rounded-xl flex items-center justify-center mb-4">
-                  <Icon size={22} className="text-primary-400" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">{title}</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Marketing qism ── */}
-          <div className="grid md:grid-cols-2 gap-12 items-center pt-4 border-t border-gray-800">
-            <div>
-              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4 leading-tight">
-                Yo'lingizda pul ishlang
-              </h3>
-              <p className="text-gray-400 leading-relaxed mb-7">
-                Har kuni bir yo'nalishda borasizmi? Yo'lovchi olib boring, yoqilg'i xarajatini bo'ling va qo'shimcha daromad oling.
-              </p>
-              <div className="grid grid-cols-3 gap-5 mb-8">
-                {[
-                  { value: "0%",   label: "Ro'yxatdan o'tish to'lovi" },
-                  { value: "2–5%", label: "Faqat muvaffaqiyatli brondan" },
-                  { value: "1–2",  label: "Ish kuni ichida tasdiqlanadi" },
-                ].map(({ value, label }) => (
-                  <div key={label}>
-                    <p className="text-2xl font-bold text-primary-400 tabular-nums">{value}</p>
-                    <p className="text-xs text-gray-500 mt-1 leading-tight">{label}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Link href="/profile/driver-apply">
-                  <Button size="lg">Hoziroq ariza yuboring</Button>
+            <div className="flex flex-wrap gap-2 mt-4 items-center">
+              <span className="text-[13px] text-gray-500">Mashhur:</span>
+              {QUICK.map((r) => (
+                <Link
+                  key={`${r.from}-${r.to}`}
+                  href={`/trips?from=${r.from}&to=${r.to}`}
+                  className="text-[13px] font-semibold text-gray-600 bg-white border border-gray-200 hover:border-primary-300 hover:text-primary-600 px-3 py-2 rounded-full transition-colors"
+                >
+                  {r.from} → {r.to}
                 </Link>
-                <Link href="/register">
-                  <Button variant="outline" size="lg" className="border-gray-600 text-gray-300 hover:bg-gray-800">
-                    Avval ro'yxatdan o'ting
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            <div className="hidden md:grid grid-cols-2 gap-4">
-              {[
-                { title: "Toshkent → Samarqand", earning: "+36,000 so'm", trips: "Kuniga 1 ta safar" },
-                { title: "Toshkent → Namangan",  earning: "+44,000 so'm", trips: "Kuniga 1 ta safar" },
-                { title: "Samarqand → Buxoro",   earning: "+24,000 so'm", trips: "Kuniga 1 ta safar" },
-                { title: "Toshkent → Farg'ona",  earning: "+48,000 so'm", trips: "Kuniga 1 ta safar" },
-              ].map(({ title, earning, trips }) => (
-                <div key={title} className="bg-gray-800 rounded-2xl p-5 border border-gray-700">
-                  <p className="text-sm text-gray-400 mb-2">{title}</p>
-                  <p className="text-xl font-bold text-green-400 tabular-nums">{earning}</p>
-                  <p className="text-xs text-gray-500 mt-1">{trips}</p>
-                </div>
               ))}
             </div>
           </div>
 
+          {/* Right — floating trip card */}
+          <div className="hidden lg:flex justify-center min-w-0">
+            <div className="w-full max-w-[420px] relative">
+              <div
+                className="absolute -top-3.5 -right-1.5 z-10 bg-white border border-gray-100 rounded-[13px] px-4 py-2.5 shadow-card-lg"
+                style={{ animation: "floaty 5s ease-in-out infinite" }}
+              >
+                <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Bugun</div>
+                <div className="text-[15px] font-extrabold text-accent-600">248 ta safar</div>
+              </div>
+
+              <div
+                className="rounded-[22px] p-7 text-white"
+                style={{
+                  background: "linear-gradient(158deg,#3f60df,#232f83)",
+                  boxShadow: "0 30px 64px -28px rgb(35 48 129 / 0.7)",
+                }}
+              >
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-[42px] h-[42px] rounded-full bg-white/20 flex items-center justify-center font-extrabold text-sm shrink-0">JR</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] font-bold">Jasur Rahimov</div>
+                    <div className="text-[12.5px] opacity-75">4.9 ★ · 127 sharh</div>
+                  </div>
+                  <span className="text-[11.5px] bg-accent-500 px-2.5 py-1 rounded-full font-bold shrink-0">Tasdiqlangan</span>
+                </div>
+
+                <div className="flex items-center gap-3.5 py-5 border-y border-white/20">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[22px] font-extrabold tracking-tight">Toshkent</div>
+                    <div className="text-[13px] opacity-75">08:00</div>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 opacity-75 shrink-0">
+                    <div className="text-[11px]">3s 30d</div>
+                    <div className="w-9 h-px bg-white/50" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-right">
+                    <div className="text-[22px] font-extrabold tracking-tight">Samarqand</div>
+                    <div className="text-[13px] opacity-75">11:30</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3.5 flex-wrap pt-5">
+                  <div>
+                    <div className="text-[11.5px] opacity-70 uppercase tracking-wide">Bir o'rin</div>
+                    <div className="text-[24px] font-extrabold tracking-tight">45 000 so'm</div>
+                  </div>
+                  <Link href="/trips" className="bg-white text-primary-700 px-5 py-3 rounded-[11px] font-bold text-[14.5px] shrink-0 hover:bg-gray-50 transition-colors">
+                    Joy band qilish
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ═══ TESTIMONIALS ═══════════════════════════════════════════ */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Foydalanuvchilar nima deydi?</h2>
-            <p className="text-gray-500">Minglab mamnun foydalanuvchilarimizdan ba'zilari</p>
+      {/* ═══ STATS ═══ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <div className="border border-gray-100 bg-white rounded-[18px] p-6 sm:p-9 grid grid-cols-2 md:grid-cols-4 gap-6 shadow-card">
+          {STATS.map((s) => (
+            <div key={s.label} className="text-center">
+              <div className="text-[clamp(26px,3.4vw,34px)] font-extrabold tracking-tight text-primary-500">{s.value}</div>
+              <div className="text-[13.5px] text-gray-500 mt-1.5">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ HOW IT WORKS ═══ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 w-full">
+        <div className="text-center mb-10 sm:mb-14">
+          <div className={EYEBROW}>Qanday ishlaydi</div>
+          <h2 className={H2 + " mb-2.5 text-balance"}>3 ta qadamda yo'lga chiqing</h2>
+          <p className="text-gray-500 text-base max-w-[440px] mx-auto">Ro'yxatdan o'tishdan safar boshlanishiga qadar bir necha daqiqa</p>
+        </div>
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
+          {STEPS.map((st) => (
+            <div key={st.n} className="bg-white border border-gray-100 rounded-[18px] p-7 sm:p-8 transition hover:-translate-y-1 hover:border-primary-200 hover:shadow-card-hover">
+              <div
+                className="w-[46px] h-[46px] rounded-[13px] flex items-center justify-center font-extrabold text-lg text-primary-700 mb-5"
+                style={{ background: "linear-gradient(145deg,#eef3fc,#dde6fa)" }}
+              >{st.n}</div>
+              <h3 className="text-[19px] font-bold tracking-tight text-gray-900 mb-2">{st.title}</h3>
+              <p className="text-[15px] text-gray-500 leading-relaxed">{st.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ ROUTES ═══ */}
+      <section className="bg-gray-50 border-y border-gray-100 py-16 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between gap-5 flex-wrap mb-8 sm:mb-10">
+            <div>
+              <div className={EYEBROW}>Yo'nalishlar</div>
+              <h2 className={H2}>Mashhur marshrutlar</h2>
+            </div>
+            <Link href="/trips" className="text-[15px] font-bold text-primary-600 hover:text-primary-700 whitespace-nowrap">
+              Barchasini ko'rish →
+            </Link>
           </div>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {TESTIMONIALS.map(({ name, city, text, rating, initials, color }) => (
-              <div key={name} className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                <div className="flex mb-4">
-                  {Array.from({ length: rating }).map((_, i) => (
-                    <Star key={i} size={14} className="fill-yellow-400 text-yellow-400" />
-                  ))}
+          <div className="grid gap-3.5 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {ROUTES.map((rt) => (
+              <Link
+                key={`${rt.from}-${rt.to}`}
+                href={`/trips?from=${rt.from}&to=${rt.to}`}
+                className="bg-white border border-gray-100 rounded-2xl p-5 transition hover:border-primary-200 hover:shadow-card-hover"
+              >
+                <div className="flex items-center gap-2.5 text-[16.5px] font-bold tracking-tight mb-2 flex-wrap">
+                  <span>{rt.from}</span><span className="text-gray-300">→</span><span>{rt.to}</span>
                 </div>
-                <p className="text-gray-700 text-sm leading-relaxed mb-5">"{text}"</p>
+                <div className="text-[13px] text-gray-500 mb-4">{rt.dur} · {rt.freq}</div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[17px] font-extrabold text-accent-700 tracking-tight">{rt.price}</span>
+                  <span className="text-[13px] text-gray-500">so'mdan</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ SAFETY ═══ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 w-full">
+        <div className="grid gap-10 lg:gap-14 md:grid-cols-2">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-accent-50 text-accent-700 text-[12.5px] font-bold px-3.5 py-1.5 rounded-full mb-4">
+              Xavfsizlik birinchi o'rinda
+            </div>
+            <h2 className={H2 + " mb-3.5 text-balance"}>Har bir safar nazorat ostida</h2>
+            <p className="text-base text-gray-500 leading-relaxed max-w-[420px]">
+              Haydovchi hujjatlari tekshiriladi, profillar tasdiqlanadi va har bir safar reyting bilan baholanadi.
+            </p>
+          </div>
+          <div className="flex flex-col">
+            {SAFETY.map((sf) => (
+              <div key={sf.title} className="py-5 border-t border-gray-100">
+                <h3 className="text-[17.5px] font-bold tracking-tight text-gray-900 mb-2">{sf.title}</h3>
+                <p className="text-[15px] text-gray-500 leading-relaxed">{sf.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ DRIVER CTA ═══ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24 w-full">
+        <div
+          className="rounded-[24px] p-7 sm:p-14 text-white grid gap-8 lg:gap-12 items-center md:grid-cols-2"
+          style={{
+            background: "linear-gradient(150deg,#25306e,#3b5bdb)",
+            boxShadow: "0 30px 64px -32px rgb(35 48 129 / 0.6)",
+          }}
+        >
+          <div>
+            <div className="text-[12.5px] font-bold uppercase tracking-[0.08em] opacity-75 mb-3.5">Haydovchilar uchun</div>
+            <h2 className="text-[clamp(24px,3.4vw,34px)] font-extrabold tracking-tight mb-3.5 text-balance">Yo'lingizda pul ishlang</h2>
+            <p className="text-base opacity-85 leading-relaxed mb-7 max-w-[420px]">
+              Har kuni bir yo'nalishda borasizmi? Yo'lovchi olib boring, yoqilg'i xarajatini bo'ling va qo'shimcha daromad oling.
+            </p>
+            <div className="flex gap-2.5 flex-wrap">
+              <Link href="/create-trip" className="bg-white text-primary-700 px-6 py-3.5 rounded-[11px] font-bold text-[15px] hover:bg-gray-50 transition-colors">
+                Ariza yuborish
+              </Link>
+              <Link href="/create-trip" className="bg-white/10 border border-white/25 text-white px-6 py-3.5 rounded-[11px] font-bold text-[15px] hover:bg-white/20 transition-colors">
+                Batafsil
+              </Link>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3.5">
+            {EARNINGS.map((e) => (
+              <div key={e.label} className="bg-white/10 border border-white/15 rounded-[15px] p-4 sm:p-5">
+                <div className="text-[clamp(20px,2.6vw,27px)] font-extrabold tracking-tight">{e.value}</div>
+                <div className="text-[12px] sm:text-[12.5px] opacity-80 mt-1.5 leading-snug">{e.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ TESTIMONIALS ═══ */}
+      <section className="bg-gray-50 border-t border-gray-100 py-16 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-9 sm:mb-12">
+            <div className={EYEBROW}>Sharhlar</div>
+            <h2 className={H2 + " text-balance"}>Foydalanuvchilar nima deydi?</h2>
+          </div>
+          <div className="grid gap-4 sm:gap-6 sm:grid-cols-3">
+            {TESTIMONIALS.map((t) => (
+              <div key={t.name} className="bg-white border border-gray-100 rounded-[18px] p-6 sm:p-7 flex flex-col gap-5">
+                <div className="text-[14px] tracking-[2px]" style={{ color: "#e2a52e" }}>★★★★★</div>
+                <p className="text-[15.5px] leading-relaxed text-gray-700 flex-1">{t.text}</p>
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full ${color} flex items-center justify-center text-white text-xs font-bold`}>
-                    {initials}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{name}</p>
-                    <p className="text-xs text-gray-400">{city}</p>
+                  <div className="w-[38px] h-[38px] rounded-full bg-primary-50 text-primary-700 font-extrabold text-[13px] flex items-center justify-center shrink-0">{t.initials}</div>
+                  <div className="min-w-0">
+                    <div className="text-[14.5px] font-bold text-gray-900">{t.name}</div>
+                    <div className="text-[13px] text-gray-500">{t.city}</div>
                   </div>
                 </div>
               </div>
@@ -431,34 +291,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══ FINAL CTA ═══════════════════════════════════════════════ */}
-      <section className="py-20 bg-primary-500">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Bugunoq safar boshlang
-          </h2>
-          <p className="text-primary-100 text-lg mb-8">
-            Ro'yxatdan o'tish bepul. Birinchi safaringizni toping.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/trips">
-              <Button
-                size="lg"
-                className="bg-white text-primary-600 hover:bg-primary-50 focus:ring-white"
-              >
-                Safar qidirish
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-white/50 text-white hover:bg-white/10"
-              >
-                Ro'yxatdan o'tish
-              </Button>
-            </Link>
-          </div>
+      {/* ═══ FINAL CTA ═══ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-22 text-center w-full">
+        <h2 className="text-[clamp(24px,3.6vw,34px)] font-extrabold tracking-tight text-gray-900 mb-3 text-balance">Bugunoq safarni boshlang</h2>
+        <p className="text-gray-500 text-base mb-7">Ro'yxatdan o'tish bepul — bir daqiqada birinchi safaringizni toping.</p>
+        <div className="flex gap-2.5 justify-center flex-wrap">
+          <Link href="/trips" className="bg-primary-500 hover:bg-primary-600 text-white px-7 py-[15px] rounded-[11px] font-bold text-[15.5px] shadow-primary-glow transition-colors">
+            Safar qidirish
+          </Link>
+          <Link href="/create-trip" className="bg-white text-gray-900 border border-gray-200 px-7 py-[15px] rounded-[11px] font-bold text-[15.5px] hover:bg-gray-50 transition-colors">
+            Haydovchi bo'lish
+          </Link>
         </div>
       </section>
 

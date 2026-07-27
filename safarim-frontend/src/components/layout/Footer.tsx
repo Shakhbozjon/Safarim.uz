@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Car, Phone, Mail, MapPin } from "lucide-react";
+import Logo from "@/components/ui/Logo";
 
 const links = {
   platform: [
@@ -19,87 +19,48 @@ const links = {
   ],
 };
 
+function Column({ title, items }: { title: string; items: { href: string; label: string }[] }) {
+  return (
+    <div>
+      <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">{title}</div>
+      <div className="flex flex-col gap-3 text-[14.5px]">
+        {items.map((l) => (
+          <Link key={l.href} href={l.href} className="text-gray-600 hover:text-primary-600 transition-colors">
+            {l.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
+    <footer className="border-t border-gray-100 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-7">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-10">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center">
-                <Car size={18} className="text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">
-                Safarim<span className="text-primary-400">.uz</span>
-              </span>
+          <div className="col-span-2 md:col-span-1 min-w-0">
+            <Link href="/" className="inline-block mb-4">
+              <Logo size={32} textSize="text-[17px]" />
             </Link>
-            <p className="text-sm text-gray-400 leading-relaxed mb-5">
+            <p className="text-sm text-gray-500 leading-relaxed max-w-[280px] mb-4">
               O'zbekiston bo'ylab qulay va arzon safar. Haydovchi va yo'lovchilarni birlashtiruvchi platforma.
             </p>
-            <div className="space-y-2">
-              <a href="tel:+998712345678" className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors">
-                <Phone size={14} />+998 71 234 56 78
-              </a>
-              <a href="mailto:info@safarim.uz" className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors">
-                <Mail size={14} />info@safarim.uz
-              </a>
-              <span className="flex items-center gap-2 text-sm text-gray-400">
-                <MapPin size={14} />Toshkent, O'zbekiston
-              </span>
+            <div className="text-sm text-gray-500 leading-8">
+              <div>+998 71 234 56 78</div>
+              <div>info@safarim.uz</div>
+              <div>Toshkent, O'zbekiston</div>
             </div>
           </div>
 
-          {/* Platform */}
-          <div>
-            <h4 className="text-sm font-semibold text-white mb-4">Platforma</h4>
-            <ul className="space-y-3">
-              {links.platform.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-gray-400 hover:text-white transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h4 className="text-sm font-semibold text-white mb-4">Kompaniya</h4>
-            <ul className="space-y-3">
-              {links.company.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-gray-400 hover:text-white transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h4 className="text-sm font-semibold text-white mb-4">Huquqiy</h4>
-            <ul className="space-y-3">
-              {links.legal.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-gray-400 hover:text-white transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <Column title="Platforma" items={links.platform} />
+          <Column title="Kompaniya" items={links.company} />
+          <Column title="Huquqiy" items={links.legal} />
         </div>
 
-        <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()} Safarim.uz. Barcha huquqlar himoyalangan.
-          </p>
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <span>O'zbek tilida</span>
-          </div>
+        <div className="mt-10 sm:mt-11 pt-6 border-t border-gray-100 text-[13px] text-gray-400">
+          © {new Date().getFullYear()} Safarim.uz. Barcha huquqlar himoyalangan.
         </div>
       </div>
     </footer>

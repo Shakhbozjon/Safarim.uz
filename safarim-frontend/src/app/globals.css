@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --font-inter: "Inter", sans-serif;
+  --font-manrope: "Manrope", sans-serif;
+  --font-inter: "Manrope", sans-serif;
 }
 
 * {
@@ -20,9 +21,10 @@ body {
 }
 
 body {
-  background: #f9fafb;
-  color: #111827;
-  font-family: var(--font-inter), sans-serif;
+  background: #fbfbfd;
+  color: #1c2333;
+  font-family: var(--font-manrope), sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 ::-webkit-scrollbar {
@@ -33,6 +35,11 @@ body {
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 @layer utilities {
   .text-balance { text-wrap: balance; }
 
@@ -42,7 +49,9 @@ body {
   }
 
   .gradient-hero {
-    background: linear-gradient(160deg, #fff7ed 0%, #ffffff 50%, #fff7ed 100%);
+    background:
+      radial-gradient(900px 500px at 82% -8%, #dfe8fb, transparent 70%),
+      radial-gradient(700px 400px at 4% 108%, #e7f7ef, transparent 70%);
   }
 }
 
