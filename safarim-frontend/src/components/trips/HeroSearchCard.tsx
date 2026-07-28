@@ -70,7 +70,7 @@ export default function HeroSearchCard() {
             value={date}
             min={new Date().toISOString().split("T")[0]}
             onChange={(e) => setDate(e.target.value)}
-            className={FIELD}
+            className={FIELD + " max-w-[220px]"}
           />
         </div>
         <div className="min-w-0">
