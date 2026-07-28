@@ -59,14 +59,14 @@ export default function HomePage() {
 
       {/* ═══ HERO ═══ */}
       <section className="relative overflow-hidden gradient-hero">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-14 sm:pt-16 sm:pb-20 grid gap-10 lg:gap-14 items-center lg:grid-cols-2">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-14 sm:pt-32 sm:pb-20 grid gap-8 lg:gap-14 items-center lg:grid-cols-2">
           {/* Left */}
           <div className="min-w-0">
-            <h1 className="text-[clamp(32px,5.6vw,54px)] leading-[1.06] font-extrabold tracking-[-0.035em] text-gray-900 mb-4 text-balance">
+            <h1 className="text-[clamp(30px,5.6vw,54px)] leading-[1.08] font-extrabold tracking-[-0.035em] text-gray-900 mb-3.5 text-balance">
               O'zbekiston bo'ylab<br />qulay safar
             </h1>
-            <p className="text-[clamp(16px,1.6vw,18px)] leading-relaxed text-gray-500 mb-8 max-w-[460px]">
-              Haydovchi va yo'lovchilarni birlashtiruvchi platforma. Yoqilg'i xarajatini bo'ling — arzon, tez va xavfsiz boring.
+            <p className="text-[clamp(15.5px,1.6vw,18px)] leading-relaxed text-gray-500 mb-7 max-w-[460px]">
+              Haydovchi va yo'lovchilarni birlashtiruvchi platforma. Arzon, tez va xavfsiz boring.
             </p>
 
             <HeroSearchCard />
@@ -244,7 +244,7 @@ export default function HomePage() {
             <div className="text-[12.5px] font-bold uppercase tracking-[0.08em] opacity-75 mb-3.5">Haydovchilar uchun</div>
             <h2 className="text-[clamp(24px,3.4vw,34px)] font-extrabold tracking-tight mb-3.5 text-balance">Yo'lingizda pul ishlang</h2>
             <p className="text-base opacity-85 leading-relaxed mb-7 max-w-[420px]">
-              Har kuni bir yo'nalishda borasizmi? Yo'lovchi olib boring, yoqilg'i xarajatini bo'ling va qo'shimcha daromad oling.
+              Har kuni bir yo'nalishda borasizmi? Yo'lovchi olib boring va qo'shimcha daromad oling.
             </p>
             <div className="flex gap-2.5 flex-wrap">
               <Link href="/create-trip" className="bg-white text-primary-700 px-6 py-3.5 rounded-[11px] font-bold text-[15px] hover:bg-gray-50 transition-colors">
