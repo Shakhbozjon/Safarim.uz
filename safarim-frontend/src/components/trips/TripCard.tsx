@@ -131,9 +131,9 @@ export default function TripCard({ trip, className }: TripCardProps) {
 
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-lg font-bold text-gray-900 leading-tight tabular-nums">
+              <p className="text-lg font-extrabold text-accent-700 leading-tight tabular-nums tracking-tight">
                 {formatPrice(trip.price_per_seat)}{" "}
-                <span className="text-sm font-medium text-gray-400">so'm</span>
+                <span className="text-sm font-semibold text-gray-400">so'm</span>
               </p>
               <p className="text-xs text-gray-400">/ joy</p>
             </div>
