@@ -62,7 +62,7 @@ export default function HeroSearchCard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[1.35fr_1fr] gap-3 mb-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3.5">
         <div className="min-w-0">
           <label className={LABEL}>Sana</label>
           <input
@@ -70,22 +70,22 @@ export default function HeroSearchCard() {
             value={date}
             min={new Date().toISOString().split("T")[0]}
             onChange={(e) => setDate(e.target.value)}
-            className={FIELD + " min-w-0"}
+            className={FIELD}
           />
         </div>
         <div className="min-w-0">
           <label className={LABEL}>O'rin</label>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setSeats(Math.max(1, seats - 1))}
-              className="w-8 h-[42px] rounded-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold shrink-0"
+              className="w-10 h-[42px] rounded-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold shrink-0"
             >−</button>
-            <span className="flex-1 text-center text-base font-bold text-gray-900 tabular-nums">{seats}</span>
+            <span className="w-8 text-center text-base font-bold text-gray-900 tabular-nums">{seats}</span>
             <button
               type="button"
               onClick={() => setSeats(Math.min(4, seats + 1))}
-              className="w-8 h-[42px] rounded-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold shrink-0"
+              className="w-10 h-[42px] rounded-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold shrink-0"
             >+</button>
           </div>
         </div>
