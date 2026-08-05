@@ -123,13 +123,13 @@ export default function SearchBar({
   return (
     <form
       onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
-      className="bg-white rounded-2xl shadow-card-lg border border-gray-100 overflow-visible"
+      className="bg-white rounded-2xl shadow-float border border-gray-200 overflow-visible"
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_1fr_1px_1fr_1px_auto_auto] items-center">
 
         {/* Qayerdan */}
         <div className="px-5 py-1">
-          <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
             Qayerdan
           </label>
           <LocationPicker
@@ -152,7 +152,7 @@ export default function SearchBar({
 
         {/* Qayerga */}
         <div className="px-5 py-1 border-t sm:border-t-0 sm:border-l border-gray-100">
-          <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
             Qayerga
           </label>
           <LocationPicker
@@ -166,15 +166,15 @@ export default function SearchBar({
 
         {/* Sana */}
         <div className="px-5 py-1 border-t lg:border-t-0 border-l-0 lg:border-l border-gray-100">
-          <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Sana</label>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Sana</label>
           <div className="flex items-center gap-2">
-            <Calendar size={15} className="text-gray-400 shrink-0" />
+            <Calendar size={16} className="text-primary-500 shrink-0" />
             <input
               type="date"
               value={date}
               min={new Date().toISOString().split("T")[0]}
               onChange={(e) => setDate(e.target.value)}
-              className="flex-1 bg-transparent outline-none text-base text-gray-900 py-3"
+              className="flex-1 bg-transparent outline-none text-base font-medium text-gray-900 py-3"
             />
           </div>
         </div>
@@ -183,9 +183,9 @@ export default function SearchBar({
 
         {/* O'rin */}
         <div className="px-5 py-1 border-t lg:border-t-0 border-l-0 lg:border-l border-gray-100">
-          <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">O'rin</label>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">O'rin</label>
           <div className="flex items-center gap-3 py-3">
-            <Users size={15} className="text-gray-400 shrink-0" />
+            <Users size={16} className="text-primary-500 shrink-0" />
             <button
               type="button"
               onClick={() => setSeats(Math.max(1, seats - 1))}

@@ -131,14 +131,14 @@ export default function LocationPicker({
           )}
         >
           <MapPin
-            size={compact ? 14 : 15}
-            className={clsx("shrink-0", error ? "text-red-400" : "text-gray-400")}
+            size={compact ? 15 : 17}
+            className={clsx("shrink-0", error ? "text-red-400" : "text-primary-500")}
           />
           <span
             className={clsx(
               "flex-1 min-w-0 truncate select-none",
               compact ? "text-sm" : "text-base",
-              display ? "text-gray-900" : "text-gray-400"
+              display ? "text-gray-900 font-semibold" : "text-gray-500"
             )}
           >
             {display || placeholder}
