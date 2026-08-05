@@ -540,20 +540,28 @@ export default function DriverDashboardPage() {
           </p>
           <p className="text-xs text-gray-400 mt-1.5">{ratingCount} ta baho</p>
         </div>
-        <div className={clsx(
-          "rounded-2xl border p-4",
-          wallet?.is_blocked ? "bg-red-50 border-red-200" :
-          balance < 0 ? "bg-orange-50 border-orange-200" : "bg-white border-gray-100"
-        )}>
-          <p className="text-xs text-gray-400 mb-1">Depozit</p>
-          <p className={clsx(
-            "text-2xl font-bold tabular-nums leading-none",
-            balance < 0 ? "text-red-600" : "text-gray-900"
+        {wallet?.commission_free ? (
+          <div className="rounded-2xl border border-accent-200 bg-accent-50 p-4">
+            <p className="text-xs text-accent-600 mb-1">Komissiya</p>
+            <p className="text-2xl font-bold tabular-nums leading-none text-accent-700">0%</p>
+            <p className="text-xs text-accent-600 mt-1.5">bepul davr</p>
+          </div>
+        ) : (
+          <div className={clsx(
+            "rounded-2xl border p-4",
+            wallet?.is_blocked ? "bg-red-50 border-red-200" :
+            balance < 0 ? "bg-orange-50 border-orange-200" : "bg-white border-gray-100"
           )}>
-            {wallet ? formatShort(balance) : "—"}
-          </p>
-          <p className="text-xs text-gray-400 mt-1.5">so'm qoldi</p>
-        </div>
+            <p className="text-xs text-gray-400 mb-1">Depozit</p>
+            <p className={clsx(
+              "text-2xl font-bold tabular-nums leading-none",
+              balance < 0 ? "text-red-600" : "text-gray-900"
+            )}>
+              {wallet ? formatShort(balance) : "—"}
+            </p>
+            <p className="text-xs text-gray-400 mt-1.5">so'm qoldi</p>
+          </div>
+        )}
       </div>
 
       {/* ── Bepul davr banneri ───────────────────────────────────────────── */}
@@ -652,7 +660,8 @@ export default function DriverDashboardPage() {
             )}
           </div>
 
-          {/* Depozit holati */}
+          {/* Depozit holati — bepul davrda kerak emas, yashiriladi */}
+          {!wallet?.commission_free && (
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-gray-900 flex items-center gap-2">
@@ -727,6 +736,7 @@ export default function DriverDashboardPage() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* ══ O'NG USTUN ══ */}
