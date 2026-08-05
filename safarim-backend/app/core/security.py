@@ -33,6 +33,9 @@ def decode_token(token: str) -> Optional[dict]:
 
 
 def calculate_commission(price: int) -> tuple[float, int]:
+    # Bepul davr — komissiya umuman olinmaydi
+    if settings.COMMISSION_FREE_MODE:
+        return 0.0, 0
     if price <= settings.COMMISSION_THRESHOLD:
         rate = settings.COMMISSION_LOW_RATE
     else:

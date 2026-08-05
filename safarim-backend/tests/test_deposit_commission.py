@@ -21,6 +21,7 @@ from app.models.enums import (
     TripStatus, PaymentType, LuggageSize, PaymentMethod,
     BookingStatus, BookingPaymentStatus,
 )
+from app.core.config import settings
 from app.services import wallet_service, booking_service
 from tests.conftest import auth_headers
 
@@ -180,3 +181,47 @@ async def test_high_price_uses_5_percent_commission(client, db, user, driver_use
     w = await wallet_service.get_or_create(db, driver.id)
     await db.refresh(w)
     assert w.balance == 100_000 - 15_000   # 85,000
+
+
+# ─── Bepul davr (COMMISSION_FREE_MODE) ───────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_free_mode_charges_no_commission(client, db, user, driver_user, monkeypatch):
+    """Bepul davrda komissiya 0 va depozitga umuman tegilmaydi."""
+    monkeypatch.setattr(settings, "COMMISSION_FREE_MODE", True)
+    driver, _ = driver_user
+    await _region(db)
+    # Depozit yo'q (0) — bepul davrda kerak emas
+    trip = await _trip(db, driver, price=100_000)
+
+    r = await client.post(f"{API}/bookings/", json={
+        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+    }, headers=auth_headers(user))
+    assert r.status_code == 201, r.text
+    assert r.json()["commission_amount"] == 0
+    assert r.json()["driver_amount"] == 100_000   # haydovchi to'liq oladi
+
+    booking_id = r.json()["id"]
+    trip.departure_date = date.today() - timedelta(days=1)
+    await db.commit()
+    await booking_service.confirm_booking(db, booking_id, driver, confirmed=True)
+
+    w = await wallet_service.get_or_create(db, driver.id)
+    await db.refresh(w)
+    assert w.balance == 0   # hech narsa yechilmadi
+
+
+@pytest.mark.asyncio
+async def test_free_mode_never_blocks_driver(client, db, user, driver_user, monkeypatch):
+    """Bepul davrda balans manfiy bo'lsa ham naqd bron qabul qilinadi."""
+    monkeypatch.setattr(settings, "COMMISSION_FREE_MODE", True)
+    driver, _ = driver_user
+    await _region(db)
+    await wallet_service.deduct_commission(db, driver.id, 60_000)  # bloklangan holat
+    await db.commit()
+    trip = await _trip(db, driver)
+
+    r = await client.post(f"{API}/bookings/", json={
+        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+    }, headers=auth_headers(user))
+    assert r.status_code == 201, r.text   # bepul davr: rad etilmaydi

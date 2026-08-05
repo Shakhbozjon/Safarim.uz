@@ -30,6 +30,7 @@ interface WalletInfo {
   balance: number;
   min_balance: number;
   is_blocked: boolean;
+  commission_free?: boolean;
   transactions: {
     id: string;
     amount: number;
@@ -554,6 +555,19 @@ export default function DriverDashboardPage() {
           <p className="text-xs text-gray-400 mt-1.5">so'm qoldi</p>
         </div>
       </div>
+
+      {/* ── Bepul davr banneri ───────────────────────────────────────────── */}
+      {wallet?.commission_free && (
+        <div className="bg-accent-50 border border-accent-200 rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-accent-100 rounded-xl flex items-center justify-center shrink-0 text-xl">🎉</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-accent-800">Bepul davr — komissiya 0%</p>
+            <p className="text-xs text-accent-700 mt-0.5">
+              Hozircha safarlardan komissiya olinmaydi va depozit talab qilinmaydi. Bemalol safar e'lon qiling!
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Bugungi safar eslatmasi ──────────────────────────────────────── */}
       {todayTrips.length > 0 && (

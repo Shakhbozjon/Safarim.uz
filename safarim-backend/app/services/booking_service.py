@@ -127,7 +127,8 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
         trip.status = TripStatus.full
 
     # ── Wallet operatsiyasi ──────────────────────────────────────────────────
-    if data.payment_method == PaymentMethod.cash:
+    # Bepul davrda komissiya yo'q → depozit talab qilinmaydi, blok tekshirilmaydi
+    if data.payment_method == PaymentMethod.cash and not settings.COMMISSION_FREE_MODE:
         # Naqd: hamyon bloklangan bo'lsa yangi bron qabul qilinmaydi
         driver_wallet = await wallet_service.get_or_create(db, trip.driver_id)
         if driver_wallet.is_blocked:
@@ -359,12 +360,14 @@ async def _apply_completion(db: AsyncSession, booking: Booking, driver_id) -> No
         )
     else:
         # Naqd yoki to'lanmagan online (pul qo'lda berilgan) —
-        # platforma komissiyasini hamyondan ushib qolish
+        # platforma komissiyasini hamyondan ushib qolish.
+        # Bepul davrda komissiya 0 → hamyonga umuman tegilmaydi.
         booking.payment_status = BookingPaymentStatus.paid
-        await wallet_service.deduct_commission(
-            db, driver_id, booking.commission_amount, booking_id=booking.id
-        )
-        await _update_monthly_commission(db, driver_id, booking.commission_amount)
+        if booking.commission_amount > 0:
+            await wallet_service.deduct_commission(
+                db, driver_id, booking.commission_amount, booking_id=booking.id
+            )
+            await _update_monthly_commission(db, driver_id, booking.commission_amount)
 
 
 async def _apply_not_happened(db: AsyncSession, booking: Booking) -> None:

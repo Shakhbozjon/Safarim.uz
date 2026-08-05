@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     COMMISSION_LOW_RATE: float = 0.02
     COMMISSION_HIGH_RATE: float = 0.05
     COMMISSION_THRESHOLD: int = 200_000
+    # Bepul davr — True bo'lsa haydovchilardan komissiya OLINMAYDI (0%) va
+    # depozit talab qilinmaydi. Launch/promo uchun; keyin False qilib qayta yoqiladi.
+    COMMISSION_FREE_MODE: bool = False
 
     # Reyting chegaralari
     RATING_WARNING_THRESHOLD: float = 4.0

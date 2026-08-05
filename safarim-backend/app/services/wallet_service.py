@@ -219,6 +219,7 @@ async def get_wallet_info(db: AsyncSession, driver_id: uuid.UUID) -> dict:
         "balance": wallet.balance,
         "min_balance": wallet.min_balance,
         "is_blocked": wallet.is_blocked,
+        "commission_free": settings.COMMISSION_FREE_MODE,
         "transactions": [
             {
                 "id": str(t.id),
