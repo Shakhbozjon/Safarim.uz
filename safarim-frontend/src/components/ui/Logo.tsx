@@ -1,8 +1,9 @@
 import { clsx } from "clsx";
 
 /**
- * UzSafar logotipi — carpooling belgisi (bog'lovchi S-egri + yashil nuqta)
- * gradient ko'k/indigo kvadratda. Navbar va Footer'da ishlatiladi.
+ * UzSafar logotipi — "U" yo'l belgisi (U harfi + ikki nuqtani bog'lovchi yo'l:
+ * yashil boshlanish, oq manzil). Dumaloq gradient ko'k/indigo doirada.
+ * Navbar va Footer'da ishlatiladi.
  */
 export default function Logo({
   size = 38,
@@ -15,7 +16,6 @@ export default function Logo({
   showText?: boolean;
   className?: string;
 }) {
-  const radius = Math.round(size * 0.29);
   const icon = Math.round(size * 0.6);
 
   return (
@@ -25,21 +25,21 @@ export default function Logo({
         style={{
           width: size,
           height: size,
-          borderRadius: radius,
+          borderRadius: "50%",
           background: "linear-gradient(145deg, #4c6ef0, #2b3a9e)",
           boxShadow: "0 4px 12px -3px rgb(59 91 219 / 0.5)",
         }}
       >
         <svg width={icon} height={icon} viewBox="0 0 48 48" fill="none" aria-hidden="true">
           <path
-            d="M33 13C33 6.5 15 6.5 15 15C15 23 33 25 33 33C33 41 15 41 15 35"
+            d="M15 13 L15 27 A9 9 0 0 0 33 27 L33 13"
             stroke="white"
             strokeWidth="4.6"
             strokeLinecap="round"
             fill="none"
           />
+          <circle cx="15" cy="13" r="4.2" fill="#5fe0a0" />
           <circle cx="33" cy="13" r="4.2" fill="white" />
-          <circle cx="15" cy="35" r="4.2" fill="#5fe0a0" />
         </svg>
       </span>
       {showText && (
