@@ -41,21 +41,48 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"   # SECRET_KEY, JW
 `ssl_certificate` yo'llarida o'z domeningizga almashtiring.
 
 ## 3. HTTPS sertifikat (birinchi marta)
-Avval faqat HTTP bilan nginx'ni ko'taring (yoki ACME challenge uchun), keyin certbot:
+`safarim.conf` da 443 server bloki bo'lgani uchun nginx sertifikatsiz ishga tushmaydi
+("tovuq-tuxum"). Shuning uchun avval configni vaqtincha olib, faqat-HTTP bootstrap bilan
+nginx ko'taramiz, certbot bilan sert olamiz, keyin asl configni qaytaramiz:
 ```bash
+mkdir -p deploy/certbot/conf deploy/certbot/www
+
+# Bootstrap: 443 bloksiz, faqat ACME uchun
+mv deploy/nginx/conf.d/safarim.conf /tmp/safarim.conf.bak
+cat > deploy/nginx/conf.d/bootstrap.conf <<'NGINX'
+server {
+    listen 80;
+    server_name uzsafar.uz www.uzsafar.uz cdn.uzsafar.uz;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 200 'ok'; }
+}
+NGINX
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d nginx
-docker compose -f docker-compose.prod.yml run --rm certbot certonly \
-  --webroot -w /var/www/certbot \
-  -d uzsafar.uz -d www.uzsafar.uz \
+
+# ⚠️ --entrypoint certbot MAJBURIY: aks holda compose'dagi renew-loop entrypoint
+# `certonly` argumentlarini e'tiborsiz qoldirib `certbot renew` ishlaydi ("No renewals").
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot \
+  certonly --webroot -w /var/www/certbot \
+  -d uzsafar.uz -d www.uzsafar.uz -d cdn.uzsafar.uz \
   --email admin@uzsafar.uz --agree-tos --no-eff-email
-docker compose -f docker-compose.prod.yml restart nginx
+
+# Asl configni qaytarish (443 + cdn bloklari)
+rm deploy/nginx/conf.d/bootstrap.conf
+mv /tmp/safarim.conf.bak deploy/nginx/conf.d/safarim.conf
 ```
+> ⚠️ Yangi `.uz` domen bo'lsa LE ikkilamchi validatsiyada NXDOMAIN berishi mumkin (global DNS
+> tarqalishi sekin). Avval `dig +short @8.8.8.8 uzsafar.uz` (va @1.1.1.1/@9.9.9.9/@208.67.222.222)
+> to'g'ri IP qaytarishini kutib, keyin certbot'ni ishlating (LE soatiga 5 marta xato cheklovi bor).
+
 Sertifikat `certbot` xizmati orqali 12 soatda bir avtomatik yangilanadi.
 
 ## 4. To'liq stack'ni ko'tarish
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml restart nginx   # ⚠️ MAJBURIY: real configni yuklash
 ```
+- `restart nginx` — `up` nginx'ni qayta ishga tushirmaydi (definition o'zgarmagan), shuning uchun
+  bootstrap→asl config almashinuvidan keyin qo'lda restart shart (aks holda eski config qoladi).
 - API ishga tushganda `alembic upgrade head` avtomatik bajariladi (start-prod.sh).
 - Holatni ko'rish: `docker compose -f docker-compose.prod.yml ps`
 - Loglar: `docker compose -f docker-compose.prod.yml logs -f api`
