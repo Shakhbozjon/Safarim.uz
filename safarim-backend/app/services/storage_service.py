@@ -22,7 +22,7 @@ class StorageService:
                 endpoint_url=f"{'https' if settings.MINIO_SECURE else 'http'}://{settings.MINIO_ENDPOINT}",
                 aws_access_key_id=settings.MINIO_ACCESS_KEY,
                 aws_secret_access_key=settings.MINIO_SECRET_KEY,
-                config=Config(signature_version="s3v4"),
+                config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
                 region_name="us-east-1",
             )
         return self._client
@@ -39,7 +39,7 @@ class StorageService:
                 endpoint_url=f"{'https' if settings.MINIO_PUBLIC_SECURE else 'http'}://{settings.MINIO_PUBLIC_ENDPOINT}",
                 aws_access_key_id=settings.MINIO_ACCESS_KEY,
                 aws_secret_access_key=settings.MINIO_SECRET_KEY,
-                config=Config(signature_version="s3v4"),
+                config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
                 region_name="us-east-1",
             )
         return self._public_client

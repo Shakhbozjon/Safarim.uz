@@ -116,6 +116,7 @@ services:
     depends_on:
       - api
       - frontend
+      - minio
 
   # HTTPS sertifikat (Let's Encrypt). Birinchi marta DEPLOY.md ga qarang.
   certbot:
