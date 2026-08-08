@@ -57,7 +57,7 @@ async def send_otp(db: AsyncSession, phone: str, purpose: OtpPurpose) -> str:
     db.add(otp)
     await db.commit()
 
-    message = f"Safarim.uz: tasdiqlash kodingiz {code}. {settings.OTP_EXPIRE_MINUTES} daqiqa ichida foydalaning."
+    message = f"UzSafar: tasdiqlash kodingiz {code}. {settings.OTP_EXPIRE_MINUTES} daqiqa ichida foydalaning."
     await sms_service.send(phone, message)
 
     return code

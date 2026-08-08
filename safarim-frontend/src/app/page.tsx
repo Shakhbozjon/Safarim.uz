@@ -44,7 +44,7 @@ const EARNINGS = [
 ];
 
 const TESTIMONIALS = [
-  { name: "Nodira Karimova", city: "Toshkent", initials: "NK", text: "Har hafta Samarqandga boraman. Safarim.uz orqali har doim qulay joy topaman, narxi ham arzon." },
+  { name: "Nodira Karimova", city: "Toshkent", initials: "NK", text: "Har hafta Samarqandga boraman. UzSafar orqali har doim qulay joy topaman, narxi ham arzon." },
   { name: "Jasur Rahimov", city: "Samarqand", initials: "JR", text: "Toshkentga har kuni qatnayman. Yo'lovchi topib, yoqilg'i xarajatimni to'liq qoplayapman." },
   { name: "Malika Yusupova", city: "Farg'ona", initials: "MY", text: "Xavfsiz va qulay. Haydovchilar tasdiqlangan, reyting tizimi bor — ishonch bilan foydalanaman." },
 ];

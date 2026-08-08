@@ -4,12 +4,12 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # App
-    APP_NAME: str = "Safarim.uz"
+    APP_NAME: str = "UzSafar"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     SECRET_KEY: str = "change-me-in-production"
 
-    # CORS — vergul bilan ajratilgan domenlar (prod: https://safarim.uz,https://www.safarim.uz)
+    # CORS — vergul bilan ajratilgan domenlar (prod: https://uzsafar.uz,https://www.uzsafar.uz)
     CORS_ORIGINS: str = "http://localhost:3000"
 
     # Rate limiting (Redis orqali)
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     MINIO_BUCKET_PHOTOS: str = "photos"
     MINIO_SECURE: bool = False
     # Brauzer ko'radigan public MinIO manzili (bo'sh bo'lsa MINIO_ENDPOINT ishlatiladi).
-    # Prod'da: server_ip:9000 yoki cdn.safarim.uz — presigned URL shu host uchun imzolanadi.
+    # Prod'da: server_ip:9000 yoki cdn.uzsafar.uz — presigned URL shu host uchun imzolanadi.
     MINIO_PUBLIC_ENDPOINT: str = ""
     MINIO_PUBLIC_SECURE: bool = False
 

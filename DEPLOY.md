@@ -1,4 +1,4 @@
-# Safarim.uz — Production Deploy
+# UzSafar — Production Deploy
 
 ## ⚡ Tezkor pilot (real foydalanuvchilar, SMS/domen shart emas)
 Eng arzon real-sinov yo'li — bitta ~$5/oylik VPS (Hetzner/DigitalOcean), domensiz, IP orqali:
@@ -20,7 +20,7 @@ Next.js (standalone), Nginx (HTTPS reverse proxy), avtomatik DB backup.
 
 ## 0. Talablar
 - Linux server (Ubuntu 22.04+), Docker + Docker Compose plugin
-- Domen `safarim.uz` A-record server IP ga yo'naltirilgan (www ham)
+- Domen `uzsafar.uz` A-record server IP ga yo'naltirilgan (www ham)
 - 80 va 443 portlar ochiq
 
 ## 1. Kodni olish va env
@@ -37,7 +37,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"   # SECRET_KEY, JW
 (default kalit yoki CORS `*` bilan API ishga tushmaydi — bu ataylab).
 
 ## 2. Domenni Nginx konfiga yozish
-`deploy/nginx/conf.d/safarim.conf` da `safarim.uz` ni 2 ta `server_name` va
+`deploy/nginx/conf.d/safarim.conf` da `uzsafar.uz` ni 2 ta `server_name` va
 `ssl_certificate` yo'llarida o'z domeningizga almashtiring.
 
 ## 3. HTTPS sertifikat (birinchi marta)
@@ -46,8 +46,8 @@ Avval faqat HTTP bilan nginx'ni ko'taring (yoki ACME challenge uchun), keyin cer
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d nginx
 docker compose -f docker-compose.prod.yml run --rm certbot certonly \
   --webroot -w /var/www/certbot \
-  -d safarim.uz -d www.safarim.uz \
-  --email admin@safarim.uz --agree-tos --no-eff-email
+  -d uzsafar.uz -d www.uzsafar.uz \
+  --email admin@uzsafar.uz --agree-tos --no-eff-email
 docker compose -f docker-compose.prod.yml restart nginx
 ```
 Sertifikat `certbot` xizmati orqali 12 soatda bir avtomatik yangilanadi.
@@ -81,13 +81,13 @@ gunzip -c /path/backup.sql.gz | docker compose -f docker-compose.prod.yml exec -
 
 ## 7. Monitoring
 - `SENTRY_DSN` ni `.env.production` ga qo'ying → xatolar Sentry'ga boradi.
-- Healthcheck: `https://safarim.uz/api/health`
+- Healthcheck: `https://uzsafar.uz/api/health`
 - Uptime kuzatuvi (UptimeRobot va sh.k.) shu endpointga.
 
 ## ⚠️ Hal qilinishi kerak (keyingi qadam)
 **MinIO media URL** — hozir `storage_service` MinIO endpoint asosida URL yasaydi.
 Prod'da MinIO ichki tarmoqda (`minio:9000`) — bu URL brauzerdan ochilmaydi.
-Yechim variantlari: (a) MinIO uchun alohida public subdomen (masalan `cdn.safarim.uz`)
+Yechim variantlari: (a) MinIO uchun alohida public subdomen (masalan `cdn.uzsafar.uz`)
 + nginx proxy va `MINIO_ENDPOINT` shu domenga; (b) S3 (AWS/DigitalOcean Spaces).
 `next.config.mjs` dagi `images.remotePatterns` ga shu domenni qo'shing.
 

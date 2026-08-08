@@ -10,7 +10,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Safarim.uz — O'zbekiston bo'ylab arzon safar",
+  title: "UzSafar — O'zbekiston bo'ylab arzon safar",
   description: "Haydovchi va yo'lovchilarni bog'lovchi carpooling platformasi",
 };
 

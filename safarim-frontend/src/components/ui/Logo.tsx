@@ -1,7 +1,7 @@
 import { clsx } from "clsx";
 
 /**
- * Safarim.uz logotipi — carpooling belgisi (bog'lovchi S-egri + yashil nuqta)
+ * UzSafar logotipi — carpooling belgisi (bog'lovchi S-egri + yashil nuqta)
  * gradient ko'k/indigo kvadratda. Navbar va Footer'da ishlatiladi.
  */
 export default function Logo({
@@ -44,7 +44,7 @@ export default function Logo({
       </span>
       {showText && (
         <span className={clsx("font-extrabold tracking-tight text-gray-900", textSize)}>
-          Safarim<span className="text-accent-500">.uz</span>
+          UzSafar<span className="text-accent-500">.uz</span>
         </span>
       )}
     </span>

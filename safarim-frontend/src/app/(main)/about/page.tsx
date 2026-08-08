@@ -28,7 +28,7 @@ export default function AboutPage() {
             Odamlarni yo'lda birlashtiramiz
           </h1>
           <p className="text-[clamp(16px,1.6vw,17.5px)] leading-relaxed text-gray-500">
-            Safarim.uz — O'zbekiston bo'ylab har kuni minglab yo'lovchi va haydovchini bir-biriga
+            UzSafar — O'zbekiston bo'ylab har kuni minglab yo'lovchi va haydovchini bir-biriga
             bog'laydigan carpooling platformasi. Maqsadimiz oddiy: bo'sh o'rindiqlarni yo'qotmaslik,
             yo'l xarajatlarini kamaytirish va viloyatlar orasida safarni har kim uchun qulay qilish.
           </p>

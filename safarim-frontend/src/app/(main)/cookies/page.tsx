@@ -1,13 +1,13 @@
 import { DocPage, DocSection, DocList } from "@/components/layout/DocPage";
 
-export const metadata = { title: "Cookie siyosati — Safarim.uz" };
+export const metadata = { title: "Cookie siyosati — UzSafar" };
 
 export default function CookiesPage() {
   return (
     <DocPage
       title="Cookie siyosati"
       updated="27-iyul, 2026"
-      intro="Safarim.uz sayti to'g'ri ishlashi va foydalanishни qulay qilish uchun cookie (kuki) fayllaridan foydalanadi."
+      intro="UzSafar sayti to'g'ri ishlashi va foydalanishни qulay qilish uchun cookie (kuki) fayllaridan foydalanadi."
     >
       <DocSection heading="1. Cookie nima?">
         <p>
@@ -34,7 +34,7 @@ export default function CookiesPage() {
       </DocSection>
 
       <DocSection heading="4. Savollar">
-        <p>Cookie siyosati bo'yicha savollar uchun: info@safarim.uz.</p>
+        <p>Cookie siyosati bo'yicha savollar uchun: info@uzsafar.uz.</p>
       </DocSection>
     </DocPage>
   );

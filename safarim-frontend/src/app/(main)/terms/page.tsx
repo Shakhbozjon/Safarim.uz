@@ -1,17 +1,17 @@
 import { DocPage, DocSection, DocList } from "@/components/layout/DocPage";
 
-export const metadata = { title: "Foydalanish shartlari — Safarim.uz" };
+export const metadata = { title: "Foydalanish shartlari — UzSafar" };
 
 export default function TermsPage() {
   return (
     <DocPage
       title="Foydalanish shartlari"
       updated="27-iyul, 2026"
-      intro="Safarim.uz platformasidan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz. Iltimos, diqqat bilan o'qing."
+      intro="UzSafar platformasidan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz. Iltimos, diqqat bilan o'qing."
     >
       <DocSection heading="1. Umumiy qoidalar">
         <p>
-          Safarim.uz — haydovchi va yo'lovchilarni bir-biriga bog'lovchi carpooling (birga
+          UzSafar — haydovchi va yo'lovchilarni bir-biriga bog'lovchi carpooling (birga
           sayohat) platformasi. Platforma faqat tomonlarni bog'laydi; safarning o'zi haydovchi
           va yo'lovchi o'rtasidagi shaxsiy kelishuvdir.
         </p>
@@ -74,7 +74,7 @@ export default function TermsPage() {
 
       <DocSection heading="8. Javobgarlik">
         <p>
-          Safarim.uz tomonlarни bog'lovchi vosita sifatida ishlaydi va safar davomidagi kelishmovchilik,
+          UzSafar tomonlarни bog'lovchi vosita sifatida ishlaydi va safar davomidagi kelishmovchilik,
           kechikish yoki zarar uchun bevosita javobgar emas. Nizolar tasdiq va admin ko'rigи orqали hal
           qilinadi.
         </p>
@@ -83,7 +83,7 @@ export default function TermsPage() {
       <DocSection heading="9. O'zgartirishlar">
         <p>
           Ushbu shartlar vaqti-vaqti bilan yangilanishi mumkin. Muhim o'zgarishlar haqida
-          foydalanuvchilar xabardor qilinadi. Savollar bo'lsa: info@safarim.uz.
+          foydalanuvchilar xabardor qilinadi. Savollar bo'lsa: info@uzsafar.uz.
         </p>
       </DocSection>
     </DocPage>

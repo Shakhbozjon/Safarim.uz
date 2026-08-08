@@ -30,7 +30,7 @@ def get_click_url(booking_id: str, amount: int) -> str:
         f"&merchant_id={settings.CLICK_MERCHANT_ID}"
         f"&amount={amount}"
         f"&transaction_param={booking_id}"
-        f"&return_url=https://safarim.uz/payment/result"
+        f"&return_url=https://uzsafar.uz/payment/result"
         f"&card_type=uzcard"
     )
 
@@ -52,7 +52,7 @@ def get_click_wallet_url(topup_id: str, amount: int) -> str:
         f"&merchant_id={settings.CLICK_MERCHANT_ID}"
         f"&amount={amount}"
         f"&transaction_param={WALLET_TOPUP_PREFIX}{topup_id}"
-        f"&return_url=https://safarim.uz/driver?topup=done"
+        f"&return_url=https://uzsafar.uz/driver?topup=done"
         f"&card_type=uzcard"
     )
 

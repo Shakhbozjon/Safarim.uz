@@ -1,6 +1,6 @@
 import { DocPage, DocSection, DocList } from "@/components/layout/DocPage";
 
-export const metadata = { title: "Maxfiylik siyosati — Safarim.uz" };
+export const metadata = { title: "Maxfiylik siyosati — UzSafar" };
 
 export default function PrivacyPage() {
   return (
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
           items={[
             "O'z ma'lumotlaringizni ko'rish va tahrirlash.",
             "Hisobingizni o'chirishни so'rash.",
-            "Ma'lumotdan foydalanish bo'yicha savol berish: info@safarim.uz.",
+            "Ma'lumotdan foydalanish bo'yicha savol berish: info@uzsafar.uz.",
           ]}
         />
       </DocSection>

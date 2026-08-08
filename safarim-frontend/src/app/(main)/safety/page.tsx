@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Xavfsizlik — Safarim.uz" };
+export const metadata = { title: "Xavfsizlik — UzSafar" };
 
 const FEATURES = [
   { title: "Tasdiqlangan haydovchilar", desc: "Har bir haydovchi haydovchilik guvohnomasi va avtomobil ma'lumotlari bo'yicha admin tekshiruvidan o'tadi." },
@@ -66,7 +66,7 @@ export default function SafetyPage() {
 
       {/* CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 text-center">
-        <p className="text-gray-500 text-base mb-6">Savol yoki muammo bo'lsa, biz bilan bog'laning: <span className="font-semibold text-gray-700">info@safarim.uz</span></p>
+        <p className="text-gray-500 text-base mb-6">Savol yoki muammo bo'lsa, biz bilan bog'laning: <span className="font-semibold text-gray-700">info@uzsafar.uz</span></p>
         <Link href="/trips" className="inline-block bg-primary-500 hover:bg-primary-600 text-white px-7 py-[15px] rounded-[11px] font-bold text-[15.5px] shadow-primary-glow transition-colors">
           Safar qidirish
         </Link>

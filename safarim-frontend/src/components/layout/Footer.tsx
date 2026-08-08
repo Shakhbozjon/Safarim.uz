@@ -49,7 +49,7 @@ export default function Footer() {
             </p>
             <div className="text-sm text-gray-500 leading-8">
               <div>+998 71 234 56 78</div>
-              <div>info@safarim.uz</div>
+              <div>info@uzsafar.uz</div>
               <div>Toshkent, O'zbekiston</div>
             </div>
           </div>
@@ -60,7 +60,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 sm:mt-11 pt-6 border-t border-gray-100 text-[13px] text-gray-400">
-          © {new Date().getFullYear()} Safarim.uz. Barcha huquqlar himoyalangan.
+          © {new Date().getFullYear()} UzSafar. Barcha huquqlar himoyalangan.
         </div>
       </div>
     </footer>

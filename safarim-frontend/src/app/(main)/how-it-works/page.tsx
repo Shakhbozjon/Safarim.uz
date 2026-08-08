@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Qanday ishlaydi — Safarim.uz" };
+export const metadata = { title: "Qanday ishlaydi — UzSafar" };
 
 const PASSENGER = [
   { n: 1, title: "Safar toping", desc: "Qayerdan, qayerga va sanani kiriting. Mavjud safarlar ro'yxatidan eng qulayini tanlang." },
@@ -47,7 +47,7 @@ export default function HowItWorksPage() {
           Bir necha qadamda yo'lga chiqing
         </h1>
         <p className="text-[clamp(16px,1.6vw,17.5px)] leading-relaxed text-gray-500 max-w-[560px] mx-auto">
-          Safarim.uz yo'lovchi va haydovchini oddiy, tez va xavfsiz tarzda bog'laydi. Quyida
+          UzSafar yo'lovchi va haydovchini oddiy, tez va xavfsiz tarzda bog'laydi. Quyida
           ikkala tomon uchun jarayon ko'rsatilган.
         </p>
       </section>

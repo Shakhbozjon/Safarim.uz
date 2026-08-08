@@ -54,7 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div>
             <p className="text-sm font-bold text-gray-900 leading-tight">Admin Panel</p>
-            <p className="text-xs text-gray-400">Safarim.uz</p>
+            <p className="text-xs text-gray-400">UzSafar</p>
           </div>
         </div>
 
