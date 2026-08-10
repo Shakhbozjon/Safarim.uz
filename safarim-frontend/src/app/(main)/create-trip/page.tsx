@@ -66,9 +66,9 @@ export default function CreateTripPage() {
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      total_seats:    3,
+      total_seats:    4,
       price_per_seat: 45_000,
-      payment_type:   "any",
+      payment_type:   "cash",
       smoking_allowed: false,
       pets_allowed:    false,
       women_only:      false,
@@ -356,51 +356,12 @@ export default function CreateTripPage() {
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Bir joy narxi</span>
-                  <span className="font-medium">{new Intl.NumberFormat("uz-UZ").format(price)} so'm</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    Platforma komissiyasi ({price > 200_000 ? "5" : "2"}%)
-                  </span>
-                  <span className="text-gray-500">
-                    −{new Intl.NumberFormat("uz-UZ").format(Math.round(price * (price > 200_000 ? 0.05 : 0.02)))} so'm
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm font-semibold border-t border-gray-200 pt-2">
-                  <span className="text-gray-700">Siz olasiz</span>
-                  <span className="text-green-600">
-                    {new Intl.NumberFormat("uz-UZ").format(Math.round(price * (price > 200_000 ? 0.95 : 0.98)))} so'm
-                  </span>
-                </div>
-              </div>
-
-              {/* To'lov turi */}
+              {/* To'lov usuli — hozircha faqat naqd (Click/Payme keyinroq qo'shiladi) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">To'lov usuli</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {([
-                    { value: "any",   label: "Har qanday" },
-                    { value: "cash",  label: "Naqd pul" },
-                    { value: "click", label: "Click" },
-                    { value: "payme", label: "Payme" },
-                  ] as const).map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setValue("payment_type", value)}
-                      className={clsx(
-                        "py-2.5 rounded-xl text-sm font-medium border transition-all",
-                        watch("payment_type") === value
-                          ? "border-primary-500 bg-primary-50 text-primary-700"
-                          : "border-gray-200 text-gray-600"
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between py-3 px-4 rounded-xl border border-primary-500 bg-primary-50 text-sm font-medium text-primary-700">
+                  <span>Naqd pul</span>
+                  <span className="text-xs font-normal text-gray-500">Online to'lov keyinroq qo'shiladi</span>
                 </div>
               </div>
 
