@@ -24,6 +24,8 @@ const DEFAULT: Filters = {
 interface TripFiltersProps {
   onChange?: (filters: Filters) => void;
   totalCount?: number;
+  /** "sidebar" = faqat desktop yon panel; "button" = faqat mobil tugma+drawer; "both" = ikkalasi */
+  variant?: "both" | "sidebar" | "button";
 }
 
 const TIME_SLOTS = [
@@ -39,7 +41,7 @@ const RATINGS = [
   { value: 4.5, label: "4.5+ ★" },
 ];
 
-export default function TripFilters({ onChange, totalCount }: TripFiltersProps) {
+export default function TripFilters({ onChange, totalCount, variant = "both" }: TripFiltersProps) {
   const [filters, setFilters] = useState<Filters>(DEFAULT);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [priceExpanded, setPriceExpanded] = useState(true);
@@ -210,16 +212,23 @@ export default function TripFilters({ onChange, totalCount }: TripFiltersProps) 
     </div>
   );
 
+  const showSidebar = variant === "both" || variant === "sidebar";
+  const showButton = variant === "both" || variant === "button";
+
   return (
     <>
       {/* Desktop sidebar */}
+      {showSidebar && (
       <aside className="hidden lg:block w-64 shrink-0">
         <div className="bg-white rounded-2xl border border-gray-100 p-5 sticky top-20">
           {content}
         </div>
       </aside>
+      )}
 
-      {/* Mobile filter button */}
+      {/* Mobile filter button + drawer */}
+      {showButton && (
+      <>
       <div className="lg:hidden">
         <button
           onClick={() => setMobileOpen(true)}
@@ -251,6 +260,8 @@ export default function TripFilters({ onChange, totalCount }: TripFiltersProps) 
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </>
   );

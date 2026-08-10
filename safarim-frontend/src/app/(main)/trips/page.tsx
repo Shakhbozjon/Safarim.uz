@@ -106,7 +106,7 @@ function TripsContent() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <TripFilters totalCount={trips.length} />
+          <TripFilters variant="button" totalCount={trips.length} />
 
           <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-1 py-1">
             <ArrowUpDown size={13} className="text-gray-400 ml-1.5" />
@@ -124,8 +124,8 @@ function TripsContent() {
       </div>
 
       <div className="flex gap-6">
-        {/* Sidebar filters */}
-        <TripFilters totalCount={trips.length} />
+        {/* Sidebar filters (faqat desktop) */}
+        <TripFilters variant="sidebar" totalCount={trips.length} />
 
         {/* List */}
         <div className="flex-1 min-w-0">
