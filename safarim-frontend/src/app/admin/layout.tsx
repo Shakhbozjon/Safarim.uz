@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { clsx } from "clsx";
@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Banknote,
   Scale,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -28,12 +30,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user?.is_admin) {
       router.replace("/");
     }
   }, [user, isLoading, router]);
+
+  // Yo'nalish o'zgarganda mobil drawer yopilsin
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   if (isLoading || !user?.is_admin) {
     return (
@@ -44,22 +52,62 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-60 shrink-0 bg-white border-r border-gray-100 flex flex-col">
-        {/* Logo */}
-        <div className="h-16 flex items-center gap-2.5 px-5 border-b border-gray-100">
-          <div className="w-8 h-8 bg-primary-500 rounded-xl flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 md:flex">
+      {/* ── Mobil yuqori panel (hamburger) ── */}
+      <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 h-14 px-4 bg-white border-b border-gray-100">
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Menyu"
+          className="p-1.5 -ml-1.5 text-gray-600 hover:text-gray-900"
+        >
+          <Menu size={22} />
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
+            <Shield size={14} className="text-white" />
+          </div>
+          <span className="text-[15px] font-bold text-gray-900">Admin Panel</span>
+        </div>
+      </header>
+
+      {/* ── Backdrop (mobil, drawer ochiq bo'lsa) ── */}
+      {open && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/40 z-40"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Sidebar / drawer ── */}
+      <aside
+        className={clsx(
+          "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col",
+          "transition-transform duration-200 ease-out",
+          "md:static md:z-auto md:w-60 md:translate-x-0 md:shrink-0",
+          open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
+      >
+        {/* Logo + yopish (mobil) */}
+        <div className="h-14 md:h-16 flex items-center gap-2.5 px-5 border-b border-gray-100">
+          <div className="w-8 h-8 bg-primary-500 rounded-xl flex items-center justify-center shrink-0">
             <Shield size={16} className="text-white" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900 leading-tight">Admin Panel</p>
             <p className="text-xs text-gray-400">UzSafar</p>
           </div>
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Yopish"
+            className="md:hidden ml-auto p-1.5 -mr-1.5 text-gray-400 hover:text-gray-700"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {NAV.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
@@ -73,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 )}
               >
-                <Icon size={17} />
+                <Icon size={17} className="shrink-0" />
                 {label}
                 {active && <ChevronRight size={13} className="ml-auto text-primary-400" />}
               </Link>
@@ -97,8 +145,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 min-w-0 overflow-auto">
+      {/* ── Main ── */}
+      <main className="flex-1 min-w-0 md:h-screen md:overflow-auto">
         {children}
       </main>
     </div>

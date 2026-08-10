@@ -75,9 +75,9 @@ export default function AdminUsersPage() {
   const totalPages = data ? Math.ceil(data.total / 20) : 1;
 
   return (
-    <div className="p-8">
+    <div className="p-5 sm:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Foydalanuvchilar</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Foydalanuvchilar</h1>
         <p className="text-sm text-gray-500 mt-1">
           {data ? `Jami ${data.total.toLocaleString()} ta` : "Yuklanmoqda..."}
         </p>

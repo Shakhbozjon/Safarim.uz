@@ -106,7 +106,7 @@ export default function DriverDetailPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-5 sm:p-8 max-w-3xl">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link
