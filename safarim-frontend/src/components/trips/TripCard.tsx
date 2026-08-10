@@ -130,7 +130,7 @@ export default function TripCard({ trip, className }: TripCardProps) {
               </p>
               <p className="text-xs text-gray-400">/ joy</p>
             </div>
-            <Button size="sm" className="shrink-0">Bron</Button>
+            <Button size="sm" className="shrink-0">Band qilish</Button>
           </div>
         </div>
       </article>
