@@ -29,7 +29,7 @@ export default function CookiesPage() {
       <DocSection heading="3. Cookie'larni boshqarish">
         <p>
           Brauzeringiz sozlamalari orqали cookie'larni o'chirishingiz yoki bloklashingiz mumkin.
-          Ammo zarur cookie'lar o'chirilса, tizimга kirish va bron kabi funksiyalar ishlamasligi mumkin.
+          Ammo zarur cookie'lar o'chirilса, tizimга kirish va band qilish kabi funksiyalar ishlamasligi mumkin.
         </p>
       </DocSection>
 

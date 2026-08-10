@@ -80,7 +80,7 @@ const TX_LABELS: Record<string, string> = {
   refund:          "Qaytarma",
 };
 
-// ─── Bron holati yorlig'i ──────────────────────────────────────────────────
+// ─── Band qilish holati yorlig'i ──────────────────────────────────────────────────
 const BSTATUS: Record<string, { label: string; cls: string }> = {
   pending:               { label: "Kutilmoqda",       cls: "bg-yellow-100 text-yellow-700" },
   confirmed:             { label: "Tasdiqlangan",     cls: "bg-green-100 text-green-700" },
@@ -597,7 +597,7 @@ export default function DriverDashboardPage() {
         <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 flex items-start gap-3">
           <AlertTriangle size={20} className="text-red-500 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-bold text-red-800 text-sm">Depozit tugadi — yangi naqd bronlar qabul qilinmaydi</p>
+            <p className="font-bold text-red-800 text-sm">Depozit tugadi — yangi naqd band qilishlar qabul qilinmaydi</p>
             <p className="text-sm text-red-600 mt-1">
               Balans {formatPrice(wallet.min_balance)} so'mdan past. Depozitni to'ldiring.
             </p>
@@ -694,7 +694,7 @@ export default function DriverDashboardPage() {
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
               Naqd safarlar komissiyasi shu depozitdan chegariladi.
               {balance < 0
-                ? ` Balans manfiy — ${formatPrice(wallet?.min_balance ?? -50000)} so'mga yetganda naqd bronlar bloklanadi.`
+                ? ` Balans manfiy — ${formatPrice(wallet?.min_balance ?? -50000)} so'mga yetganda naqd band qilishlar bloklanadi.`
                 : depositLow
                 ? " Depozit kam qoldi — to'ldirib qo'ying."
                 : " 20 000 so'mdan past tushsa — ogohlantirish beriladi."}

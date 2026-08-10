@@ -58,7 +58,7 @@ export default function AdminDisputesPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Nizolar</h1>
         <p className="text-sm text-gray-400 mt-1">
-          Yo'lovchi «safar bo'lmadi», haydovchi «bo'ldi» degan bronlar. Qaror qabul qiling.
+          Yo'lovchi «safar bo'lmadi», haydovchi «bo'ldi» degan band qilishlar. Qaror qabul qiling.
         </p>
       </div>
 

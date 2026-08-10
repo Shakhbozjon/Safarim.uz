@@ -30,7 +30,7 @@ async def create_review(
     current_user: User,
     data: ReviewCreate,
 ) -> Review:
-    # Bron mavjudmi?
+    # Band qilish mavjudmi?
     result = await db.execute(
         select(Booking)
         .options(selectinload(Booking.trip))
@@ -38,7 +38,7 @@ async def create_review(
     )
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Bron topilmadi")
+        raise HTTPException(status_code=404, detail="Band qilish topilmadi")
 
     # Faqat tugallangan safarlar uchun baho berish mumkin
     if booking.status != BookingStatus.completed:
@@ -48,7 +48,7 @@ async def create_review(
     is_driver = booking.trip.driver_id == current_user.id
 
     if not is_passenger and not is_driver:
-        raise HTTPException(status_code=403, detail="Bu bron bilan bog'liq emassiz")
+        raise HTTPException(status_code=403, detail="Bu band qilish bilan bog'liq emassiz")
 
     # Kim kim haqida yozmoqda?
     if is_passenger:

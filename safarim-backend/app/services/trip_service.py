@@ -301,7 +301,7 @@ async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
     """Vaqti o'tgan, yo'lovchi yig'ilmagan safarlarni `expired` qiladi.
 
     `driver_id` berilsa faqat shu haydovchi safarlari (dashboard lazy expiry).
-    Berilmasa — barchasi (Celery task). Tasdiqlangan bron bor safarlarga tegmaydi.
+    Berilmasa — barchasi (Celery task). Tasdiqlangan band qilish bor safarlarga tegmaydi.
     O'zgarish bo'lganda commit qiladi. Expired qilingan safarlar sonini qaytaradi.
     """
     now = now_tashkent_naive()
@@ -325,7 +325,7 @@ async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
         if now < departure_dt + grace:
             continue  # safar hali o'tmagan / davom etmoqda
 
-        # Javobsiz qolgan pending bronlarni bekor qilish
+        # Javobsiz qolgan pending band qilishlarni bekor qilish
         pending = (await db.execute(
             select(Booking).where(
                 Booking.trip_id == trip.id,
@@ -345,18 +345,18 @@ async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
             refund = booking.total_price if online_paid else 0
             booking.refund_amount = refund
             await flag_refund_due(db, booking, refund)
-            # Komissiya safar tugaganda ushiladi — bu pending bronlarda komissiya yo'q
+            # Komissiya safar tugaganda ushiladi — bu pending band qilishlarda komissiya yo'q
             await notification_service.create(
                 db,
                 user_id=booking.passenger_id,
                 title="So'rov bekor qilindi",
-                body="Safar vaqti o'tib ketdi, broningiz avtomatik bekor qilindi.",
+                body="Safar vaqti o'tib ketdi, band qilishingiz avtomatik bekor qilindi.",
                 ref_type=NotificationRefType.booking,
                 ref_id=booking.id,
             )
             changed = True
 
-        # Real bron bormi? (pending/cancelled dan boshqa har qanday — tasdiq
+        # Real band qilish bormi? (pending/cancelled dan boshqa har qanday — tasdiq
         # bosqichidagi yoki yakunlangan safarlar `expired` bo'lib qolmasin)
         real = await db.scalar(
             select(func.count()).select_from(Booking).where(
@@ -394,7 +394,7 @@ async def cancel_trip(db: AsyncSession, trip_id: str, user: User, reason: str | 
     if trip.status not in (TripStatus.active, TripStatus.full):
         raise HTTPException(status_code=400, detail="Bu safarni bekor qilib bo'lmaydi")
 
-    # Barcha aktiv bronlarni bekor qilish
+    # Barcha aktiv band qilishlarni bekor qilish
     result = await db.execute(
         select(Booking).where(
             Booking.trip_id == trip.id,
@@ -403,7 +403,7 @@ async def cancel_trip(db: AsyncSession, trip_id: str, user: User, reason: str | 
     )
     bookings = result.scalars().all()
 
-    # Jo'nash vaqtidan keyin bronli safarni bekor qilib bo'lmaydi —
+    # Jo'nash vaqtidan keyin band qilishli safarni bekor qilib bo'lmaydi —
     # aks holda haydovchi komissiyadan qochib qutuladi (tasdiq oqimi hal qiladi)
     departure_dt = datetime.combine(trip.departure_date, trip.departure_time)
     if bookings and now_tashkent_naive() >= departure_dt:
@@ -421,7 +421,7 @@ async def cancel_trip(db: AsyncSession, trip_id: str, user: User, reason: str | 
         booking.cancellation_reason = reason or "Haydovchi safarni bekor qildi"
         booking.cancelled_at = now
 
-        # Refund faqat online to'langan bronда — naqdda hech narsa olinmagan
+        # Refund faqat online to'langan band qilishда — naqdda hech narsa olinmagan
         online_paid = (
             booking.payment_method != PaymentMethod.cash
             and booking.payment_status == BookingPaymentStatus.paid
@@ -430,7 +430,7 @@ async def cancel_trip(db: AsyncSession, trip_id: str, user: User, reason: str | 
         booking.refund_amount = refund
         await flag_refund_due(db, booking, refund)
 
-        # Komissiya faqat safar tugaganda ushiladi — tugamagan bron bekor qilinsa
+        # Komissiya faqat safar tugaganda ushiladi — tugamagan band qilish bekor qilinsa
         # qaytariladigan komissiya yo'q.
 
         # Har bir yo'lovchiga bildirishnoma

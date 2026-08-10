@@ -37,7 +37,7 @@ def _load_options():
 
 
 async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate) -> Booking:
-    # Safar mavjudmi? (row-lock: parallel bronlarda oversell oldini oladi)
+    # Safar mavjudmi? (row-lock: parallel band qilishlarda oversell oldini oladi)
     result = await db.execute(
         select(Trip)
         .options(selectinload(Trip.driver).selectinload(User.driver_profile))
@@ -51,11 +51,11 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
     if trip.status != TripStatus.active:
         raise HTTPException(status_code=400, detail="Bu safar aktiv emas")
 
-    # Haydovchi o'z safariga bron qila olmaydi
+    # Haydovchi o'z safariga band qila olmaydi
     if trip.driver_id == passenger.id:
         raise HTTPException(status_code=400, detail="O'z safaringizga joy band qila olmaysiz")
 
-    # Bir safarga bir yo'lovchi faqat bir marta bron qila oladi
+    # Bir safarga bir yo'lovchi faqat bir marta band qila oladi
     existing = await db.execute(
         select(Booking).where(
             Booking.trip_id == data.trip_id,
@@ -76,7 +76,7 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
     # Narx hisoblash
     price_per_seat = trip.price_per_seat
 
-    # Waypoint bilan bron
+    # Waypoint bilan band qilish
     if data.from_waypoint_id and data.to_waypoint_id:
         from_wp_result = await db.execute(
             select(TripWaypoint).where(
@@ -129,21 +129,21 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
     # ── Wallet operatsiyasi ──────────────────────────────────────────────────
     # Bepul davrda komissiya yo'q → depozit talab qilinmaydi, blok tekshirilmaydi
     if data.payment_method == PaymentMethod.cash and not settings.COMMISSION_FREE_MODE:
-        # Naqd: hamyon bloklangan bo'lsa yangi bron qabul qilinmaydi
+        # Naqd: hamyon bloklangan bo'lsa yangi band qilish qabul qilinmaydi
         driver_wallet = await wallet_service.get_or_create(db, trip.driver_id)
         if driver_wallet.is_blocked:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Haydovchi hozir naqd bronlarni qabul qila olmaydi (hamyon to'ldirilishi kerak)",
+                detail="Haydovchi hozir naqd band qilishlarni qabul qila olmaydi (hamyon to'ldirilishi kerak)",
             )
-        # Komissiya bron paytida EMAS — safar tugagach (complete_booking) ushiladi.
+        # Komissiya band qilish paytida EMAS — safar tugagach (complete_booking) ushiladi.
         # Shunday qilib haydovchi safardan oldin qarzga tushmaydi.
 
-    # Haydovchiga bildirishnoma: yangi bron
+    # Haydovchiga bildirishnoma: yangi band qilish
     await notification_service.create(
         db,
         user_id=trip.driver_id,
-        title="Yangi bron! 🎉",
+        title="Yangi band qilish! 🎉",
         body=f"{passenger.full_name} {data.seats_count} ta joy band qildi.",
         ref_type=NotificationRefType.booking,
         ref_id=booking.id,
@@ -180,7 +180,7 @@ async def _update_monthly_commission(db: AsyncSession, driver_id, amount: int) -
 
 
 async def flag_refund_due(db: AsyncSession, booking: Booking, refund_amount: int) -> None:
-    """Online to'langan bron bekor bo'ldi → refund navbatga: status + admin xabari.
+    """Online to'langan band qilish bekor bo'ldi → refund navbatga: status + admin xabari.
 
     Pilotда avtomatik pul qaytarish yo'q — admin Click/Payme kabinetidan qo'lda
     qaytaradi. Bu funksiya faqat belgilaydi va adminга Telegram xabar yuboradi.
@@ -192,7 +192,7 @@ async def flag_refund_due(db: AsyncSession, booking: Booking, refund_amount: int
     booking.payment_status = BookingPaymentStatus.refunded
     await sms_service.notify_admin(
         f"💸 <b>Refund kerak (qo'lda)</b>\n\n"
-        f"Bron: <code>{booking.id}</code>\n"
+        f"Band qilish: <code>{booking.id}</code>\n"
         f"Miqdor: <b>{refund_amount:,} so'm</b>\n"
         f"Usul: <b>{booking.payment_method.value}</b>\n"
         f"Yo'lovchiga Click/Payme kabineti orqali qaytaring."
@@ -214,17 +214,17 @@ async def cancel_booking(
     )
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Bron topilmadi")
+        raise HTTPException(status_code=404, detail="Band qilish topilmadi")
 
     # Faqat yo'lovchi yoki haydovchi bekor qila oladi
     is_passenger = booking.passenger_id == user.id
     is_driver = booking.trip.driver_id == user.id
 
     if not is_passenger and not is_driver:
-        raise HTTPException(status_code=403, detail="Bu bronni bekor qilish huquqingiz yo'q")
+        raise HTTPException(status_code=403, detail="Bu band qilishni bekor qilish huquqingiz yo'q")
 
     if booking.status not in [BookingStatus.pending, BookingStatus.confirmed]:
-        raise HTTPException(status_code=400, detail="Bu bronni bekor qilib bo'lmaydi")
+        raise HTTPException(status_code=400, detail="Bu band qilishni bekor qilib bo'lmaydi")
 
     # departure_date/time mahalliy (Toshkent) vaqtda — solishtirish ham shunda
     now_local = now_tashkent_naive()
@@ -240,7 +240,7 @@ async def cancel_booking(
 
     hours_left = (departure_dt - now_local).total_seconds() / 3600
 
-    # Refund faqat haqiqatan online to'langan bronda bo'ladi (naqdda pul olinmagan)
+    # Refund faqat haqiqatan online to'langan band qilishda bo'ladi (naqdda pul olinmagan)
     online_paid = (
         booking.payment_method != PaymentMethod.cash
         and booking.payment_status == BookingPaymentStatus.paid
@@ -275,8 +275,8 @@ async def cancel_booking(
         await notification_service.create(
             db,
             user_id=booking.passenger_id,
-            title="Bron bekor qilindi",
-            body=f"Haydovchi bronni bekor qildi.{refund_note}",
+            title="Band qilish bekor qilindi",
+            body=f"Haydovchi band qilishni bekor qildi.{refund_note}",
             ref_type=NotificationRefType.booking,
             ref_id=booking.id,
         )
@@ -290,13 +290,13 @@ async def cancel_booking(
             await notification_service.create(
                 db,
                 user_id=trip2.driver_id,
-                title="Yo'lovchi bronni bekor qildi",
-                body=f"{user.full_name} bronni bekor qildi.",
+                title="Yo'lovchi band qilishni bekor qildi",
+                body=f"{user.full_name} band qilishni bekor qildi.",
                 ref_type=NotificationRefType.booking,
                 ref_id=booking.id,
             )
 
-    # O'rinlarni qaytarish (row-lock: parallel bron/bekor bilan to'qnashmasin)
+    # O'rinlarni qaytarish (row-lock: parallel band qilish/bekor bilan to'qnashmasin)
     trip_result = await db.execute(
         select(Trip).where(Trip.id == booking.trip_id).with_for_update(of=Trip)
     )
@@ -306,7 +306,7 @@ async def cancel_booking(
         trip.status = TripStatus.active
 
     # Eslatma: komissiya faqat safar tugaganda (complete_booking) ushiladi.
-    # Tugamagan (pending/confirmed) bron bekor qilinsa — ushlangan komissiya yo'q,
+    # Tugamagan (pending/confirmed) band qilish bekor qilinsa — ushlangan komissiya yo'q,
     # demak qaytariladigan narsa ham yo'q.
 
     await db.commit()
@@ -516,15 +516,15 @@ async def confirm_booking(
     )
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Bron topilmadi")
+        raise HTTPException(status_code=404, detail="Band qilish topilmadi")
 
     is_driver = booking.trip.driver_id == user.id
     is_passenger = booking.passenger_id == user.id
     if not is_driver and not is_passenger:
-        raise HTTPException(status_code=403, detail="Bu bronni tasdiqlash huquqingiz yo'q")
+        raise HTTPException(status_code=403, detail="Bu band qilishni tasdiqlash huquqingiz yo'q")
 
     if booking.status not in (BookingStatus.confirmed, BookingStatus.awaiting_confirmation):
-        raise HTTPException(status_code=400, detail="Bu bron tasdiq bosqichida emas")
+        raise HTTPException(status_code=400, detail="Bu band qilish tasdiq bosqichida emas")
 
     # Safar vaqti hali kelmagan bo'lsa tasdiqlab bo'lmaydi (mahalliy vaqtda)
     departure_dt = datetime.combine(booking.trip.departure_date, booking.trip.departure_time)
@@ -587,7 +587,7 @@ async def report_no_show(db: AsyncSession, booking_id: str, driver: User) -> Boo
 # ─── Celery uchun ommaviy hal qilish ────────────────────────────────────────
 
 async def request_due_confirmations(db: AsyncSession) -> int:
-    """Jo'nash + grace o'tgan tasdiqlangan bronlar uchun tasdiq oynasini ochadi."""
+    """Jo'nash + grace o'tgan tasdiqlangan band qilishlar uchun tasdiq oynasini ochadi."""
     now_local = now_tashkent_naive()
     grace = timedelta(hours=settings.CONFIRMATION_GRACE_HOURS)
 
@@ -630,9 +630,9 @@ async def admin_resolve_dispute(
     )
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Bron topilmadi")
+        raise HTTPException(status_code=404, detail="Band qilish topilmadi")
     if booking.status != BookingStatus.disputed:
-        raise HTTPException(status_code=400, detail="Bu bron nizo holatida emas")
+        raise HTTPException(status_code=400, detail="Bu band qilish nizo holatida emas")
 
     driver_id = booking.trip.driver_id
 
@@ -668,7 +668,7 @@ async def admin_resolve_dispute(
 
 
 async def resolve_due_confirmations(db: AsyncSession) -> int:
-    """48 soatlik oynasi o'tgan, tasdiq kutilayotgan bronlarni avtomatik hal qiladi."""
+    """48 soatlik oynasi o'tgan, tasdiq kutilayotgan band qilishlarni avtomatik hal qiladi."""
     cutoff = datetime.utcnow() - timedelta(hours=settings.CONFIRMATION_WINDOW_HOURS)
     rows = (await db.execute(
         select(Booking).options(selectinload(Booking.trip)).where(
@@ -698,7 +698,7 @@ async def get_my_bookings(db: AsyncSession, passenger: User) -> list[Booking]:
 
 
 async def get_driver_bookings(db: AsyncSession, driver: User) -> list[Booking]:
-    """Haydovchi safarlariga kelgan bronlar."""
+    """Haydovchi safarlariga kelgan band qilishlar."""
     result = await db.execute(
         select(Booking)
         .options(*_load_options())
@@ -718,7 +718,7 @@ async def get_booking(db: AsyncSession, booking_id: str, user: User) -> Booking:
     )
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Bron topilmadi")
+        raise HTTPException(status_code=404, detail="Band qilish topilmadi")
 
     # Faqat tegishli tomonlar ko'ra oladi
     is_passenger = booking.passenger_id == user.id

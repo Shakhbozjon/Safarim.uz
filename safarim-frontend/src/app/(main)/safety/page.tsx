@@ -5,7 +5,7 @@ export const metadata = { title: "Xavfsizlik — UzSafar" };
 const FEATURES = [
   { title: "Tasdiqlangan haydovchilar", desc: "Har bir haydovchi haydovchilik guvohnomasi va avtomobil ma'lumotlari bo'yicha admin tekshiruvidan o'tadi." },
   { title: "Reyting va sharhlar", desc: "Har safardan keyin yo'lovchi va haydovchi bir-birini baholaydi. Past reyting profilга ta'sir qiladi." },
-  { title: "Telefon raqam himoyasi", desc: "Raqamlar faqat bron tasdiqlangач ikkinchi tomonга ochiladi — ochiq ko'rinmaydi." },
+  { title: "Telefon raqam himoyasi", desc: "Raqamlar faqat band qilish tasdiqlangач ikkinchi tomonга ochiladi — ochiq ko'rinmaydi." },
   { title: "Ikki tomonlama tasdiq", desc: "Safar bo'lgani ikkala tomon tomonidan tasdiqlanadi. Kelishmovchilik bo'lsa admin hal qiladi." },
   { title: "Soxtalikка qarshi", desc: "Soxta safar belgilash aniqlansa, haydovchi ogohlantiriladi va takroriy holatда e'lonlari vaqtincha yashiriladi." },
   { title: "Nizolarni hal qilish", desc: "Har qanday nizo admin ko'rigi orqали adolatli hal qilinadi." },

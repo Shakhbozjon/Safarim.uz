@@ -14,7 +14,7 @@ export default function PrivacyPage() {
           items={[
             "Ism, telefon raqami va profil rasmi (ro'yxatdan o'tishda).",
             "Haydovchilar uchun: avtomobil ma'lumotlari va haydovchilik guvohnomasi.",
-            "Safar, bron va to'lov tarixi.",
+            "Safar, band qilish va to'lov tarixi.",
             "Qurilma va foydalanish ma'lumotlari (texnik xizmat sifati uchun).",
           ]}
         />
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
       <DocSection heading="2. Ma'lumotdan qanday foydalanamiz">
         <DocList
           items={[
-            "Safar qidiruvi, bron va tomonlarni bog'lash uchun.",
+            "Safar qidiruvi, band qilish va tomonlarni bog'lash uchun.",
             "Haydovchi hujjatlarini tekshirish va xavfsizlikni ta'minlash uchun.",
             "Bildirishnoma va xizmat sifatini yaxshilash uchun.",
           ]}
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
 
       <DocSection heading="3. Ma'lumot ulashish">
         <p>
-          Telefon raqami faqat bron tasdiqlangач ikkinchi tomonga (haydovchi/yo'lovchi) ko'rinadi.
+          Telefon raqami faqat band qilish tasdiqlangач ikkinchi tomonga (haydovchi/yo'lovchi) ko'rinadi.
           Biz sizning ma'lumotingizni uchinchi tomonlarга sotmaymiz. Ma'lumot faqat qonun talabiga
           binoan yoki xizmatni ta'minlash uchun zarur bo'lganda ulashilishi mumkin.
         </p>

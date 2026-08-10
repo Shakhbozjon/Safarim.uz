@@ -53,7 +53,7 @@ export default function TripDetailPage() {
     },
   });
 
-  // ── Bron qilish mutation ──
+  // ── Band qilish mutation ──
   const bookMutation = useMutation<BookingResponse, Error, void>({
     mutationFn: async () => {
       const { data } = await api.post("/bookings/", {
@@ -330,7 +330,7 @@ export default function TripDetailPage() {
                 <div className="mt-5 space-y-2.5">
                   {[
                     { icon: Shield, text: "Himoyalangan to'lov" },
-                    { icon: Phone, text: "Bron tasdiqlanganidan keyin telefon ochiladi" },
+                    { icon: Phone, text: "Band qilish tasdiqlanganidan keyin telefon ochiladi" },
                     { icon: CheckCircle, text: "Bepul bekor qilish (24s oldin)" },
                   ].map(({ icon: Icon, text }) => (
                     <div key={text} className="flex items-start gap-2.5 text-xs text-gray-500">
@@ -357,7 +357,7 @@ export default function TripDetailPage() {
       </div>
 
       {/* Booking modal */}
-      <Modal open={bookingModal} onClose={() => setBookingModal(false)} title="Bronni tasdiqlash">
+      <Modal open={bookingModal} onClose={() => setBookingModal(false)} title="Band qilishni tasdiqlash">
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-xl p-4 space-y-3">
             <div className="flex justify-between text-sm">

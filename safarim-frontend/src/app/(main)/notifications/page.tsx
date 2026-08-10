@@ -146,7 +146,7 @@ export default function NotificationsPage() {
             </div>
             <p className="text-gray-500 font-medium">Hali bildirishnoma yo'q</p>
             <p className="text-sm text-gray-400 mt-1">
-              Bron yoki safar yangiliklari shu yerda ko'rinadi
+              Band qilish yoki safar yangiliklari shu yerda ko'rinadi
             </p>
           </div>
         )}

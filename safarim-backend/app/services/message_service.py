@@ -20,7 +20,7 @@ async def _get_booking_and_check_access(
     db: AsyncSession, booking_id: str, user: User
 ) -> tuple[Booking, str]:
     """
-    Bronni topadi va foydalanuvchi haydovchi yoki yo'lovchiligini tekshiradi.
+    Band qilishni topadi va foydalanuvchi haydovchi yoki yo'lovchiligini tekshiradi.
     Returns: (booking, role) — role: 'driver' yoki 'passenger'
     """
     try:
@@ -35,20 +35,20 @@ async def _get_booking_and_check_access(
     )
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Bron topilmadi")
+        raise HTTPException(status_code=404, detail="Band qilish topilmadi")
 
     is_passenger = booking.passenger_id == user.id
     is_driver = booking.trip.driver_id == user.id
 
     if not is_passenger and not is_driver:
-        raise HTTPException(status_code=403, detail="Bu bron bilan bog'liq emassiz")
+        raise HTTPException(status_code=403, detail="Bu band qilish bilan bog'liq emassiz")
 
-    # Faqat tasdiqlangan yoki tugallangan bronlarda chat ochiq
+    # Faqat tasdiqlangan yoki tugallangan band qilishlarda chat ochiq
     allowed = [BookingStatus.confirmed, BookingStatus.completed]
     if booking.status not in allowed:
         raise HTTPException(
             status_code=400,
-            detail="Chat faqat tasdiqlangan bronlar uchun ochiq. Bron tasdiqlanguncha kuting.",
+            detail="Chat faqat tasdiqlangan band qilishlar uchun ochiq. Band qilish tasdiqlanguncha kuting.",
         )
 
     role = "passenger" if is_passenger else "driver"
@@ -146,7 +146,7 @@ async def mark_as_read(
 
 
 async def get_unread_count(db: AsyncSession, user: User) -> list[dict]:
-    """Foydalanuvchining barcha bronlarida o'qilmagan xabarlar soni."""
+    """Foydalanuvchining barcha band qilishlarida o'qilmagan xabarlar soni."""
     from sqlalchemy import func
 
     result = await db.execute(

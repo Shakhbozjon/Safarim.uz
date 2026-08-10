@@ -348,11 +348,11 @@ async def get_stats(
     }
 
 
-# ─── Nizoli bronlar (safar tasdiqi) ──────────────────────────────────────────
+# ─── Nizoli band qilishlar (safar tasdiqi) ──────────────────────────────────────────
 
 @router.get(
     "/disputes",
-    summary="Nizoli bronlar (yo'lovchi 'bo'lmadi', haydovchi 'bo'ldi')",
+    summary="Nizoli band qilishlar (yo'lovchi 'bo'lmadi', haydovchi 'bo'ldi')",
 )
 async def list_disputes(
     admin=Depends(get_current_admin),

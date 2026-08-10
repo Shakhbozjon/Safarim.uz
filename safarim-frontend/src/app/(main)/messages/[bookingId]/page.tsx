@@ -338,7 +338,7 @@ export default function ChatPage() {
       <div className="px-4 py-3 bg-white border-t border-gray-100 shrink-0">
         {booking?.status === "cancelled" ? (
           <div className="text-center text-sm text-gray-400 py-2">
-            Bron bekor qilingan — chat yopilgan
+            Band qilish bekor qilingan — chat yopilgan
           </div>
         ) : (
           <div className="flex items-end gap-2">

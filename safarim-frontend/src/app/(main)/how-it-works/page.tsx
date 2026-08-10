@@ -5,7 +5,7 @@ export const metadata = { title: "Qanday ishlaydi — UzSafar" };
 const PASSENGER = [
   { n: 1, title: "Safar toping", desc: "Qayerdan, qayerga va sanani kiriting. Mavjud safarlar ro'yxatidan eng qulayini tanlang." },
   { n: 2, title: "Joy band qiling", desc: "Haydovchi profili, reytingi va narxini ko'rib, bir tugma bilan joy band qiling." },
-  { n: 3, title: "Bog'laning", desc: "Bron tasdiqlangач haydovchining telefon raqami ochiladi — vaqt va uchrashuv joyini kelishing." },
+  { n: 3, title: "Bog'laning", desc: "Band qilish tasdiqlangач haydovchining telefon raqami ochiladi — vaqt va uchrashuv joyini kelishing." },
   { n: 4, title: "Yo'lga chiqing", desc: "Safar davomida haydovchiga naqd to'lang. Yetib borgач, safarni tasdiqlang va baho bering." },
 ];
 

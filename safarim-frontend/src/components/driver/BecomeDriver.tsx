@@ -16,7 +16,7 @@ import type { User } from "@/types";
 
 const BENEFITS = [
   { icon: Wallet, title: "Qo'shimcha daromad", desc: "Bo'sh o'rindiqlar yo'l xarajatingizni qoplaydi" },
-  { icon: Users, title: "Yo'lovchini o'zingiz tanlaysiz", desc: "Bron so'rovlarini ko'rib, qabul qilasiz" },
+  { icon: Users, title: "Yo'lovchini o'zingiz tanlaysiz", desc: "Band qilish so'rovlarini ko'rib, qabul qilasiz" },
   { icon: ShieldCheck, title: "Tekshirilgan platforma", desc: "Barcha haydovchilar hujjat orqali tasdiqlanadi" },
 ];
 

@@ -35,12 +35,12 @@ const ROUTES = [
 const SAFETY = [
   { title: "Tasdiqlangan haydovchilar", desc: "Barcha haydovchilar hujjat tekshiruvi va reyting tizimidan o'tadi." },
   { title: "Reyting va sharhlar", desc: "Har safardan keyin yo'lovchi va haydovchi bir-birini baholaydi." },
-  { title: "Raqam himoyasi", desc: "Telefon raqamlar faqat bron tasdiqlangandan keyin ko'rinadi." },
+  { title: "Raqam himoyasi", desc: "Telefon raqamlar faqat band qilish tasdiqlangandan keyin ko'rinadi." },
 ];
 
 const EARNINGS = [
   { value: "0%", label: "Ro'yxatdan o'tish to'lovi" },
-  { value: "2–5%", label: "Faqat muvaffaqiyatli brondan" },
+  { value: "2–5%", label: "Faqat muvaffaqiyatli band qilishdan" },
   { value: "1–2 kun", label: "Ariza tasdiqlash muddati" },
 ];
 

@@ -56,7 +56,7 @@ class WalletTransaction(Base):
     # + kirim, - chiqim
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     tx_type: Mapped[WalletTxType] = mapped_column(Enum(WalletTxType), nullable=False)
-    # Qaysi bron bilan bog'liq (ixtiyoriy)
+    # Qaysi band qilish bilan bog'liq (ixtiyoriy)
     booking_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=True
     )

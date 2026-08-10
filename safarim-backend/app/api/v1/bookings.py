@@ -26,7 +26,7 @@ async def create_booking(
 
 @router.get(
     "/my",
-    summary="Mening bronlarim (yo'lovchi sifatida)",
+    summary="Mening band qilishlarim (yo'lovchi sifatida)",
 )
 async def get_my_bookings(
     current_user: User = Depends(get_current_user),
@@ -38,7 +38,7 @@ async def get_my_bookings(
 
 @router.get(
     "/driver",
-    summary="Mening safarlarimga kelgan bronlar (haydovchi sifatida)",
+    summary="Mening safarlarimga kelgan band qilishlar (haydovchi sifatida)",
 )
 async def get_driver_bookings(
     current_user: User = Depends(get_current_driver),
@@ -50,7 +50,7 @@ async def get_driver_bookings(
 
 @router.get(
     "/{booking_id}",
-    summary="Bron tafsilotlari",
+    summary="Band qilish tafsilotlari",
 )
 async def get_booking(
     booking_id: str,
@@ -63,7 +63,7 @@ async def get_booking(
 
 @router.post(
     "/{booking_id}/cancel",
-    summary="Bronni bekor qilish",
+    summary="Band qilishni bekor qilish",
 )
 async def cancel_booking(
     booking_id: str,

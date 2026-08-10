@@ -45,7 +45,7 @@ async def mark_as_read(
 @router.get(
     "/unread/count",
     response_model=list[UnreadCountResponse],
-    summary="Barcha bronlardagi o'qilmagan xabarlar soni",
+    summary="Barcha band qilishlardagi o'qilmagan xabarlar soni",
 )
 async def get_unread_count(
     current_user: User = Depends(get_current_user),

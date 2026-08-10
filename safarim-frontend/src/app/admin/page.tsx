@@ -88,19 +88,19 @@ export default function AdminDashboard() {
           color="bg-purple-500"
         />
         <StatCard
-          label="Jami bronlar"
+          label="Jami band qilishlar"
           value={stats?.total_bookings}
           icon={BookOpen}
           color="bg-indigo-500"
         />
         <StatCard
-          label="Tugatilgan bronlar"
+          label="Tugatilgan band qilishlar"
           value={stats?.completed_bookings}
           icon={CheckCircle}
           color="bg-teal-500"
         />
         <StatCard
-          label="Nizoli bronlar"
+          label="Nizoli band qilishlar"
           value={stats?.disputed_bookings}
           icon={Scale}
           color="bg-rose-500"
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
         <div className="mt-4 bg-rose-50 border border-rose-100 rounded-2xl p-5 flex items-center justify-between">
           <div>
             <p className="font-semibold text-rose-900">
-              {stats.disputed_bookings} ta nizoli bron hal qilishni kutmoqda
+              {stats.disputed_bookings} ta nizoli band qilish hal qilishni kutmoqda
             </p>
             <p className="text-sm text-rose-700 mt-0.5">Yo'lovchi va haydovchi safar haqida kelisha olmadi</p>
           </div>

@@ -81,7 +81,7 @@ async def _maybe_notify_unblocked(db: AsyncSession, driver_id: uuid.UUID) -> Non
         db,
         user_id=driver_id,
         title="Hamyon blokdan chiqarildi ✅",
-        body="Balansingiz musbatga chiqdi. Endi naqd bronlarni qabul qila olasiz.",
+        body="Balansingiz musbatga chiqdi. Endi naqd band qilishlarni qabul qila olasiz.",
     )
 
 
@@ -188,7 +188,7 @@ async def refund_commission(
     booking_id: uuid.UUID | None = None,
 ) -> DriverWallet:
     """
-    Bron bekor qilindi — naqd komissiya qaytarildi.
+    Band qilish bekor qilindi — naqd komissiya qaytarildi.
     Balans musbatga chiqsa → avtomatik blokdan chiqarish.
     """
     wallet = await get_or_create(db, driver_id)
@@ -196,7 +196,7 @@ async def refund_commission(
         db, wallet,
         amount=+amount,
         tx_type=WalletTxType.refund,
-        description=f"Bekor qilingan bron qaytarmasi: +{amount:,} so'm",
+        description=f"Bekor qilingan band qilish qaytarmasi: +{amount:,} so'm",
         booking_id=booking_id,
     )
     if auto_unblocked:

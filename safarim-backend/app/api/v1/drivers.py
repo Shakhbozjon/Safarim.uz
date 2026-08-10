@@ -144,7 +144,7 @@ async def update_preferences(
 @router.post(
     "/me/pause",
     response_model=DriverProfileResponse,
-    summary="Pauzaga o'tish — yangi bronlar qabul qilinmaydi",
+    summary="Pauzaga o'tish — yangi band qilishlar qabul qilinmaydi",
 )
 async def pause_driver(
     current_user: User = Depends(get_current_driver),

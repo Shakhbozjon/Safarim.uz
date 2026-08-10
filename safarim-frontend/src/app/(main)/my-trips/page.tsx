@@ -459,7 +459,7 @@ export default function MyTripsPage() {
       </div>
 
       {/* ── Cancel modal ─────────────────────────────────────────────────── */}
-      <Modal open={!!cancelModal} onClose={() => setCancelModal(null)} title="Bronni bekor qilish">
+      <Modal open={!!cancelModal} onClose={() => setCancelModal(null)} title="Band qilishni bekor qilish">
         <div className="space-y-4">
           <div className="bg-yellow-50 rounded-xl p-4 text-sm text-yellow-800">
             <AlertCircle size={15} className="inline mr-1.5 mb-0.5" />

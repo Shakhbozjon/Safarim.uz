@@ -171,13 +171,13 @@ async def initiate_payment(
     )
     booking = result.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=404, detail="Bron topilmadi")
+        raise HTTPException(status_code=404, detail="Band qilish topilmadi")
     if booking.passenger_id != user.id:
-        raise HTTPException(status_code=403, detail="Bu bron sizniki emas")
+        raise HTTPException(status_code=403, detail="Bu band qilish sizniki emas")
     if booking.status not in [BookingStatus.pending, BookingStatus.confirmed]:
-        raise HTTPException(status_code=400, detail="Bu bron uchun to'lov qilib bo'lmaydi")
+        raise HTTPException(status_code=400, detail="Bu band qilish uchun to'lov qilib bo'lmaydi")
     if booking.payment_status == BookingPaymentStatus.paid:
-        raise HTTPException(status_code=400, detail="Bu bron allaqachon to'langan")
+        raise HTTPException(status_code=400, detail="Bu band qilish allaqachon to'langan")
 
     # Mavjud payment bormi?
     existing = await db.execute(
@@ -277,7 +277,7 @@ async def handle_click_callback(db: AsyncSession, data: dict) -> dict:
         return {"click_trans_id": click_trans_id, "merchant_trans_id": booking_id,
                 "error": -8, "error_note": "INVALID ACTION"}
 
-    # Bron mavjudmi?
+    # Band qilish mavjudmi?
     try:
         uid = uuid_lib.UUID(booking_id)
     except ValueError:
@@ -469,7 +469,7 @@ async def _payme_create(db: AsyncSession, request_id: int, params: dict) -> dict
     if not booking:
         return _payme_error(request_id, PAYME_ERRORS["invalid_account"])
 
-    # Miqdor bron summasiga mos bo'lishi shart (tiyinda)
+    # Miqdor band qilish summasiga mos bo'lishi shart (tiyinda)
     if amount is None or abs(booking.total_price * 100 - amount) > 100:
         return _payme_error(request_id, PAYME_ERRORS["invalid_amount"])
 
@@ -617,7 +617,7 @@ async def _payme_check(db: AsyncSession, request_id: int, params: dict) -> dict:
 # ─── Naqd pul — oylik komissiya ───────────────────────────────────────────────
 
 async def record_cash_commission(db: AsyncSession, booking: Booking) -> None:
-    """Naqd pul bron tugaganda haydovchi oylik komissiyasini yangilash."""
+    """Naqd pul band qilish tugaganda haydovchi oylik komissiyasini yangilash."""
     trip_result = await db.execute(
         select(Trip).where(Trip.id == booking.trip_id)
     )

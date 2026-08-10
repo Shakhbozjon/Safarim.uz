@@ -49,8 +49,8 @@ def check_review_deadlines() -> dict:
 def notify_booking_created(booking_id: str) -> dict:
     """
     Joy band qilinganda:
-    - Haydovchiga SMS: "Yangi bron: ..."
-    - Yo'lovchiga SMS: "Broningiz tasdiqlandi: ..."
+    - Haydovchiga SMS: "Yangi band qilish: ..."
+    - Yo'lovchiga SMS: "Band qilishingiz tasdiqlandi: ..."
     Sprint 7 da to'liq implementatsiya.
     """
     return {"status": "queued", "booking_id": booking_id}

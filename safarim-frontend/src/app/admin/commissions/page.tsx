@@ -147,7 +147,7 @@ export default function AdminCommissionsPage() {
                     <Phone size={11} />
                     {r.driver.phone}
                   </span>
-                  <span>{r.total_cash_bookings} ta naqd bron</span>
+                  <span>{r.total_cash_bookings} ta naqd band qilish</span>
                   {r.paid_at && (
                     <span>
                       To'landi: {new Date(r.paid_at).toLocaleDateString("uz-UZ")}
@@ -211,7 +211,7 @@ export default function AdminCommissionsPage() {
                 <span className="font-semibold">{formatMonth(confirmRecord.month)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Naqd bronlar</span>
+                <span className="text-gray-500">Naqd band qilishlar</span>
                 <span className="font-semibold">{confirmRecord.total_cash_bookings} ta</span>
               </div>
               <div className="flex justify-between border-t border-gray-200 pt-2">

@@ -19,7 +19,7 @@ import { useState, useEffect } from "react";
 
 const MENU_ITEMS = [
   { icon: User,   href: "/profile/edit",     label: "Profilni tahrirlash",  desc: "Ism, rasm, haqida" },
-  { icon: Car,    href: "/my-trips",          label: "Safarlarim",            desc: "Bronlar va tarix" },
+  { icon: Car,    href: "/my-trips",          label: "Safarlarim",            desc: "Band qilishlar va tarix" },
   { icon: Bell,   href: "/notifications",     label: "Bildirishnomalar",      desc: "SMS va push sozlamalari" },
   { icon: Shield, href: "/profile/security",  label: "Xavfsizlik",            desc: "Parol o'zgartirish" },
 ];
