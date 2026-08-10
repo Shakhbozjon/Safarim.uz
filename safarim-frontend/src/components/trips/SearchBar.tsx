@@ -79,42 +79,51 @@ export default function SearchBar({
     return (
       <form
         onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
-        className="flex items-center gap-2 bg-white rounded-2xl border border-gray-200 shadow-card px-3 py-1"
+        className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white rounded-2xl border border-gray-200 shadow-card p-2 sm:px-3 sm:py-1"
       >
-        <LocationPicker
-          value={from}
-          onChange={setFrom}
-          placeholder="Qayerdan"
-          compact
-          className="flex-1"
-        />
-        <button
-          type="button"
-          onClick={swap}
-          className="p-1 text-gray-300 hover:text-primary-500 transition-colors shrink-0"
-        >
-          <ArrowLeftRight size={14} />
-        </button>
-        <LocationPicker
-          value={to}
-          onChange={setTo}
-          placeholder="Qayerga"
-          compact
-          className="flex-1"
-        />
-        <div className="w-px h-5 bg-gray-100" />
-        <div className="flex items-center gap-1.5">
-          <Calendar size={14} className="text-gray-400" />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="text-sm text-gray-700 bg-transparent outline-none w-[120px] py-2.5"
+        {/* Yo'nalish (mobilда 1-qator) */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <LocationPicker
+            value={from}
+            onChange={setFrom}
+            placeholder="Qayerdan"
+            compact
+            className="flex-1 min-w-0"
+          />
+          <button
+            type="button"
+            onClick={swap}
+            className="p-1 text-gray-300 hover:text-primary-500 transition-colors shrink-0"
+          >
+            <ArrowLeftRight size={14} />
+          </button>
+          <LocationPicker
+            value={to}
+            onChange={setTo}
+            placeholder="Qayerga"
+            compact
+            className="flex-1 min-w-0"
           />
         </div>
-        <Button type="submit" size="sm" className="shrink-0" disabled={!canSearch}>
-          <Search size={14} />
-        </Button>
+
+        <div className="hidden sm:block w-px h-5 bg-gray-100 shrink-0" />
+
+        {/* Sana + qidirish (mobilда 2-qator) */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <Calendar size={14} className="text-gray-400 shrink-0" />
+            <input
+              type="date"
+              value={date}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setDate(e.target.value)}
+              className="text-sm text-gray-700 bg-transparent outline-none flex-1 min-w-0 w-full sm:w-[120px] py-2.5"
+            />
+          </div>
+          <Button type="submit" size="sm" className="shrink-0" disabled={!canSearch}>
+            <Search size={14} />
+          </Button>
+        </div>
       </form>
     );
   }
