@@ -9,26 +9,27 @@ const QUICK = [
   { from: "Toshkent", to: "Buxoro" },
 ];
 
+// Halol faktlar (yolg'on vanity-raqamlar emas) — yangi platforma uchun rost qiymatlar.
 const STATS = [
-  { value: "50 000+", label: "Foydalanuvchi" },
-  { value: "120 000+", label: "Muvaffaqiyatli safar" },
   { value: "14", label: "Viloyat qamrovi" },
-  { value: "4.8 ★", label: "O'rtacha reyting" },
+  { value: "0%", label: "Ro'yxatdan o'tish to'lovi" },
+  { value: "2–5%", label: "Past komissiya" },
+  { value: "Tasdiqlangan", label: "Haydovchilar" },
 ];
 
 const STEPS = [
-  { n: 1, title: "Safar toping", desc: "Shahar va sanani kiriting. Yuzlab safarlar ichidan eng qulayini tanlang." },
+  { n: 1, title: "Safar toping", desc: "Shahar va sanani kiriting. Sizga mos safarni tanlang." },
   { n: 2, title: "Joy band qiling", desc: "Haydovchi profili va reytingini ko'rib, xavfsiz joy band qiling." },
   { n: 3, title: "Yo'lga chiqing", desc: "Haydovchi bilan bog'laning va safarni boshlang — arzon, tez va qulay." },
 ];
 
 const ROUTES = [
-  { from: "Toshkent", to: "Samarqand", dur: "3s 30d", freq: "kuniga 24 safar", price: "45 000" },
-  { from: "Toshkent", to: "Namangan", dur: "4s 20d", freq: "kuniga 18 safar", price: "55 000" },
-  { from: "Toshkent", to: "Buxoro", dur: "5s 10d", freq: "kuniga 12 safar", price: "65 000" },
-  { from: "Samarqand", to: "Buxoro", dur: "2s 15d", freq: "kuniga 10 safar", price: "30 000" },
-  { from: "Toshkent", to: "Farg'ona", dur: "4s 50d", freq: "kuniga 16 safar", price: "60 000" },
-  { from: "Toshkent", to: "Nukus", dur: "9s", freq: "kuniga 6 safar", price: "120 000" },
+  { from: "Toshkent", to: "Samarqand", dur: "3s 30d" },
+  { from: "Toshkent", to: "Namangan", dur: "4s 20d" },
+  { from: "Toshkent", to: "Buxoro", dur: "5s 10d" },
+  { from: "Samarqand", to: "Buxoro", dur: "2s 15d" },
+  { from: "Toshkent", to: "Farg'ona", dur: "4s 50d" },
+  { from: "Toshkent", to: "Nukus", dur: "9s" },
 ];
 
 const SAFETY = [
@@ -41,12 +42,6 @@ const EARNINGS = [
   { value: "0%", label: "Ro'yxatdan o'tish to'lovi" },
   { value: "2–5%", label: "Faqat muvaffaqiyatli brondan" },
   { value: "1–2 kun", label: "Ariza tasdiqlash muddati" },
-];
-
-const TESTIMONIALS = [
-  { name: "Nodira Karimova", city: "Toshkent", initials: "NK", text: "Har hafta Samarqandga boraman. UzSafar orqali har doim qulay joy topaman, narxi ham arzon." },
-  { name: "Jasur Rahimov", city: "Samarqand", initials: "JR", text: "Toshkentga har kuni qatnayman. Yo'lovchi topib, yoqilg'i xarajatimni to'liq qoplayapman." },
-  { name: "Malika Yusupova", city: "Farg'ona", initials: "MY", text: "Xavfsiz va qulay. Haydovchilar tasdiqlangan, reyting tizimi bor — ishonch bilan foydalanaman." },
 ];
 
 const H2 = "text-[clamp(26px,4vw,38px)] font-extrabold tracking-tight text-gray-900";
@@ -88,14 +83,6 @@ export default function HomePage() {
           {/* Right — floating trip card */}
           <div className="hidden lg:flex justify-center min-w-0">
             <div className="w-full max-w-[420px] relative">
-              <div
-                className="absolute -top-3.5 -right-1.5 z-10 bg-white border border-gray-100 rounded-[13px] px-4 py-2.5 shadow-card-lg"
-                style={{ animation: "floaty 5s ease-in-out infinite" }}
-              >
-                <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Bugun</div>
-                <div className="text-[15px] font-extrabold text-accent-600">248 ta safar</div>
-              </div>
-
               <div
                 className="rounded-[22px] p-7 text-white"
                 style={{
@@ -197,11 +184,8 @@ export default function HomePage() {
                 <div className="flex items-center gap-2.5 text-[16.5px] font-bold tracking-tight mb-2 flex-wrap">
                   <span>{rt.from}</span><span className="text-gray-300">→</span><span>{rt.to}</span>
                 </div>
-                <div className="text-[13px] text-gray-500 mb-4">{rt.dur} · {rt.freq}</div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[17px] font-extrabold text-accent-700 tracking-tight">{rt.price}</span>
-                  <span className="text-[13px] text-gray-500">so'mdan</span>
-                </div>
+                <div className="text-[13px] text-gray-500 mb-4">Taxminan {rt.dur} yo'l</div>
+                <div className="text-[14px] font-bold text-primary-600">Bo'sh o'rin qidirish →</div>
               </Link>
             ))}
           </div>
@@ -260,31 +244,6 @@ export default function HomePage() {
               <div key={e.label} className="bg-white/10 border border-white/15 rounded-[15px] p-4 sm:p-5">
                 <div className="text-[clamp(20px,2.6vw,27px)] font-extrabold tracking-tight">{e.value}</div>
                 <div className="text-[12px] sm:text-[12.5px] opacity-80 mt-1.5 leading-snug">{e.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ TESTIMONIALS ═══ */}
-      <section className="bg-gray-50 border-t border-gray-100 py-16 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-9 sm:mb-12">
-            <div className={EYEBROW}>Sharhlar</div>
-            <h2 className={H2 + " text-balance"}>Foydalanuvchilar nima deydi?</h2>
-          </div>
-          <div className="grid gap-4 sm:gap-6 sm:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="bg-white border border-gray-100 rounded-[18px] p-6 sm:p-7 flex flex-col gap-5">
-                <div className="text-[14px] tracking-[2px]" style={{ color: "#e2a52e" }}>★★★★★</div>
-                <p className="text-[15.5px] leading-relaxed text-gray-700 flex-1">{t.text}</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-[38px] h-[38px] rounded-full bg-primary-50 text-primary-700 font-extrabold text-[13px] flex items-center justify-center shrink-0">{t.initials}</div>
-                  <div className="min-w-0">
-                    <div className="text-[14.5px] font-bold text-gray-900">{t.name}</div>
-                    <div className="text-[13px] text-gray-500">{t.city}</div>
-                  </div>
-                </div>
               </div>
             ))}
           </div>
