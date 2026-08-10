@@ -23,7 +23,7 @@ class SendOtpResponse(BaseModel):
 
 class RegisterRequest(BaseModel):
     phone: str
-    otp_code: str
+    otp_code: str | None = None  # OTP hozir ishlatilmaydi (ixtiyoriy — kelajakda qaytariladi)
     full_name: str
     password: str
 

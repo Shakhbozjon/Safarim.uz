@@ -9,7 +9,6 @@ from app.schemas.auth import (
     RefreshRequest, TokenResponse,
 )
 from app.schemas.user import UserResponse
-from app.models.enums import OtpPurpose
 from app.services import auth_service
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.core.config import settings
@@ -44,7 +43,8 @@ async def send_otp(data: SendOtpRequest, request: Request, db: AsyncSession = De
     summary="Yangi foydalanuvchi ro'yxatdan o'tish",
 )
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    await auth_service.verify_otp(db, data.phone, data.otp_code, OtpPurpose.register)
+    # OTP tasdiqlash olib tashlandi (SMS/Telegram byudjeti yo'q) — telefon+parol bilan
+    # to'g'ridan-to'g'ri ro'yxat. Kelajakda tasdiqlash kerak bo'lsa: verify_otp qaytariladi.
     user = await auth_service.register_user(db, data.phone, data.full_name, data.password)
     return TokenResponse(
         access_token=create_access_token(str(user.id)),
