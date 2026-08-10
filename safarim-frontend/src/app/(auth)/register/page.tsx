@@ -12,15 +12,23 @@ import Button from "@/components/ui/Button";
 import api from "@/lib/api";
 import { saveTokens, formatPhone, getApiError } from "@/lib/auth";
 
+const onlyDigits = (s: string) => s.replace(/\D/g, "");
+
 const schema = z.object({
   phone: z.string().min(9, "9 raqam kiriting").max(13),
+  confirm_phone: z.string(),
   full_name: z.string().min(3, "Kamida 3 ta harf"),
   password: z.string().min(6, "Kamida 6 ta belgi"),
   confirm_password: z.string(),
-}).refine((d) => d.password === d.confirm_password, {
-  message: "Parollar mos emas",
-  path: ["confirm_password"],
-});
+})
+  .refine((d) => onlyDigits(d.phone) === onlyDigits(d.confirm_phone), {
+    message: "Raqamlar mos emas — qayta tekshiring",
+    path: ["confirm_phone"],
+  })
+  .refine((d) => d.password === d.confirm_password, {
+    message: "Parollar mos emas",
+    path: ["confirm_password"],
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -138,6 +146,22 @@ export default function RegisterPage() {
               error={form.formState.errors.phone?.message}
               autoFocus
               {...form.register("phone")}
+            />
+
+            <Input
+              label="Telefon raqamni takrorlang"
+              type="tel"
+              placeholder="901234567"
+              prefix={
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <Phone size={15} />
+                  <span className="text-sm font-medium">+998</span>
+                </span>
+              }
+              hint="Xatoni oldini olish uchun raqamni qayta kiriting"
+              error={form.formState.errors.confirm_phone?.message}
+              onPaste={(e) => e.preventDefault()}
+              {...form.register("confirm_phone")}
             />
 
             <Input
