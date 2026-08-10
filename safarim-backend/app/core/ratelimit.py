@@ -48,3 +48,9 @@ async def limit_send_otp(request: Request, phone: str) -> None:
 async def limit_login(request: Request) -> None:
     ip = _client_ip(request)
     await _hit(f"login:ip:{ip}", settings.LOGIN_RATELIMIT_PER_15MIN, 900)
+
+
+async def limit_register(request: Request) -> None:
+    # OTP'siz ro'yxat — bitta qurilma/IP'dan massa soxta hisob ochishni cheklaydi.
+    ip = _client_ip(request)
+    await _hit(f"register:ip:{ip}", settings.REGISTER_RATELIMIT_IP_PER_HOUR, 3600)

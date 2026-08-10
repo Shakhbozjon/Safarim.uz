@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     OTP_RATELIMIT_PHONE_PER_HOUR: int = 5    # bitta raqamga soatiga necha OTP
     OTP_RATELIMIT_IP_PER_HOUR: int = 15      # bitta IP dan soatiga necha OTP
     LOGIN_RATELIMIT_PER_15MIN: int = 10      # bitta IP dan 15 daqiqada necha login urinishi
+    REGISTER_RATELIMIT_IP_PER_HOUR: int = 10  # bitta IP/qurilmadan soatiga necha ro'yxat (CGNAT uchun saxiy)
 
     # Monitoring — Sentry (bo'sh bo'lsa o'chiq)
     SENTRY_DSN: str = ""

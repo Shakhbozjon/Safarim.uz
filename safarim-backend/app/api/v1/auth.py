@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.core.ratelimit import limit_send_otp, limit_login
+from app.core.ratelimit import limit_send_otp, limit_login, limit_register
 from app.schemas.auth import (
     SendOtpRequest, SendOtpResponse,
     RegisterRequest, LoginRequest,
@@ -42,9 +42,10 @@ async def send_otp(data: SendOtpRequest, request: Request, db: AsyncSession = De
     status_code=status.HTTP_201_CREATED,
     summary="Yangi foydalanuvchi ro'yxatdan o'tish",
 )
-async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(data: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
     # OTP tasdiqlash olib tashlandi (SMS/Telegram byudjeti yo'q) — telefon+parol bilan
     # to'g'ridan-to'g'ri ro'yxat. Kelajakda tasdiqlash kerak bo'lsa: verify_otp qaytariladi.
+    await limit_register(request)  # bitta IP/qurilmadan massa soxta hisobni cheklaydi
     user = await auth_service.register_user(db, data.phone, data.full_name, data.password)
     return TokenResponse(
         access_token=create_access_token(str(user.id)),
