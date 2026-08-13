@@ -471,8 +471,10 @@ async def duplicate_trip(
     trip_id: str,
     new_date: date,
     new_time: str | None = None,
+    reverse: bool = False,
 ) -> Trip:
-    """Eski safarni (masalan, expired) yangi sana bilan qayta e'lon qiladi."""
+    """Eski safarni yangi sana bilan qayta e'lon qiladi.
+    reverse=True bo'lsa — qaytish safari (qayerdan/qayerga almashtiriladi)."""
     src = await get_trip(db, trip_id)
 
     if src.driver_id != user.id:
@@ -494,12 +496,20 @@ async def duplicate_trip(
 
     dep_time = time.fromisoformat(new_time) if new_time else src.departure_time
 
+    # Qaytish safari bo'lsa qayerdan/qayerga almashtiriladi
+    if reverse:
+        from_region_id, from_district_id, from_address = src.to_region_id, src.to_district_id, src.to_address
+        to_region_id, to_district_id, to_address = src.from_region_id, src.from_district_id, src.from_address
+    else:
+        from_region_id, from_district_id, from_address = src.from_region_id, src.from_district_id, src.from_address
+        to_region_id, to_district_id, to_address = src.to_region_id, src.to_district_id, src.to_address
+
     # Bir yo'nalishda shu kunda aktiv safar bo'lmasin
     dup_result = await db.execute(
         select(Trip).where(
             Trip.driver_id == user.id,
-            Trip.from_region_id == src.from_region_id,
-            Trip.to_region_id == src.to_region_id,
+            Trip.from_region_id == from_region_id,
+            Trip.to_region_id == to_region_id,
             Trip.departure_date == new_date,
             Trip.status == TripStatus.active,
         )
@@ -509,12 +519,12 @@ async def duplicate_trip(
 
     new_trip = Trip(
         driver_id=user.id,
-        from_region_id=src.from_region_id,
-        from_district_id=src.from_district_id,
-        from_address=src.from_address,
-        to_region_id=src.to_region_id,
-        to_district_id=src.to_district_id,
-        to_address=src.to_address,
+        from_region_id=from_region_id,
+        from_district_id=from_district_id,
+        from_address=from_address,
+        to_region_id=to_region_id,
+        to_district_id=to_district_id,
+        to_address=to_address,
         departure_date=new_date,
         departure_time=dep_time,
         total_seats=src.total_seats,
@@ -526,22 +536,23 @@ async def duplicate_trip(
         women_only=src.women_only,
         luggage_size=src.luggage_size,
         description=src.description,
-        has_waypoints=src.has_waypoints,
+        has_waypoints=src.has_waypoints and not reverse,
     )
     db.add(new_trip)
     await db.flush()
 
-    # Oraliq to'xtashlarni ham nusxalash
-    for wp in src.waypoints:
-        db.add(TripWaypoint(
-            trip_id=new_trip.id,
-            region_id=wp.region_id,
-            district_id=wp.district_id,
-            address=wp.address,
-            order_index=wp.order_index,
-            price_from_start=wp.price_from_start,
-            arrival_time=wp.arrival_time,
-        ))
+    # Oraliq to'xtashlar — faqat oldinga safarga (qaytishda narxlar boshqacha, qo'lda qo'shiladi)
+    if not reverse:
+        for wp in src.waypoints:
+            db.add(TripWaypoint(
+                trip_id=new_trip.id,
+                region_id=wp.region_id,
+                district_id=wp.district_id,
+                address=wp.address,
+                order_index=wp.order_index,
+                price_from_start=wp.price_from_start,
+                arrival_time=wp.arrival_time,
+            ))
 
     await db.commit()
 

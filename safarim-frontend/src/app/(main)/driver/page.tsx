@@ -150,6 +150,8 @@ export default function DriverDashboardPage() {
   const [republishId, setRepublishId]     = useState<string | null>(null);
   const [republishDate, setRepublishDate] = useState("");
   const [republishError, setRepublishError] = useState("");
+  const [republishReturn, setRepublishReturn]         = useState(false);   // qaytish safarini ham
+  const [republishReturnTime, setRepublishReturnTime] = useState("");      // qaytish vaqti (ixtiyoriy)
 
   // Safarlar + ochilgan safar (yo'lovchilar) + depozit tarixi
   const [showAllTrips, setShowAllTrips]  = useState(false);
@@ -257,8 +259,20 @@ export default function DriverDashboardPage() {
   });
 
   const republishMutation = useMutation({
-    mutationFn: ({ id, date }: { id: string; date: string }) =>
-      api.post(`/trips/${id}/duplicate`, { departure_date: date }),
+    mutationFn: async ({ id, date, alsoReturn, returnTime }: {
+      id: string; date: string; alsoReturn: boolean; returnTime: string;
+    }) => {
+      // Borish safari (bir xil yo'nalish)
+      await api.post(`/trips/${id}/duplicate`, { departure_date: date });
+      // Qaytish safari (teskari yo'nalish) — tanlangan bo'lsa
+      if (alsoReturn) {
+        await api.post(`/trips/${id}/duplicate`, {
+          departure_date: date,
+          departure_time: returnTime || undefined,
+          reverse: true,
+        });
+      }
+    },
     onSuccess: () => {
       setRepublishId(null);
       queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
@@ -271,6 +285,8 @@ export default function DriverDashboardPage() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     setRepublishDate(tomorrow.toISOString().slice(0, 10));
     setRepublishError("");
+    setRepublishReturn(false);
+    setRepublishReturnTime("");
     setRepublishId(id);
   }
 
@@ -890,6 +906,35 @@ export default function DriverDashboardPage() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
+
+              {/* Qaytish safari (teskari yo'nalish) */}
+              <div className="rounded-xl border border-gray-200 p-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={republishReturn}
+                    onChange={(e) => setRepublishReturn(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-primary-500 shrink-0"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-gray-800">Qaytish safarini ham e'lon qilish</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">Teskari yo'nalish (qayerdan ↔ qayerga), xuddi shu sana</span>
+                  </span>
+                </label>
+                {republishReturn && (
+                  <div className="mt-3 pl-7">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Qaytish vaqti (ixtiyoriy)</label>
+                    <input
+                      type="time"
+                      value={republishReturnTime}
+                      onChange={(e) => setRepublishReturnTime(e.target.value)}
+                      className="w-full sm:w-40 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    />
+                    <p className="text-[11px] text-gray-400 mt-1">Bo'sh qoldirsangiz — borish vaqti bilan bir xil</p>
+                  </div>
+                )}
+              </div>
+
               {republishError && (
                 <p className="text-sm text-red-500 bg-red-50 rounded-xl px-3 py-2">{republishError}</p>
               )}
@@ -899,10 +944,15 @@ export default function DriverDashboardPage() {
                 loading={republishMutation.isPending}
                 onClick={() => {
                   if (!republishDate) { setRepublishError("Sanani tanlang"); return; }
-                  republishMutation.mutate({ id: republishId, date: republishDate });
+                  republishMutation.mutate({
+                    id: republishId,
+                    date: republishDate,
+                    alsoReturn: republishReturn,
+                    returnTime: republishReturnTime,
+                  });
                 }}
               >
-                Qayta e'lon qilish
+                {republishReturn ? "Borish va qaytishni e'lon qilish" : "Qayta e'lon qilish"}
               </Button>
             </div>
           </div>

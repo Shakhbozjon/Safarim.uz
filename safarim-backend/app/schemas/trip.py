@@ -143,6 +143,7 @@ class DuplicateTripRequest(BaseModel):
     """Eski safarni yangi sana bilan qayta e'lon qilish."""
     departure_date: date
     departure_time: str | None = None  # "HH:MM" — berilmasa eski vaqt ishlatiladi
+    reverse: bool = False  # True → qaytish safari (qayerdan/qayerga almashtiriladi)
 
     @field_validator("departure_date")
     @classmethod
