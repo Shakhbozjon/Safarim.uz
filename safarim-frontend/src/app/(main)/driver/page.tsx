@@ -394,11 +394,11 @@ export default function DriverDashboardPage() {
   }
 
   // Bitta safar qatori — bosilganda yo'lovchilar/amallar ochiladi
-  const renderTrip = (trip: TripResponse) => {
+  const renderTrip = (trip: TripResponse, forceOpen = false) => {
     const booked = trip.total_seats - trip.available_seats;
     const pCount = pendingCountOfTrip(trip.id);
     const tripBookings = bookingsOfTrip(trip.id).filter(b => b.status !== "cancelled");
-    const isOpen = expandedTrip === trip.id;
+    const isOpen = forceOpen || expandedTrip === trip.id;
     const isExpired = trip.status === "expired";
     const isCancelled = trip.status === "cancelled";
     const isStarted = trip.status === "started";
@@ -443,7 +443,7 @@ export default function DriverDashboardPage() {
           {pCount > 0 && (
             <span className="text-[10px] font-semibold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded-full shrink-0">{pCount} yangi</span>
           )}
-          <ChevronDown size={16} className={clsx("text-gray-300 transition-transform shrink-0", isOpen && "rotate-180")} />
+          {!forceOpen && <ChevronDown size={16} className={clsx("text-gray-300 transition-transform shrink-0", isOpen && "rotate-180")} />}
         </button>
 
         {isOpen && (
@@ -571,7 +571,53 @@ export default function DriverDashboardPage() {
         </Link>
       </div>
 
-      {/* ── 4 statistika ─────────────────────────────────────────────────── */}
+      {/* ── Sizning safarlaringiz (eng tepada, ochiq) ────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">Sizning safarlaringiz</h2>
+          <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+            {upcomingTrips.length} ta
+          </span>
+        </div>
+
+        {tripsLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map(i => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
+          </div>
+        ) : upcomingTrips.length === 0 && !showAllTrips ? (
+          <div className="py-10 text-center">
+            <Car size={32} className="text-gray-200 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm mb-4">Hozircha e'lon qilingan safar yo'q</p>
+            <Link href="/create-trip">
+              <Button size="sm"><Plus size={14} />Safar e'lon qilish</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {upcomingTrips.map(t => renderTrip(t, true))}
+            {showAllTrips && pastTrips.length > 0 && (
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide pt-2">O'tgan safarlar</p>
+            )}
+            {showAllTrips && pastTrips.map(t => renderTrip(t))}
+            {showAllTrips && cancelledTrips.length > 0 && (
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide pt-2">Bekor qilingan</p>
+            )}
+            {showAllTrips && cancelledTrips.map(t => renderTrip(t))}
+          </div>
+        )}
+
+        {hasMoreTrips && (
+          <button
+            onClick={() => { setShowAllTrips(v => !v); setExpandedTrip(null); }}
+            className="w-full mt-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+          >
+            {showAllTrips ? "Kamroq ko'rsatish" : "Barcha safarlar"}
+            <ChevronDown size={14} className={clsx("transition-transform", showAllTrips && "rotate-180")} />
+          </button>
+        )}
+      </div>
+
+      {/* ── Umumiy (statistika) ──────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 mb-1">Jami safarlar</p>
@@ -663,52 +709,6 @@ export default function DriverDashboardPage() {
 
         {/* ══ CHAP USTUN ══ */}
         <div className="space-y-5">
-
-          {/* Kelgusi safarlar */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900">Kelgusi safarlar</h2>
-              <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                {upcomingTrips.length} ta
-              </span>
-            </div>
-
-            {tripsLoading ? (
-              <div className="space-y-2">
-                {[1, 2].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
-              </div>
-            ) : upcomingTrips.length === 0 && !showAllTrips ? (
-              <div className="py-10 text-center">
-                <Car size={32} className="text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm mb-4">Kelgusi safarlar yo'q</p>
-                <Link href="/create-trip">
-                  <Button size="sm"><Plus size={14} />Safar qo'shish</Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {upcomingTrips.map(renderTrip)}
-                {showAllTrips && pastTrips.length > 0 && (
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide pt-2">O'tgan safarlar</p>
-                )}
-                {showAllTrips && pastTrips.map(renderTrip)}
-                {showAllTrips && cancelledTrips.length > 0 && (
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide pt-2">Bekor qilingan</p>
-                )}
-                {showAllTrips && cancelledTrips.map(renderTrip)}
-              </div>
-            )}
-
-            {hasMoreTrips && (
-              <button
-                onClick={() => { setShowAllTrips(v => !v); setExpandedTrip(null); }}
-                className="w-full mt-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
-              >
-                {showAllTrips ? "Kamroq ko'rsatish" : "Barcha safarlar"}
-                <ChevronDown size={14} className={clsx("transition-transform", showAllTrips && "rotate-180")} />
-              </button>
-            )}
-          </div>
 
           {/* Depozit holati — bepul davrda kerak emas, yashiriladi */}
           {!wallet?.commission_free && (
