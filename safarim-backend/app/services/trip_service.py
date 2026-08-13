@@ -293,8 +293,7 @@ async def get_my_trips(db: AsyncSession, user: User) -> list[Trip]:
     return result.scalars().all()
 
 
-# Safar vaqti o'tganidan keyin shu soatlardan so'ng "tugagan" deb hisoblanadi
-TRIP_EXPIRY_GRACE_HOURS = 3
+# Bo'sh safar (yo'lovchi yig'ilmagan) faqat SANASI tugagach expired bo'ladi (yarim tunda)
 
 
 async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
@@ -306,7 +305,6 @@ async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
     """
     now = now_tashkent_naive()
     today = now.date()
-    grace = timedelta(hours=TRIP_EXPIRY_GRACE_HOURS)
 
     query = select(Trip).where(
         Trip.status.in_([TripStatus.active, TripStatus.full]),
@@ -321,9 +319,10 @@ async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
     changed = False
 
     for trip in trips:
-        departure_dt = datetime.combine(trip.departure_date, trip.departure_time)
-        if now < departure_dt + grace:
-            continue  # safar hali o'tmagan / davom etmoqda
+        # Bo'sh safar faqat kun yakunlangач (safar sanasidan keyingi yarim tun) expired bo'ladi
+        day_end = datetime.combine(trip.departure_date + timedelta(days=1), time.min)
+        if now < day_end:
+            continue  # safar kuni hali tugamagan
 
         # Javobsiz qolgan pending band qilishlarni bekor qilish
         pending = (await db.execute(

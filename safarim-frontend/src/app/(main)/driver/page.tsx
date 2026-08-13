@@ -437,7 +437,7 @@ export default function DriverDashboardPage() {
           <div className="text-right shrink-0">
             <p className="text-sm font-bold text-gray-900 tabular-nums">{formatPrice(trip.price_per_seat)}</p>
             <p className="text-[11px] text-gray-400">
-              {isCancelled ? "bekor" : isStarted ? "Yo'lda" : isExpired ? "tugadi" : seatsLeft === 0 ? "To'ldi" : `${seatsLeft} o'rin qoldi`}
+              {isCancelled ? "bekor" : isStarted ? "Yo'lda" : isExpired ? "yo'lovchi yig'ilmadi" : seatsLeft === 0 ? "To'ldi" : `${seatsLeft} o'rin qoldi`}
             </p>
           </div>
           {pCount > 0 && (
