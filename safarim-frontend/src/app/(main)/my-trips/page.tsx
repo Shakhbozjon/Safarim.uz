@@ -228,6 +228,79 @@ export default function MyTripsPage() {
       {/* ── Tezkor qidiruv ───────────────────────────────────────────────── */}
       <SearchBar compact />
 
+      {/* ── Band qilingan safarlar (eng tepada, holat aniq) ──────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">Band qilingan safarlar</h2>
+          {active.length > 0 && (
+            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{active.length} ta faol</span>
+          )}
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-3">{[1, 2].map(i => <BookingCardSkeleton key={i} />)}</div>
+        ) : bookings.length === 0 ? (
+          <div className="py-10 text-center">
+            <Car size={32} className="text-gray-200 mx-auto mb-3" />
+            <p className="text-sm text-gray-500 mb-4">Hali safar band qilmagansiz</p>
+            <Link href="/trips"><Button size="sm">Safar qidirish</Button></Link>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {[...active, ...completed.slice(0, 3)].map((b) => {
+              const st = STATUS_CONFIG[b.status];
+              return (
+                <div key={b.id} className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
+                  <div className="w-9 h-9 bg-primary-50 rounded-lg flex items-center justify-center shrink-0">
+                    <Calendar size={15} className="text-primary-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {b.trip ? `${b.trip.from_region.name_uz} → ${b.trip.to_region.name_uz}` : "Safar"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {fmtDate(b.trip?.departure_date)} · {fmtTime(b.trip?.departure_time)}
+                      {b.trip?.driver && ` · ${b.trip.driver.full_name.split(" ")[0]} ${b.trip.driver.rating_avg.toFixed(1)}★`}
+                    </p>
+                    {b.status === "confirmed" && (
+                      <p className="text-[11px] font-medium text-green-600 mt-1">Tasdiqlandi — haydovchi bilan bog'laning</p>
+                    )}
+                    {b.status === "pending" && (
+                      <p className="text-[11px] text-yellow-600 mt-1">Haydovchi tasdig'i kutilmoqda</p>
+                    )}
+                    {b.status === "completed" && (
+                      <p className="text-[11px] text-gray-400 mt-1">Safar yakunlandi</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-gray-900 tabular-nums">{formatPrice(b.total_price)}</p>
+                    <span className={clsx("text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-block mt-0.5", st.cls)}>
+                      {st.label}
+                    </span>
+                  </div>
+                  {(b.status === "confirmed" || b.status === "pending") && (
+                    <div className="flex flex-col gap-1 shrink-0">
+                      <Link href={`/messages/${b.id}`} title="Chat">
+                        <span className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500">
+                          <MessageCircle size={13} />
+                        </span>
+                      </Link>
+                      <button
+                        onClick={() => { setCancelError(""); setCancelModal(b.id); }}
+                        title="Bekor qilish"
+                        className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500"
+                      >
+                        <XCircle size={13} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* ── 4 statistika ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -263,70 +336,6 @@ export default function MyTripsPage() {
 
         {/* ══ CHAP ══ */}
         <div className="space-y-5">
-
-          {/* Band qilingan safarlar */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900">Band qilingan safarlar</h2>
-              {active.length > 0 && (
-                <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{active.length} ta faol</span>
-              )}
-            </div>
-
-            {isLoading ? (
-              <div className="space-y-3">{[1, 2].map(i => <BookingCardSkeleton key={i} />)}</div>
-            ) : bookings.length === 0 ? (
-              <div className="py-10 text-center">
-                <Car size={32} className="text-gray-200 mx-auto mb-3" />
-                <p className="text-sm text-gray-500 mb-4">Hali safar band qilmagansiz</p>
-                <Link href="/trips"><Button size="sm">Safar qidirish</Button></Link>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {[...active, ...completed.slice(0, 3)].map((b) => {
-                  const st = STATUS_CONFIG[b.status];
-                  return (
-                    <div key={b.id} className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
-                      <div className="w-9 h-9 bg-primary-50 rounded-lg flex items-center justify-center shrink-0">
-                        <Calendar size={15} className="text-primary-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                          {b.trip ? `${b.trip.from_region.name_uz} → ${b.trip.to_region.name_uz}` : "Safar"}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {fmtDate(b.trip?.departure_date)} · {fmtTime(b.trip?.departure_time)}
-                          {b.trip?.driver && ` · ${b.trip.driver.full_name.split(" ")[0]} ${b.trip.driver.rating_avg.toFixed(1)}★`}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-gray-900 tabular-nums">{formatPrice(b.total_price)}</p>
-                        <span className={clsx("text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-block mt-0.5", st.cls)}>
-                          {st.label}
-                        </span>
-                      </div>
-                      {(b.status === "confirmed" || b.status === "pending") && (
-                        <div className="flex flex-col gap-1 shrink-0">
-                          <Link href={`/messages/${b.id}`} title="Chat">
-                            <span className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500">
-                              <MessageCircle size={13} />
-                            </span>
-                          </Link>
-                          <button
-                            onClick={() => { setCancelError(""); setCancelModal(b.id); }}
-                            title="Bekor qilish"
-                            className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500"
-                          >
-                            <XCircle size={13} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
           {/* Profil ma'lumotlari */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
