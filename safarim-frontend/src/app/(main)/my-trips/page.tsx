@@ -59,6 +59,7 @@ export default function MyTripsPage() {
   const [reviewText, setReviewText] = useState("");
   const [cancelError, setCancelError] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [showAllPast, setShowAllPast] = useState(false);
 
   const { data: bookings = [], isLoading } = useQuery<BookingResponse[]>({
     queryKey: ["my-bookings"],
@@ -103,8 +104,6 @@ export default function MyTripsPage() {
   const needConfirm = bookings.filter(b => b.needs_my_confirmation);
 
   const reviewedIds = new Set(myReviews.map(r => r.booking_id));
-  const needReview = completed.filter(b => !reviewedIds.has(b.id));
-  const reviewedBookings = completed.filter(b => reviewedIds.has(b.id));
 
   const jamiSafarlar = completed.filter(b => new Date(b.completed_at ?? b.created_at).getFullYear() === thisYear).length;
   const jamiTolov = completed.reduce((s, b) => s + b.total_price, 0);
@@ -137,6 +136,101 @@ export default function MyTripsPage() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const reviewById = (bookingId: string) => myReviews.find(r => r.booking_id === bookingId);
+
+  // Bitta buyurtma kartasi (faol va o'tgan safarlar uchun bir xil)
+  const renderBookingCard = (b: BookingResponse) => {
+    const st = STATUS_CONFIG[b.status];
+    const driver = b.trip?.driver;
+    const isCompleted = b.status === "completed";
+    const reviewed = reviewedIds.has(b.id);
+    const rev = reviewById(b.id);
+    const canCall = !!b.driver_phone && (b.status === "confirmed" || b.status === "completed");
+    const canChat = b.status === "confirmed" || b.status === "pending";
+    const canCancel = b.status === "confirmed" || b.status === "pending";
+    return (
+      <div key={b.id} className="border border-gray-100 rounded-2xl p-4">
+        {/* Haydovchi + holat */}
+        <div className="flex items-center gap-3 mb-3">
+          <Avatar src={driver?.profile_photo ?? null} name={driver?.full_name ?? "Haydovchi"} size="md" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">{driver?.full_name ?? "Haydovchi"}</p>
+            {driver && driver.rating_count > 0 ? (
+              <span className="flex items-center gap-1 mt-0.5 text-xs">
+                <Star size={11} className="fill-yellow-400 text-yellow-400" />
+                <span className="font-medium text-gray-700">{driver.rating_avg.toFixed(1)}</span>
+                <span className="text-gray-400">({driver.rating_count})</span>
+              </span>
+            ) : (
+              <p className="text-xs text-gray-400 mt-0.5">Yangi haydovchi</p>
+            )}
+          </div>
+          <span className={clsx("text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0", st.cls)}>{st.label}</span>
+        </div>
+
+        {/* Marshrut (vertikal) */}
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center pt-1.5 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full border-2 border-primary-500 bg-white" />
+            <span className="w-0.5 flex-1 min-h-[20px] bg-gray-200 my-1" />
+            <span className="w-2.5 h-2.5 rounded-full bg-primary-500" />
+          </div>
+          <div className="flex-1 min-w-0 flex flex-col gap-2.5">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[15px] font-bold text-gray-900 truncate">{b.trip?.from_region.name_uz ?? "—"}</p>
+              <p className="text-xs font-semibold text-gray-500 shrink-0">{fmtTime(b.trip?.departure_time)}</p>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[15px] font-bold text-gray-900 truncate">{b.trip?.to_region.name_uz ?? "—"}</p>
+              <p className="text-xs text-gray-400 shrink-0">{fmtDate(b.trip?.departure_date)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Narx + amallar */}
+        <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-gray-50">
+          <p className="text-base font-extrabold text-accent-700 tabular-nums leading-none">
+            {formatPrice(b.total_price)} <span className="text-xs font-semibold text-gray-400">so'm</span>
+          </p>
+          <div className="flex gap-2">
+            {canChat && (
+              <Link href={`/messages/${b.id}`} title="Chat" className="w-9 h-9 rounded-xl bg-primary-50 hover:bg-primary-100 flex items-center justify-center text-primary-600 transition-colors">
+                <MessageCircle size={16} />
+              </Link>
+            )}
+            {canCall && (
+              <a href={`tel:${b.driver_phone}`} title="Qo'ng'iroq" className="w-9 h-9 rounded-xl bg-green-50 hover:bg-green-100 flex items-center justify-center text-green-600 transition-colors">
+                <Phone size={16} />
+              </a>
+            )}
+            {canCancel && (
+              <button onClick={() => { setCancelError(""); setCancelModal(b.id); }} title="Bekor qilish" className="w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors">
+                <XCircle size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Baho — safar yakunlangач ochiladi */}
+        {isCompleted && !reviewed && (
+          <div className="mt-3 pt-3 border-t border-gray-50 text-center">
+            <p className="text-xs font-semibold text-gray-600 mb-2.5">Safar qanday o'tdi? Haydovchiga baho bering</p>
+            <Button size="sm" fullWidth className="gap-1.5" onClick={() => { setReviewError(""); setReviewRating(5); setReviewModal(b.id); }}>
+              <Star size={14} />Baho berish
+            </Button>
+          </div>
+        )}
+        {isCompleted && reviewed && rev && (
+          <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-center gap-1.5 text-xs text-green-600">
+            <CheckCircle size={14} />
+            Siz baho berdingiz:
+            <span className="flex">
+              {Array.from({ length: rev.rating }).map((_, i) => <Star key={i} size={12} className="fill-yellow-400 text-yellow-400" />)}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
@@ -228,17 +322,19 @@ export default function MyTripsPage() {
       {/* ── Tezkor qidiruv ───────────────────────────────────────────────── */}
       <SearchBar compact />
 
-      {/* ── Band qilingan safarlar (eng tepada, holat aniq) ──────────────── */}
+      {/* ── Faol safarlar (yangi/joriy buyurtmalar — eng tepada) ─────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-gray-900">Band qilingan safarlar</h2>
+          <h2 className="font-bold text-gray-900">Faol safarlar</h2>
           {active.length > 0 && (
-            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{active.length} ta faol</span>
+            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{active.length} ta</span>
           )}
         </div>
 
         {isLoading ? (
           <div className="space-y-3">{[1, 2].map(i => <BookingCardSkeleton key={i} />)}</div>
+        ) : active.length > 0 ? (
+          <div className="space-y-3">{active.map(renderBookingCard)}</div>
         ) : bookings.length === 0 ? (
           <div className="py-10 text-center">
             <Car size={32} className="text-gray-200 mx-auto mb-3" />
@@ -246,101 +342,7 @@ export default function MyTripsPage() {
             <Link href="/trips"><Button size="sm">Safar qidirish</Button></Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {[...active, ...completed.slice(0, 3)].map((b) => {
-              const st = STATUS_CONFIG[b.status];
-              const driver = b.trip?.driver;
-              const isCompleted = b.status === "completed";
-              const reviewed = reviewedIds.has(b.id);
-              const rev = reviewById(b.id);
-              const canCall = !!b.driver_phone && (b.status === "confirmed" || b.status === "completed");
-              const canChat = b.status === "confirmed" || b.status === "pending";
-              const canCancel = b.status === "confirmed" || b.status === "pending";
-              return (
-                <div key={b.id} className="border border-gray-100 rounded-2xl p-4">
-                  {/* Haydovchi + holat */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <Avatar src={driver?.profile_photo} name={driver?.full_name ?? "Haydovchi"} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{driver?.full_name ?? "Haydovchi"}</p>
-                      {driver && driver.rating_count > 0 ? (
-                        <span className="flex items-center gap-1 mt-0.5 text-xs">
-                          <Star size={11} className="fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium text-gray-700">{driver.rating_avg.toFixed(1)}</span>
-                          <span className="text-gray-400">({driver.rating_count})</span>
-                        </span>
-                      ) : (
-                        <p className="text-xs text-gray-400 mt-0.5">Yangi haydovchi</p>
-                      )}
-                    </div>
-                    <span className={clsx("text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0", st.cls)}>{st.label}</span>
-                  </div>
-
-                  {/* Marshrut (vertikal) */}
-                  <div className="flex gap-3">
-                    <div className="flex flex-col items-center pt-1.5 shrink-0">
-                      <span className="w-2.5 h-2.5 rounded-full border-2 border-primary-500 bg-white" />
-                      <span className="w-0.5 flex-1 min-h-[20px] bg-gray-200 my-1" />
-                      <span className="w-2.5 h-2.5 rounded-full bg-primary-500" />
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-2.5">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="text-[15px] font-bold text-gray-900 truncate">{b.trip?.from_region.name_uz ?? "—"}</p>
-                        <p className="text-xs font-semibold text-gray-500 shrink-0">{fmtTime(b.trip?.departure_time)}</p>
-                      </div>
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="text-[15px] font-bold text-gray-900 truncate">{b.trip?.to_region.name_uz ?? "—"}</p>
-                        <p className="text-xs text-gray-400 shrink-0">{fmtDate(b.trip?.departure_date)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Narx + amallar */}
-                  <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-gray-50">
-                    <p className="text-base font-extrabold text-accent-700 tabular-nums leading-none">
-                      {formatPrice(b.total_price)} <span className="text-xs font-semibold text-gray-400">so'm</span>
-                    </p>
-                    <div className="flex gap-2">
-                      {canChat && (
-                        <Link href={`/messages/${b.id}`} title="Chat" className="w-9 h-9 rounded-xl bg-primary-50 hover:bg-primary-100 flex items-center justify-center text-primary-600 transition-colors">
-                          <MessageCircle size={16} />
-                        </Link>
-                      )}
-                      {canCall && (
-                        <a href={`tel:${b.driver_phone}`} title="Qo'ng'iroq" className="w-9 h-9 rounded-xl bg-green-50 hover:bg-green-100 flex items-center justify-center text-green-600 transition-colors">
-                          <Phone size={16} />
-                        </a>
-                      )}
-                      {canCancel && (
-                        <button onClick={() => { setCancelError(""); setCancelModal(b.id); }} title="Bekor qilish" className="w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors">
-                          <XCircle size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Baho — safar yakunlangач ochiladi */}
-                  {isCompleted && !reviewed && (
-                    <div className="mt-3 pt-3 border-t border-gray-50 text-center">
-                      <p className="text-xs font-semibold text-gray-600 mb-2.5">Safar qanday o'tdi? Haydovchiga baho bering</p>
-                      <Button size="sm" fullWidth className="gap-1.5" onClick={() => { setReviewError(""); setReviewRating(5); setReviewModal(b.id); }}>
-                        <Star size={14} />Baho berish
-                      </Button>
-                    </div>
-                  )}
-                  {isCompleted && reviewed && rev && (
-                    <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-center gap-1.5 text-xs text-green-600">
-                      <CheckCircle size={14} />
-                      Siz baho berdingiz:
-                      <span className="flex">
-                        {Array.from({ length: rev.rating }).map((_, i) => <Star key={i} size={12} className="fill-yellow-400 text-yellow-400" />)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <p className="text-sm text-gray-400 py-8 text-center">Hozircha faol safaringiz yo'q — yangi buyurtma shu yerda chiqadi</p>
         )}
       </div>
 
@@ -380,6 +382,27 @@ export default function MyTripsPage() {
         {/* ══ CHAP ══ */}
         <div className="space-y-5">
 
+          {/* O'tgan safarlar (tugaganlar — baho bilan) */}
+          {completed.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-gray-900">O'tgan safarlar</h2>
+                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{completed.length} ta</span>
+              </div>
+              <div className="space-y-3">
+                {(showAllPast ? completed : completed.slice(0, 3)).map(renderBookingCard)}
+              </div>
+              {completed.length > 3 && (
+                <button
+                  onClick={() => setShowAllPast(v => !v)}
+                  className="w-full mt-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  {showAllPast ? "Kamroq ko'rsatish" : `Barchasini ko'rish (${completed.length})`}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Profil ma'lumotlari */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <h2 className="font-bold text-gray-900 mb-4">Profil ma'lumotlari</h2>
@@ -416,67 +439,6 @@ export default function MyTripsPage() {
 
         {/* ══ O'NG ══ */}
         <div className="space-y-5">
-
-          {/* Baho berish kerak */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900">Baho berish kerak</h2>
-              {needReview.length > 0 && (
-                <span className="text-xs font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full">{needReview.length} ta</span>
-              )}
-            </div>
-
-            {needReview.length === 0 && reviewedBookings.length === 0 ? (
-              <p className="text-sm text-gray-400 py-6 text-center">Hali baholanadigan safar yo'q</p>
-            ) : (
-              <>
-                {needReview.map((b) => (
-                  <div key={b.id} className="flex items-center gap-3 mb-3">
-                    <Avatar src={b.trip?.driver?.profile_photo ?? null} name={b.trip?.driver?.full_name ?? "Haydovchi"} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{b.trip?.driver?.full_name ?? "Haydovchi"}</p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {b.trip ? `${b.trip.from_region.name_uz} → ${b.trip.to_region.name_uz}` : ""} · {fmtDate(b.completed_at ?? undefined)}
-                      </p>
-                    </div>
-                    <Button size="sm" className="text-xs px-3 shrink-0" onClick={() => { setReviewError(""); setReviewRating(5); setReviewModal(b.id); }}>
-                      Baho ber
-                    </Button>
-                  </div>
-                ))}
-
-                {reviewedBookings.length > 0 && (
-                  <>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-4 mb-2">O'tgan haydovchilar</p>
-                    {reviewedBookings.slice(0, 4).map((b) => {
-                      const r = reviewById(b.id);
-                      return (
-                        <div key={b.id} className="flex items-center gap-3 mb-3">
-                          <Avatar src={b.trip?.driver?.profile_photo ?? null} name={b.trip?.driver?.full_name ?? "Haydovchi"} size="sm" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-semibold text-gray-800 truncate">{b.trip?.driver?.full_name ?? "Haydovchi"}</span>
-                              {r && (
-                                <span className="flex items-center gap-0.5 text-xs text-yellow-500 shrink-0">
-                                  <Star size={11} className="fill-yellow-400 text-yellow-400" />{r.rating}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-400 truncate">
-                              {b.trip ? `${b.trip.from_region.name_uz} → ${b.trip.to_region.name_uz}` : ""} · {fmtDate(b.completed_at ?? undefined)}
-                            </p>
-                          </div>
-                          <span className="text-xs text-green-600 flex items-center gap-1 shrink-0">
-                            <CheckCircle size={13} /> Baholandi
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-              </>
-            )}
-          </div>
 
           {/* To'lovlar tarixi */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
