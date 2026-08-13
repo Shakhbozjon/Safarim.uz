@@ -70,7 +70,7 @@ export interface WaypointResponse {
   arrival_time: string | null;
 }
 
-export type TripStatus = "active" | "completed" | "cancelled" | "full" | "expired";
+export type TripStatus = "active" | "completed" | "cancelled" | "full" | "expired" | "started";
 export type LuggageSize = "small" | "medium" | "large";
 export type PaymentType = "cash" | "click" | "payme" | "any";
 

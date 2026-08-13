@@ -127,3 +127,17 @@ async def duplicate_trip(
         db, current_user, trip_id, data.departure_date, data.departure_time, data.reverse
     )
     return trip_service.serialize_trip(trip)
+
+
+@router.post(
+    "/{trip_id}/start",
+    response_model=TripResponse,
+    summary="Safarni boshlash — qidiruvdan olib tashlanadi, yangi bron yo'q",
+)
+async def start_trip(
+    trip_id: str,
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    trip = await trip_service.start_trip(db, trip_id, current_user)
+    return trip_service.serialize_trip(trip)

@@ -44,6 +44,7 @@ class TripStatus(str, enum.Enum):
     cancelled = "cancelled"
     full = "full"
     expired = "expired"   # Vaqti o'tdi, yo'lovchi yig'ilmadi — jazosiz arxiv
+    started = "started"   # Haydovchi yo'lga chiqdi — qidiruvda ko'rinmaydi, yangi bron yo'q
 
 
 class PaymentMethod(str, enum.Enum):

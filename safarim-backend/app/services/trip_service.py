@@ -465,6 +465,50 @@ async def cancel_trip(db: AsyncSession, trip_id: str, user: User, reason: str | 
     return result.scalar_one()
 
 
+async def start_trip(db: AsyncSession, trip_id: str, user: User) -> Trip:
+    """Haydovchi safarni boshlaydi (o'rin to'lmasa ham). Safar 'started' bo'ladi:
+    qidiruvda ko'rinmaydi, yangi bron qabul qilinmaydi. Tasdiqlangan yo'lovchilar
+    qoladi (keyin Tugatish/Kelmadi). Kutilayotgan (pending) bronlar — bekor + xabar."""
+    trip = await get_trip(db, trip_id)
+
+    if trip.driver_id != user.id:
+        raise HTTPException(status_code=403, detail="Bu safar sizniki emas")
+    if trip.status not in (TripStatus.active, TripStatus.full):
+        raise HTTPException(status_code=400, detail="Bu safarni boshlab bo'lmaydi")
+
+    # Kutilayotgan (tasdiqlanmagan) bronlarni bekor qilish + yo'lovchiga xabar
+    result = await db.execute(
+        select(Booking).where(
+            Booking.trip_id == trip.id,
+            Booking.status == BookingStatus.pending,
+        )
+    )
+    pending = result.scalars().all()
+    now = datetime.utcnow()
+    for booking in pending:
+        booking.status = BookingStatus.cancelled
+        booking.cancelled_by = CancelledBy.driver
+        booking.cancellation_reason = "Haydovchi safarni boshladi"
+        booking.cancelled_at = now
+        trip.available_seats += booking.seats_count  # o'rinni qaytarish
+        await notification_service.create(
+            db,
+            user_id=booking.passenger_id,
+            title="Safar boshlandi",
+            body="Haydovchi safarni boshladi — buyurtmangiz tasdiqlanmagani uchun bekor qilindi.",
+            ref_type=NotificationRefType.booking,
+            ref_id=booking.id,
+        )
+
+    trip.status = TripStatus.started
+    await db.commit()
+
+    result = await db.execute(
+        select(Trip).options(*_load_options()).where(Trip.id == trip.id)
+    )
+    return result.scalar_one()
+
+
 async def duplicate_trip(
     db: AsyncSession,
     user: User,

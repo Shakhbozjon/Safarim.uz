@@ -9,7 +9,7 @@ import {
   Calendar, Banknote, AlertCircle, AlertTriangle,
   ArrowDownLeft, ArrowUpRight, X, CreditCard, History,
   RefreshCw, Clock, Star, Phone, MessageCircle, TrendingUp,
-  ShieldCheck, Wallet,
+  ShieldCheck, Wallet, Play, EyeOff,
 } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
@@ -152,6 +152,7 @@ export default function DriverDashboardPage() {
   const [republishError, setRepublishError] = useState("");
   const [republishReturn, setRepublishReturn]         = useState(false);   // qaytish safarini ham
   const [republishReturnTime, setRepublishReturnTime] = useState("");      // qaytish vaqti (ixtiyoriy)
+  const [startConfirmId, setStartConfirmId]           = useState<string | null>(null);  // safarni boshlash tasdig'i
 
   // Safarlar + ochilgan safar (yo'lovchilar) + depozit tarixi
   const [showAllTrips, setShowAllTrips]  = useState(false);
@@ -280,6 +281,15 @@ export default function DriverDashboardPage() {
     onError: (err: any) => setRepublishError(extractError(err)),
   });
 
+  const startMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/trips/${id}/start`),
+    onSuccess: () => {
+      setStartConfirmId(null);
+      queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-bookings"] });
+    },
+  });
+
   function openRepublish(id: string) {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -351,9 +361,10 @@ export default function DriverDashboardPage() {
   const pendingBkgs   = bookings.filter(b => b.status === "pending");
   const completedBkgs = bookings.filter(b => b.status === "completed");
 
-  // Safarlar guruhlari
-  const upcomingTrips  = trips.filter(t => (t.status === "active" || t.status === "full") && t.departure_date >= todayStr);
-  const pastTrips      = trips.filter(t => t.status === "expired" || ((t.status === "active" || t.status === "full") && t.departure_date < todayStr));
+  // Safarlar guruhlari (boshlangan safar ham "kelgusi/faol" ro'yxatda ko'rinadi — Yo'lda)
+  const isLive = (s: string) => s === "active" || s === "full" || s === "started";
+  const upcomingTrips  = trips.filter(t => isLive(t.status) && t.departure_date >= todayStr);
+  const pastTrips      = trips.filter(t => t.status === "expired" || (isLive(t.status) && t.departure_date < todayStr));
   const cancelledTrips = trips.filter(t => t.status === "cancelled");
   const hasMoreTrips   = pastTrips.length > 0 || cancelledTrips.length > 0;
 
@@ -390,8 +401,10 @@ export default function DriverDashboardPage() {
     const isOpen = expandedTrip === trip.id;
     const isExpired = trip.status === "expired";
     const isCancelled = trip.status === "cancelled";
+    const isStarted = trip.status === "started";
     const seatsLeft = trip.available_seats;
     const isPast = isExpired || trip.departure_date < todayStr;
+    const canStart = isLive(trip.status) && !isStarted && !isPast && !isCancelled;
     return (
       <div key={trip.id} className="border border-gray-100 rounded-xl overflow-hidden">
         <button
@@ -416,12 +429,15 @@ export default function DriverDashboardPage() {
                   {booked}/{trip.total_seats} band
                 </span>
               )}
+              {isStarted && (
+                <span className="px-1.5 py-0.5 rounded-full font-semibold bg-indigo-100 text-indigo-600">Yo'lda</span>
+              )}
             </div>
           </div>
           <div className="text-right shrink-0">
             <p className="text-sm font-bold text-gray-900 tabular-nums">{formatPrice(trip.price_per_seat)}</p>
             <p className="text-[11px] text-gray-400">
-              {isCancelled ? "bekor" : isExpired ? "tugadi" : seatsLeft === 0 ? "To'ldi" : `${seatsLeft} o'rin qoldi`}
+              {isCancelled ? "bekor" : isStarted ? "Yo'lda" : isExpired ? "tugadi" : seatsLeft === 0 ? "To'ldi" : `${seatsLeft} o'rin qoldi`}
             </p>
           </div>
           {pCount > 0 && (
@@ -477,6 +493,24 @@ export default function DriverDashboardPage() {
                 </div>
               </div>
             ))}
+
+            {isStarted && (
+              <div className="flex items-center gap-1.5 text-[11px] text-indigo-600 bg-indigo-50 rounded-lg px-2.5 py-1.5">
+                <EyeOff size={12} className="shrink-0" />
+                Yo'lda — qidiruvda ko'rinmaydi, yangi buyurtma qabul qilinmaydi
+              </div>
+            )}
+
+            {canStart && (
+              <Button
+                fullWidth
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setStartConfirmId(trip.id)}
+              >
+                <Play size={14} />Safarni boshlash
+              </Button>
+            )}
 
             <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
               <Link href={`/trips/${trip.id}`} className="text-xs text-primary-600 hover:underline flex items-center gap-0.5">
@@ -953,6 +987,37 @@ export default function DriverDashboardPage() {
                 }}
               >
                 {republishReturn ? "Borish va qaytishni e'lon qilish" : "Qayta e'lon qilish"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Safarni boshlash tasdig'i ─────────────────────────────────────── */}
+      {startConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setStartConfirmId(null)} />
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-xl">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
+                <Play size={18} className="text-primary-500" />
+              </div>
+              <h2 className="text-base font-bold text-gray-900">Safarni boshlaysizmi?</h2>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed mb-5">
+              Safar <b>qidiruvdan olib tashlanadi</b> — yangi buyurtma qabul qilinmaydi (o'rin bo'sh bo'lsa ham).
+              Tasdiqlangan yo'lovchilar qoladi. Tasdiqlanmagan buyurtmalar bekor qilinadi.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" fullWidth onClick={() => setStartConfirmId(null)}>
+                Bekor
+              </Button>
+              <Button
+                fullWidth
+                loading={startMutation.isPending}
+                onClick={() => startMutation.mutate(startConfirmId)}
+              >
+                Ha, boshlash
               </Button>
             </div>
           </div>
