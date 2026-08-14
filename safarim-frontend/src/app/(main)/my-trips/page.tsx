@@ -19,8 +19,6 @@ import { useAuth } from "@/hooks/useAuth";
 import type { BookingResponse, BookingStatus, ReviewResponse } from "@/types";
 import { clsx } from "clsx";
 
-// Taksiga nisbatan o'rtacha tejov koeffitsienti (carpooling ~50% arzon)
-const SAVINGS_RATE = 0.5;
 
 const STATUS_CONFIG: Record<BookingStatus, { label: string; cls: string }> = {
   confirmed:             { label: "Tasdiqlangan",     cls: "bg-green-100 text-green-700" },
@@ -107,7 +105,6 @@ export default function MyTripsPage() {
 
   const jamiSafarlar = completed.filter(b => new Date(b.completed_at ?? b.created_at).getFullYear() === thisYear).length;
   const jamiTolov = completed.reduce((s, b) => s + b.total_price, 0);
-  const tejaldi = Math.round(jamiTolov * SAVINGS_RATE);
 
   // Sevimli yo'nalish
   const routeCounts: Record<string, number> = {};
@@ -347,7 +344,7 @@ export default function MyTripsPage() {
       </div>
 
       {/* ── 4 statistika ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 mb-1">Jami safarlar</p>
           <p className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{completed.length}</p>
@@ -357,11 +354,6 @@ export default function MyTripsPage() {
           <p className="text-xs text-gray-400 mb-1">Jami to'lov</p>
           <p className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{formatShort(jamiTolov)}</p>
           <p className="text-xs text-gray-400 mt-1.5">so'm</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
-          <p className="text-xs text-gray-400 mb-1">Tejaldi</p>
-          <p className="text-2xl font-bold text-green-600 tabular-nums leading-none">{formatShort(tejaldi)}</p>
-          <p className="text-xs text-gray-400 mt-1.5">taksi narxiga nisbatan</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 mb-1">Sevimli yo'nalish</p>
@@ -389,8 +381,34 @@ export default function MyTripsPage() {
                 <h2 className="font-bold text-gray-900">O'tgan safarlar</h2>
                 <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{completed.length} ta</span>
               </div>
-              <div className="space-y-3">
-                {(showAllPast ? completed : completed.slice(0, 3)).map(renderBookingCard)}
+              <div className="divide-y divide-gray-50">
+                {(showAllPast ? completed : completed.slice(0, 3)).map((b) => {
+                  const driver = b.trip?.driver;
+                  const reviewed = reviewedIds.has(b.id);
+                  const rev = reviewById(b.id);
+                  return (
+                    <div key={b.id} className="flex items-center gap-3 py-3">
+                      <Avatar src={driver?.profile_photo ?? null} name={driver?.full_name ?? "Haydovchi"} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {b.trip ? `${b.trip.from_region.name_uz} → ${b.trip.to_region.name_uz}` : "Safar"}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {driver?.full_name ?? "Haydovchi"} · {fmtDate(b.trip?.departure_date)} · {formatPrice(b.total_price)} so'm
+                        </p>
+                      </div>
+                      {reviewed && rev ? (
+                        <span className="flex items-center gap-0.5 text-xs font-medium text-yellow-500 shrink-0">
+                          <Star size={12} className="fill-yellow-400 text-yellow-400" />{rev.rating}
+                        </span>
+                      ) : (
+                        <Button size="sm" className="text-xs px-3 shrink-0" onClick={() => { setReviewError(""); setReviewRating(5); setReviewModal(b.id); }}>
+                          Baho ber
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               {completed.length > 3 && (
                 <button
