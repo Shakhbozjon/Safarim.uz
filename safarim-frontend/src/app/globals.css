@@ -27,6 +27,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* iOS Safari 16px dan kichik shriftli maydonga fokuslanganda sahifani
+   avtomatik kattalashtiradi va fokus ketgach QAYTARMAYDI — login/qidiruv
+   formalarida ekran "yaqinlashib" qolib ketardi.
+   Sensorli qurilmalarda barcha form maydonlari 16px (desktop dizayni tegilmaydi).
+   !important zarur: Tailwind'ning `text-sm` klassi element selektoridan kuchliroq. */
+@media (pointer: coarse), (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
