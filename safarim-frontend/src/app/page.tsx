@@ -1,12 +1,14 @@
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import HomeRedirect from "@/components/layout/HomeRedirect";
 import HeroSearchCard from "@/components/trips/HeroSearchCard";
+import RouteLink from "@/components/trips/RouteLink";
 
 const QUICK = [
-  { from: "Toshkent", to: "Samarqand" },
-  { from: "Toshkent", to: "Namangan" },
-  { from: "Toshkent", to: "Buxoro" },
+  { from: "Toshkent", to: "Samarqand", fromSlug: "tashkent-city", toSlug: "samarqand" },
+  { from: "Toshkent", to: "Namangan",  fromSlug: "tashkent-city", toSlug: "namangan" },
+  { from: "Toshkent", to: "Buxoro",    fromSlug: "tashkent-city", toSlug: "bukhara" },
 ];
 
 // Halol faktlar (yolg'on vanity-raqamlar emas) — yangi platforma uchun rost qiymatlar.
@@ -24,12 +26,12 @@ const STEPS = [
 ];
 
 const ROUTES = [
-  { from: "Toshkent", to: "Samarqand", dur: "3s 30d" },
-  { from: "Toshkent", to: "Namangan", dur: "4s 20d" },
-  { from: "Toshkent", to: "Buxoro", dur: "5s 10d" },
-  { from: "Samarqand", to: "Buxoro", dur: "2s 15d" },
-  { from: "Toshkent", to: "Farg'ona", dur: "4s 50d" },
-  { from: "Toshkent", to: "Nukus", dur: "9s" },
+  { from: "Toshkent", to: "Samarqand", dur: "3s 30d", fromSlug: "tashkent-city", toSlug: "samarqand" },
+  { from: "Toshkent", to: "Namangan",  dur: "4s 20d", fromSlug: "tashkent-city", toSlug: "namangan" },
+  { from: "Toshkent", to: "Buxoro",    dur: "5s 10d", fromSlug: "tashkent-city", toSlug: "bukhara" },
+  { from: "Samarqand", to: "Buxoro",   dur: "2s 15d", fromSlug: "samarqand",     toSlug: "bukhara" },
+  { from: "Toshkent", to: "Farg'ona",  dur: "4s 50d", fromSlug: "tashkent-city", toSlug: "fergana" },
+  { from: "Toshkent", to: "Nukus",     dur: "9s",     fromSlug: "tashkent-city", toSlug: "karakalpakstan" },
 ];
 
 const SAFETY = [
@@ -49,6 +51,7 @@ const EYEBROW = "text-[12.5px] font-bold uppercase tracking-[0.08em] text-primar
 
 export default function HomePage() {
   return (
+    <HomeRedirect>
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Navbar transparent />
 
@@ -69,13 +72,14 @@ export default function HomePage() {
             <div className="flex flex-wrap gap-2 mt-4 items-center">
               <span className="text-[13px] text-gray-500">Mashhur:</span>
               {QUICK.map((r) => (
-                <Link
+                <RouteLink
                   key={`${r.from}-${r.to}`}
-                  href={`/trips?from=${r.from}&to=${r.to}`}
+                  fromSlug={r.fromSlug}
+                  toSlug={r.toSlug}
                   className="text-[13px] font-semibold text-gray-600 bg-white border border-gray-200 hover:border-primary-300 hover:text-primary-600 px-3 py-2 rounded-full transition-colors"
                 >
                   {r.from} → {r.to}
-                </Link>
+                </RouteLink>
               ))}
             </div>
           </div>
@@ -176,9 +180,10 @@ export default function HomePage() {
           </div>
           <div className="grid gap-3.5 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {ROUTES.map((rt) => (
-              <Link
+              <RouteLink
                 key={`${rt.from}-${rt.to}`}
-                href={`/trips?from=${rt.from}&to=${rt.to}`}
+                fromSlug={rt.fromSlug}
+                toSlug={rt.toSlug}
                 className="bg-white border border-gray-100 rounded-2xl p-5 transition hover:border-primary-200 hover:shadow-card-hover"
               >
                 <div className="flex items-center gap-2.5 text-[16.5px] font-bold tracking-tight mb-2 flex-wrap">
@@ -186,7 +191,7 @@ export default function HomePage() {
                 </div>
                 <div className="text-[13px] text-gray-500 mb-4">Taxminan {rt.dur} yo'l</div>
                 <div className="text-[14px] font-bold text-primary-600">Bo'sh o'rin qidirish →</div>
-              </Link>
+              </RouteLink>
             ))}
           </div>
         </div>
@@ -231,10 +236,10 @@ export default function HomePage() {
               Har kuni bir yo'nalishda borasizmi? Yo'lovchi olib boring va qo'shimcha daromad oling.
             </p>
             <div className="flex gap-2.5 flex-wrap">
-              <Link href="/create-trip" className="bg-white text-primary-700 px-6 py-3.5 rounded-[11px] font-bold text-[15px] hover:bg-gray-50 transition-colors">
+              <Link href="/profile/driver-apply" className="bg-white text-primary-700 px-6 py-3.5 rounded-[11px] font-bold text-[15px] hover:bg-gray-50 transition-colors">
                 Ariza yuborish
               </Link>
-              <Link href="/create-trip" className="bg-white/10 border border-white/25 text-white px-6 py-3.5 rounded-[11px] font-bold text-[15px] hover:bg-white/20 transition-colors">
+              <Link href="/profile/driver-apply" className="bg-white/10 border border-white/25 text-white px-6 py-3.5 rounded-[11px] font-bold text-[15px] hover:bg-white/20 transition-colors">
                 Batafsil
               </Link>
             </div>
@@ -258,7 +263,7 @@ export default function HomePage() {
           <Link href="/trips" className="bg-primary-500 hover:bg-primary-600 text-white px-7 py-[15px] rounded-[11px] font-bold text-[15.5px] shadow-primary-glow transition-colors">
             Safar qidirish
           </Link>
-          <Link href="/create-trip" className="bg-white text-gray-900 border border-gray-200 px-7 py-[15px] rounded-[11px] font-bold text-[15.5px] hover:bg-gray-50 transition-colors">
+          <Link href="/profile/driver-apply" className="bg-white text-gray-900 border border-gray-200 px-7 py-[15px] rounded-[11px] font-bold text-[15.5px] hover:bg-gray-50 transition-colors">
             Haydovchi bo'lish
           </Link>
         </div>
@@ -266,5 +271,6 @@ export default function HomePage() {
 
       <Footer />
     </div>
+    </HomeRedirect>
   );
 }
