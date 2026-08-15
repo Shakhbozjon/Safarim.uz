@@ -9,6 +9,11 @@ celery_app = Celery(
 )
 
 celery_app.conf.update(
+    # ⚠️ Worker `-Q default,notifications` bilan ishlaydi (docker-compose).
+    # Celery'ning o'z sukut navbati "celery" — sozlanmasa beat tasklarni
+    # "celery" navbatiga yuboradi va worker ularni HECH QACHON o'qimaydi
+    # (safar tasdiqi, expiry, review eslatmalari jim qoladi).
+    task_default_queue="default",
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",

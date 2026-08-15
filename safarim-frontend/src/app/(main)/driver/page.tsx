@@ -360,6 +360,9 @@ export default function DriverDashboardPage() {
 
   const pendingBkgs   = bookings.filter(b => b.status === "pending");
   const completedBkgs = bookings.filter(b => b.status === "completed");
+  // Safar bo'lib o'tdi — haydovchidan javob kutilmoqda. Safar sanasi o'tgani
+  // uchun bu buyurtmalar "o'tgan safarlar" ichida yashirinib qolmasin.
+  const needConfirm   = bookings.filter(b => b.needs_my_confirmation);
 
   // Safarlar guruhlari (boshlangan safar ham "kelgusi/faol" ro'yxatda ko'rinadi — Yo'lda)
   const isLive = (s: string) => s === "active" || s === "full" || s === "started";
@@ -570,6 +573,59 @@ export default function DriverDashboardPage() {
           </Button>
         </Link>
       </div>
+
+      {/* ── Safar bo'ldimi? (haydovchidan javob kutilmoqda) ───────────────── */}
+      {needConfirm.length > 0 && (
+        <div className="bg-amber-50 rounded-2xl border border-amber-200 p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertCircle size={17} className="text-amber-600 shrink-0" />
+            <h2 className="font-bold text-amber-900">Safaringiz bo'ldimi?</h2>
+          </div>
+          <p className="text-[13px] text-amber-700/90 mb-4">
+            Javob bermasangiz, safar bo'lgan deb hisoblanadi va komissiya ushlanadi.
+          </p>
+
+          <div className="space-y-2.5">
+            {needConfirm.map(b => (
+              <div key={`cf-${b.id}`} className="bg-white rounded-xl border border-amber-100 p-3.5">
+                <div className="flex items-center gap-2 text-[15px] font-bold text-gray-900 mb-1 min-w-0">
+                  <span className="truncate">{b.trip?.from_region?.name_uz ?? "—"}</span>
+                  <ChevronRight size={14} className="text-gray-300 shrink-0" />
+                  <span className="truncate">{b.trip?.to_region?.name_uz ?? "—"}</span>
+                </div>
+                <div className="flex items-center gap-3 text-[12.5px] text-gray-500 mb-3">
+                  {b.trip && (
+                    <span className="flex items-center gap-1.5">
+                      <Calendar size={12} className="text-gray-400" />
+                      {b.trip.departure_date} · {b.trip.departure_time.slice(0, 5)}
+                    </span>
+                  )}
+                  <span className="truncate">{b.passenger.full_name}</span>
+                  <span className="tabular-nums shrink-0">{b.seats_count} joy</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => completeMutation.mutate(b.id)}
+                    loading={completeMutation.isPending}
+                  >
+                    Ha, bo'ldi
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 border-red-200 text-red-500 hover:bg-red-50"
+                    onClick={() => setNoShowConfirmId(b.id)}
+                  >
+                    Yo'q, bo'lmadi
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Sizning safarlaringiz (eng tepada, ochiq) ────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
