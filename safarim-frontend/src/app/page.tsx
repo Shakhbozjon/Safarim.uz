@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import HomeRedirect from "@/components/layout/HomeRedirect";
+import MemberHome from "@/components/layout/MemberHome";
 import HeroSearchCard from "@/components/trips/HeroSearchCard";
 import RouteLink from "@/components/trips/RouteLink";
 
@@ -50,8 +51,14 @@ const H2 = "text-[clamp(26px,4vw,38px)] font-extrabold tracking-tight text-gray-
 const EYEBROW = "text-[12.5px] font-bold uppercase tracking-[0.08em] text-primary-600 mb-3";
 
 export default function HomePage() {
+  // Tokenni serverda o'qiymiz — kirgan foydalanuvchiga marketing sahifasi
+  // bir lahzaga ham ko'rinmaydi (mijoz tomonda almashtirishdagi "flash" yo'q).
+  // Mehmon uchun sahifa avvalgidek SSR bilan chiqadi — SEO saqlanadi.
+  if (cookies().get("access_token")) {
+    return <MemberHome />;
+  }
+
   return (
-    <HomeRedirect>
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Navbar transparent />
 
@@ -271,6 +278,5 @@ export default function HomePage() {
 
       <Footer />
     </div>
-    </HomeRedirect>
   );
 }

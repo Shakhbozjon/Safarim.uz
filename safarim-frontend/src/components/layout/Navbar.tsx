@@ -53,8 +53,9 @@ export default function Navbar({ transparent = false }: NavbarProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
 
-            {/* Logo */}
-            <Link href="/" className="shrink-0">
+            {/* Logo — kirgan foydalanuvchini "/" orqali emas, to'g'ridan-to'g'ri
+                o'z sahifasiga olib boradi (haydovchi "/" da baribir qolmaydi) */}
+            <Link href={user?.is_driver ? "/driver" : "/"} className="shrink-0">
               <Logo size={36} />
             </Link>
 
