@@ -5,6 +5,7 @@ import Avatar from "@/components/ui/Avatar";
 import Stars from "@/components/ui/Stars";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import SeatIndicator from "@/components/trips/SeatIndicator";
 import type { TripResponse } from "@/types";
 
 interface TripCardProps {
@@ -60,9 +61,6 @@ export default function TripCard({ trip, className }: TripCardProps) {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {trip.available_seats <= 2 && trip.available_seats > 0 && (
-              <Badge variant="warning" size="sm">{trip.available_seats} joy qoldi</Badge>
-            )}
             {trip.women_only && (
               <Badge variant="default" size="sm">Faqat ayollar</Badge>
             )}
@@ -96,8 +94,18 @@ export default function TripCard({ trip, className }: TripCardProps) {
           </div>
         )}
 
+        {/* Joylar — nechtasi band, nechtasi bo'sh */}
+        <div className="flex items-center gap-1.5 mt-3">
+          <Users size={13} className="text-gray-400 shrink-0" />
+          <SeatIndicator
+            totalSeats={trip.total_seats}
+            availableSeats={trip.available_seats}
+            size="sm"
+          />
+        </div>
+
         {/* Footer row */}
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-50 gap-3">
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex items-center gap-2 shrink-0">
               {trip.luggage_size === "large" && (
@@ -115,10 +123,6 @@ export default function TripCard({ trip, className }: TripCardProps) {
                   <PawPrint size={15} />
                 </span>
               )}
-            </div>
-            <div className="flex items-center gap-1 text-sm text-gray-500 shrink-0">
-              <Users size={13} />
-              <span>{trip.available_seats} joy</span>
             </div>
           </div>
 

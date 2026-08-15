@@ -15,6 +15,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { TripDetailSkeleton } from "@/components/ui/Skeleton";
+import SeatIndicator from "@/components/trips/SeatIndicator";
 import api from "@/lib/api";
 import { isAuthenticated, getApiError } from "@/lib/auth";
 import type { TripResponse, BookingResponse } from "@/types";
@@ -278,21 +279,21 @@ export default function TripDetailPage() {
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <p className="text-3xl font-bold text-gray-900 tabular-nums">
-                      {formatPrice(trip.price_per_seat * seats)}{" "}
-                      <span className="text-base font-normal text-gray-400">so'm</span>
+                <div className="mb-5">
+                  <p className="text-3xl font-bold text-gray-900 tabular-nums">
+                    {formatPrice(trip.price_per_seat * seats)}{" "}
+                    <span className="text-base font-normal text-gray-400">so'm</span>
+                  </p>
+                  {seats > 1 && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {formatPrice(trip.price_per_seat)} so'm × {seats} joy
                     </p>
-                    {seats > 1 && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {formatPrice(trip.price_per_seat)} so'm × {seats} joy
-                      </p>
-                    )}
-                  </div>
-                  <Badge variant={trip.available_seats <= 2 ? "warning" : "success"} dot>
-                    {trip.available_seats} joy bor
-                  </Badge>
+                  )}
+                  <SeatIndicator
+                    totalSeats={trip.total_seats}
+                    availableSeats={trip.available_seats}
+                    className="mt-3"
+                  />
                 </div>
 
                 {/* Seats selector */}
