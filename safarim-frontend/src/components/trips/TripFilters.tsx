@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SlidersHorizontal, X, Wind, Luggage, ChevronDown } from "lucide-react";
+import { SlidersHorizontal, X, Luggage, ChevronDown } from "lucide-react";
 import { clsx } from "clsx";
 import Button from "@/components/ui/Button";
 
@@ -9,17 +9,19 @@ export interface Filters {
   maxPrice: number;
   departureFrom: string;
   departureTo: string;
-  amenities: { ac: boolean; luggage: boolean };
+  amenities: { luggage: boolean };
   minRating: number;
   /** Faqat ayol yo'lovchilar uchun e'lon qilingan safarlar */
   womenOnly: boolean;
 }
 
+export const MAX_PRICE = 500_000;
+
 export const DEFAULT_FILTERS: Filters = {
-  maxPrice: 500_000,
+  maxPrice: MAX_PRICE,
   departureFrom: "00:00",
   departureTo: "23:59",
-  amenities: { ac: false, luggage: false },
+  amenities: { luggage: false },
   minRating: 0,
   womenOnly: false,
 };
@@ -59,8 +61,9 @@ export default function TripFilters({ onChange, totalCount, variant = "both" }: 
   }
 
   const hasActiveFilters =
-    filters.maxPrice < 500_000 ||
-    filters.amenities.ac ||
+    filters.maxPrice < MAX_PRICE ||
+    filters.departureFrom !== DEFAULT.departureFrom ||
+    filters.departureTo !== DEFAULT.departureTo ||
     filters.amenities.luggage ||
     filters.minRating > 0 ||
     filters.womenOnly;
@@ -191,7 +194,8 @@ export default function TripFilters({ onChange, totalCount, variant = "both" }: 
         <p className="text-sm font-medium text-gray-700 mb-3">Qulayliklar</p>
         <div className="space-y-2">
           {[
-            { key: "ac" as const, icon: Wind, label: "Konditsioner" },
+            // "Konditsioner" olib tashlandi: Trip modelida bunday maydon yo'q,
+            // ya'ni belgilanganda ham hech narsa filtrlanmasdi.
             { key: "luggage" as const, icon: Luggage, label: "Katta yukxalta" },
           ].map(({ key, icon: Icon, label }) => (
             <label key={key} className="flex items-center gap-3 cursor-pointer group">

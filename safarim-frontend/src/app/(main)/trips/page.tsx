@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpDown, MapPin } from "lucide-react";
 import SearchBar from "@/components/trips/SearchBar";
 import TripCard from "@/components/trips/TripCard";
-import TripFilters, { DEFAULT_FILTERS, type Filters } from "@/components/trips/TripFilters";
+import TripFilters, { DEFAULT_FILTERS, MAX_PRICE, type Filters } from "@/components/trips/TripFilters";
 import { TripCardSkeleton } from "@/components/ui/Skeleton";
 import api from "@/lib/api";
 import type { TripResponse } from "@/types";
@@ -48,7 +48,10 @@ function TripsContent() {
   const isReady = fromId && toId && date;
 
   const { data: trips = [], isLoading, isError } = useQuery<TripResponse[]>({
-    queryKey: ["trips", fromId, toId, date, seats, sort, filters.womenOnly],
+    // Backend faqat women_only va max_price ni qo'llab-quvvatlaydi — o'shalar
+    // so'rovga qo'shiladi va queryKey ga kiradi. Vaqt, reyting va yuk esa
+    // kelgan ro'yxat ustida pastda filtrlanadi (backendda bunday parametr yo'q).
+    queryKey: ["trips", fromId, toId, date, seats, sort, filters.womenOnly, filters.maxPrice],
     queryFn: async () => {
       const { data } = await api.get("/trips/search", {
         params: {
@@ -57,14 +60,25 @@ function TripsContent() {
           departure_date:  date,
           seats,
           sort,
-          // Faqat yoqilganda yuboriladi — so'rov manzili keraksiz uzaymasin
           ...(filters.womenOnly ? { women_only: true } : {}),
+          ...(filters.maxPrice < MAX_PRICE ? { max_price: filters.maxPrice } : {}),
         },
       });
       return data;
     },
     enabled: !!isReady,
   });
+
+  const visibleTrips = trips.filter((t) => {
+    const time = t.departure_time.slice(0, 5);            // "HH:MM:SS" → "HH:MM"
+    if (time < filters.departureFrom || time > filters.departureTo) return false;
+    if (filters.minRating > 0 && (t.driver.rating_avg ?? 0) < filters.minRating) return false;
+    if (filters.amenities.luggage && t.luggage_size !== "large") return false;
+    return true;
+  });
+
+  // Ro'yxat bo'sh: filtr sababmi yoki bu yo'nalishda umuman safar yo'qmi
+  const hiddenByFilters = trips.length > 0 && visibleTrips.length === 0;
 
   /** "2026-08-18" → "Sesh, 18-avgust" */
   function formatDate(d: string) {
@@ -122,7 +136,7 @@ function TripsContent() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <TripFilters variant="button" totalCount={trips.length} onChange={setFilters} />
+          <TripFilters variant="button" totalCount={visibleTrips.length} onChange={setFilters} />
 
           <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-1 py-1">
             <ArrowUpDown size={13} className="text-gray-400 ml-1.5" />
@@ -141,7 +155,7 @@ function TripsContent() {
 
       <div className="flex gap-6">
         {/* Sidebar filters (faqat desktop) */}
-        <TripFilters variant="sidebar" totalCount={trips.length} onChange={setFilters} />
+        <TripFilters variant="sidebar" totalCount={visibleTrips.length} onChange={setFilters} />
 
         {/* List */}
         <div className="flex-1 min-w-0">
@@ -154,9 +168,9 @@ function TripsContent() {
               <p className="text-red-600 font-semibold">Xatolik yuz berdi</p>
               <p className="text-sm text-red-400 mt-1">Internet aloqasini tekshiring</p>
             </div>
-          ) : trips.length > 0 ? (
+          ) : visibleTrips.length > 0 ? (
             <div className="space-y-3">
-              {trips.map((trip) => (
+              {visibleTrips.map((trip) => (
                 <TripCard key={trip.id} trip={trip} />
               ))}
             </div>
@@ -164,7 +178,11 @@ function TripsContent() {
             <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
               <div className="text-5xl mb-4">🚗</div>
               <p className="text-lg font-semibold text-gray-900 mb-2">Safarlar topilmadi</p>
-              <p className="text-sm text-gray-500">Boshqa sana yoki yo'nalishni sinab ko'ring</p>
+              <p className="text-sm text-gray-500">
+                {hiddenByFilters
+                  ? "Filtrlarga mos safar yo'q — ularni yumshatib ko'ring"
+                  : "Boshqa sana yoki yo'nalishni sinab ko'ring"}
+              </p>
             </div>
           )}
         </div>
