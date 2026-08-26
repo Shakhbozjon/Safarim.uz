@@ -13,6 +13,15 @@ import type { TripResponse } from "@/types";
 
 type SortKey = "time_asc" | "price_asc" | "price_desc";
 
+// `toLocaleDateString("uz-UZ")` Node'da va brauzerda har xil natija beradi
+// (ICU ma'lumotlari boshqacha) — bu hydration xatosiga olib kelardi.
+// Shuning uchun nomlar qo'lda, natija ikkala tomonda bir xil.
+const UZ_MONTHS = [
+  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+  "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
+];
+const UZ_WEEKDAYS = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
+
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "time_asc",    label: "Jo'nash vaqti" },
   { value: "price_asc",  label: "Arzon narx" },
@@ -54,11 +63,15 @@ function TripsContent() {
     enabled: !!isReady,
   });
 
+  /** "2026-08-18" → "Sesh, 18-avgust" */
   function formatDate(d: string) {
     if (!d) return "";
-    return new Date(d).toLocaleDateString("uz-UZ", {
-      day: "numeric", month: "long", weekday: "short",
-    });
+    const [y, m, day] = d.split("-").map(Number);
+    if (!y || !m || !day) return d;
+    // Sanani qismlardan quramiz: "2026-08-18" satrini Date'ga berish uni UTC deb
+    // o'qiydi va mahalliy vaqt mintaqasida kun siljib ketishi mumkin.
+    const wd = UZ_WEEKDAYS[new Date(y, m - 1, day).getDay()];
+    return `${wd}, ${day}-${UZ_MONTHS[m - 1] ?? ""}`;
   }
 
   if (!isReady) {

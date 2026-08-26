@@ -41,8 +41,8 @@ class Settings(BaseSettings):
     # Pilot rejim — SMS'siz sinov: OTP javobda qaytariladi (faqat yopiq pilot uchun!)
     PILOT_MODE: bool = False
     # Vergul bilan ajratilgan tester raqamlari (masalan "+998901112233,+998907654321").
-    # Bo'sh bo'lmasa — pilot_otp FAQAT shu raqamlarga qaytariladi; boshqalarga
-    # OTP Telegram admin-chat orqali yetkaziladi (impersonatsiya himoyasi).
+    # pilot_otp FAQAT shu raqamlarga qaytariladi. Bo'sh bo'lsa — hech kimga:
+    # PILOT_MODE yoqilgan holda ham begona raqamning kodini o'qib bo'lmaydi.
     PILOT_OTP_ALLOWLIST: str = ""
 
     @property

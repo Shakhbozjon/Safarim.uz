@@ -38,10 +38,9 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-    # Pilot: media (rasm/avatar) brauzerdan ko'rinishi uchun S3 porti (9000) ochiq.
-    # Obyektlar presigned URL bilan himoyalangan. Console (9001) ochiq EMAS.
-    ports:
-      - "9000:9000"
+    # Port ochilmaydi: media cdn.uzsafar.uz orqali beriladi, nginx minio'ga
+    # Docker tarmog'i ichida (upstream safarim_minio → minio:9000) boradi.
+    # Console (9001) ham ochiq EMAS.
     volumes:
       - minio_data:/data
     healthcheck:
