@@ -72,6 +72,12 @@ class Settings(BaseSettings):
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_ADMIN_CHAT_ID: str = ""  # OTP loglar keladigan chat ID
+    # Bot username (@ siz, masalan "uzsafar_bot") — tasdiqlash havolasi shundan quriladi
+    TELEGRAM_BOT_USERNAME: str = ""
+    # Webhook'ni himoyalaydi: Telegram har so'rovda shu qiymatni sarlavhada yuboradi.
+    # Bo'sh bo'lsa webhook umuman qabul qilinmaydi (soxta so'rov yuborib bo'lmasin).
+    TELEGRAM_WEBHOOK_SECRET: str = ""
+    TELEGRAM_LINK_TTL_MINUTES: int = 15
 
     # Click
     CLICK_SERVICE_ID: str = ""

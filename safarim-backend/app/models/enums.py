@@ -123,3 +123,4 @@ class AdminActionType(str, enum.Enum):
     unblock_user = "unblock_user"
     warn_driver = "warn_driver"
     cancel_trip = "cancel_trip"
+    verify_phone = "verify_phone"

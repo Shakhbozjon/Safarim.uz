@@ -159,6 +159,39 @@ async def block_user(
 
 
 @router.post(
+    "/users/{user_id}/verify-phone",
+    summary="Telefon raqamni qo'lda tasdiqlash (Telegrami yo'q foydalanuvchi uchun)",
+)
+async def verify_user_phone(
+    user_id: str,
+    admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    import uuid
+    from app.models.admin import AdminAction
+    from app.models.enums import AdminActionType
+
+    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+    if user.is_phone_verified:
+        return {"message": f"{user.full_name} raqami allaqachon tasdiqlangan"}
+
+    # Admin raqam egasi bilan bevosita bog'langan bo'lishi kerak — bu yozuv
+    # keyin kim tasdiqlaganini aniqlash uchun qoladi.
+    user.is_phone_verified = True
+    db.add(AdminAction(
+        admin_id=admin.id,
+        action_type=AdminActionType.verify_phone,
+        target_user_id=user.id,
+        reason="Telefon raqami qo'lda tasdiqlandi (Telegramsiz)",
+    ))
+    await db.commit()
+    return {"message": f"{user.full_name} raqami tasdiqlandi"}
+
+
+@router.post(
     "/users/{user_id}/unblock",
     summary="Foydalanuvchini blokdan chiqarish",
 )

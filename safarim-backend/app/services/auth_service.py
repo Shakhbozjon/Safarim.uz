@@ -113,11 +113,14 @@ async def register_user(db: AsyncSession, phone: str, full_name: str, password: 
             detail="Bu telefon raqam allaqachon ro'yxatdan o'tgan",
         )
 
+    # is_phone_verified qo'yilmaydi (default False): ro'yxatda raqam tekshirilmaydi.
+    # Tasdiqlash birinchi haqiqiy harakatdan oldin — band qilish yoki safar e'lon
+    # qilishda — Telegram orqali so'raladi. Avval bu yerda True qilingan edi,
+    # natijada profilda tekshirilmagan raqamga "Telefon tasdiqlangan" deb yozilardi.
     user = User(
         phone=phone,
         full_name=full_name.strip(),
         password_hash=hash_password(password),
-        is_phone_verified=True,
     )
     db.add(user)
     await db.commit()

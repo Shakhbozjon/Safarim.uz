@@ -37,6 +37,14 @@ def _load_options():
 
 
 async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate) -> Booking:
+    # Tasdiqlanmagan raqam bilan band qilib bo'lmaydi: haydovchi soxta raqamli
+    # yo'lovchini kutib qolmasin.
+    if not passenger.is_phone_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Band qilish uchun avval telefon raqamingizni tasdiqlang",
+        )
+
     # Safar mavjudmi? (row-lock: parallel band qilishlarda oversell oldini oladi)
     result = await db.execute(
         select(Trip)

@@ -16,6 +16,8 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { TripDetailSkeleton } from "@/components/ui/Skeleton";
 import SeatIndicator from "@/components/trips/SeatIndicator";
+import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
+import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import { isAuthenticated, getApiError } from "@/lib/auth";
 import type { TripResponse, BookingResponse } from "@/types";
@@ -39,10 +41,12 @@ export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const [seats, setSeats] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "click" | "payme">("cash");
   const [bookingModal, setBookingModal] = useState(false);
+  const [verifyModal, setVerifyModal] = useState(false);
   const [bookingError, setBookingError] = useState("");
 
   // ── Trip yuklab olish ──
@@ -322,6 +326,12 @@ export default function TripDetailPage() {
                       router.push("/login?next=/trips/" + id);
                       return;
                     }
+                    // Tasdiqlanmagan raqamni backend baribir rad etadi — sababini
+                    // xato xabaridan emas, shu yerda ko'rsatamiz
+                    if (user && !user.is_phone_verified) {
+                      setVerifyModal(true);
+                      return;
+                    }
                     setBookingModal(true);
                   }}
                 >
@@ -358,6 +368,13 @@ export default function TripDetailPage() {
       </div>
 
       {/* Booking modal */}
+      <PhoneVerifyModal
+        open={verifyModal}
+        onClose={() => setVerifyModal(false)}
+        onVerified={() => setBookingModal(true)}
+        reason="Joy band qilish uchun telefon raqamingiz tasdiqlangan bo'lishi kerak — haydovchi siz bilan bog'lana olishi uchun."
+      />
+
       <Modal open={bookingModal} onClose={() => setBookingModal(false)} title="Band qilishni tasdiqlash">
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-xl p-4 space-y-3">

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Ban, CheckCircle, Loader2, Users, Shield, Banknote } from "lucide-react";
+import { Search, Ban, CheckCircle, Loader2, Users, Shield, Banknote, ShieldCheck } from "lucide-react";
 import api from "@/lib/api";
 import type { User } from "@/types";
 import Avatar from "@/components/ui/Avatar";
@@ -62,6 +62,12 @@ export default function AdminUsersPage() {
 
   const unblockMut = useMutation({
     mutationFn: (id: string) => api.post(`/admin/users/${id}/unblock`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+
+  // Telegrami yo'q foydalanuvchi uchun qo'lda tasdiqlash
+  const verifyMut = useMutation({
+    mutationFn: (id: string) => api.post(`/admin/users/${id}/verify-phone`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
   });
 
@@ -159,18 +165,41 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    {user.is_blocked ? (
-                      <span className="px-2 py-0.5 bg-red-50 text-red-600 text-xs font-medium rounded-full">
-                        Bloklangan
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-green-50 text-green-600 text-xs font-medium rounded-full">
-                        Faol
-                      </span>
-                    )}
+                    <div className="flex flex-col items-start gap-1">
+                      {user.is_blocked ? (
+                        <span className="px-2 py-0.5 bg-red-50 text-red-600 text-xs font-medium rounded-full">
+                          Bloklangan
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-green-50 text-green-600 text-xs font-medium rounded-full">
+                          Faol
+                        </span>
+                      )}
+                      {!user.is_phone_verified && (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-medium rounded-full whitespace-nowrap">
+                          Raqam tasdiqlanmagan
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {/* Telegrami yo'q foydalanuvchi raqamini qo'lda tasdiqlash */}
+                      {!user.is_phone_verified && !user.is_admin && (
+                        <button
+                          onClick={() => verifyMut.mutate(user.id)}
+                          disabled={verifyMut.isPending}
+                          title="Raqam egasi bilan bog'langaningizga ishonch hosil qiling"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors disabled:opacity-50"
+                        >
+                          {verifyMut.isPending ? (
+                            <Loader2 size={11} className="animate-spin" />
+                          ) : (
+                            <ShieldCheck size={12} />
+                          )}
+                          Tasdiqlash
+                        </button>
+                      )}
                       {/* Haydovchi uchun hamyon tugmasi */}
                       {user.is_driver && (
                         <button

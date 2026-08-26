@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   User, Phone, Car, Edit3, ChevronRight,
-  Shield, Bell, LogOut, CheckCircle, Clock, XCircle,
+  Shield, Bell, LogOut, CheckCircle, Clock, XCircle, ShieldCheck,
 } from "lucide-react";
+import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import Tabs from "@/components/ui/Tabs";
@@ -28,6 +29,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("info");
+  const [verifyModal, setVerifyModal] = useState(false);
 
   // Haydovchi ariza holati (faqat login bo'lganda)
   const { data: driverStatus } = useQuery<{
@@ -83,8 +85,16 @@ export default function ProfilePage() {
                   <span className="text-sm text-gray-500">{user.phone}</span>
                 </div>
               </div>
-              {user.is_phone_verified && (
+              {user.is_phone_verified ? (
                 <Badge variant="success" size="sm" dot>Tasdiqlangan</Badge>
+              ) : (
+                <button
+                  onClick={() => setVerifyModal(true)}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors"
+                >
+                  <ShieldCheck size={13} />
+                  Raqamni tasdiqlash
+                </button>
               )}
             </div>
 
@@ -258,6 +268,12 @@ export default function ProfilePage() {
           )}
         </div>
       )}
+
+      <PhoneVerifyModal
+        open={verifyModal}
+        onClose={() => setVerifyModal(false)}
+        reason="Tasdiqlangan raqam safar band qilish va e'lon qilish uchun kerak."
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import api from "@/lib/api";
 import { getApiError, isAuthenticated } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import BecomeDriver from "@/components/driver/BecomeDriver";
+import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
 
 const schema = z.object({
@@ -60,6 +61,9 @@ export default function CreateTripPage() {
 
   const [step, setStep] = useState(1);
   const [apiError, setApiError] = useState("");
+  const [verifyModal, setVerifyModal] = useState(false);
+  // Tasdiqlash uchun to'xtatilgan forma — tasdiqlangach o'sha ma'lumot yuboriladi
+  const [pendingSubmit, setPendingSubmit] = useState<FormData | null>(null);
   const [fromLoc, setFromLoc] = useState<LocationValue>(EMPTY_LOCATION);
   const [toLoc, setToLoc]     = useState<LocationValue>(EMPTY_LOCATION);
 
@@ -116,6 +120,13 @@ export default function CreateTripPage() {
 
   async function onSubmit(data: FormData) {
     setApiError("");
+    // Tasdiqlanmagan raqamni backend rad etadi — formani yuborishdan oldin
+    // sababini ko'rsatib, tasdiqlashni taklif qilamiz
+    if (user && !user.is_phone_verified) {
+      setPendingSubmit(data);
+      setVerifyModal(true);
+      return;
+    }
     mutation.mutate(data);
   }
 
@@ -488,6 +499,16 @@ export default function CreateTripPage() {
           </div>
         )}
       </form>
+
+      <PhoneVerifyModal
+        open={verifyModal}
+        onClose={() => { setVerifyModal(false); setPendingSubmit(null); }}
+        onVerified={() => {
+          if (pendingSubmit) mutation.mutate(pendingSubmit);
+          setPendingSubmit(null);
+        }}
+        reason="Safar e'lon qilish uchun telefon raqamingiz tasdiqlangan bo'lishi kerak — yo'lovchilar siz bilan bog'lana olishi uchun."
+      />
     </div>
   );
 }

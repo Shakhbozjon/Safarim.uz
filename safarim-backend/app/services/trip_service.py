@@ -103,6 +103,13 @@ def _pause_error(dp: DriverProfile) -> str | None:
 
 
 async def create_trip(db: AsyncSession, user: User, data: TripCreate) -> Trip:
+    # Yo'lovchi haydovchiga qo'ng'iroq qila olishi kerak — raqam tasdiqlangan bo'lsin
+    if not user.is_phone_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Safar e'lon qilish uchun avval telefon raqamingizni tasdiqlang",
+        )
+
     # Haydovchi tasdiqlanganmi?
     result = await db.execute(
         select(DriverProfile).where(
