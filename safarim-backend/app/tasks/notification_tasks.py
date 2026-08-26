@@ -16,6 +16,8 @@ def send_telegram(chat_id: str, message: str) -> dict:
     return {"status": "queued", "chat_id": chat_id}
 
 
+
+
 @celery_app.task(name="app.tasks.notification_tasks.send_email")
 def send_email(to: str, subject: str, body: str) -> dict:
     # Sprint 7 da implementatsiya qilinadi

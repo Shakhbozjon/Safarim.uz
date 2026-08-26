@@ -515,14 +515,18 @@ async def _ensure_window_open(db: AsyncSession, booking: Booking, trip: Trip) ->
     booking.confirmation_requested_at = datetime.utcnow()
     if booking.status == BookingStatus.confirmed:
         booking.status = BookingStatus.awaiting_confirmation
+    from app.services import telegram_service
+
     for uid in (booking.passenger_id, trip.driver_id):
         await notification_service.create(
             db,
             user_id=uid,
             title="Safaringiz bo'ldimi?",
-            body="Iltimos tasdiqlang: safar amalga oshdimi? (Ha / Yo'q)",
+            body="Iltimos tasdiqlang: safar amalga oshdimi?",
             ref_type=NotificationRefType.booking,
             ref_id=booking.id,
+            # Telegramda to'g'ridan-to'g'ri javob berish mumkin — ilovani ochish shart emas
+            tg_buttons=telegram_service.confirmation_buttons(booking.id),
         )
 
 

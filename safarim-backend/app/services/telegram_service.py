@@ -71,6 +71,65 @@ async def send_message(chat_id: str | int, text: str, remove_keyboard: bool = Fa
     return await _call("sendMessage", payload) is not None
 
 
+async def send_notification(
+    chat_id: str | int,
+    title: str,
+    body: str,
+    buttons: list[list[dict]] | None = None,
+) -> bool:
+    """Ilova ichidagi bildirishnomani Telegramga ham yuboradi.
+
+    `buttons` — inline tugmalar: [[{"text": "Ha", "callback_data": "cfy:<id>"}]].
+    Telegram callback_data uchun 64 baytdan oshmasligini talab qiladi.
+    """
+    payload: dict = {
+        "chat_id": str(chat_id),
+        "text": f"<b>{_esc(title)}</b>\n\n{_esc(body)}",
+        "parse_mode": "HTML",
+    }
+    if buttons:
+        payload["reply_markup"] = {"inline_keyboard": buttons}
+    return await _call("sendMessage", payload) is not None
+
+
+def _esc(s: str) -> str:
+    """HTML parse_mode uchun — foydalanuvchi ismidagi < > & xabarni buzmasin."""
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+async def deliver_notification(notification_id: str, buttons=None) -> dict:
+    """Yaratilgan bildirishnomani egasining Telegram chatiga yetkazadi.
+
+    Fon rejimida chaqiriladi (`notification_service`), shuning uchun o'z
+    sessiyasini ochadi. Telegram ulanmagan bo'lsa jim to'xtaydi — bildirishnoma
+    ilova ichida baribir ko'rinadi.
+    """
+    import uuid as uuid_lib
+
+    from sqlalchemy.orm import selectinload
+
+    from app.db.session import AsyncSessionLocal
+    from app.models.notification import Notification
+
+    async with AsyncSessionLocal() as db:
+        notif = (await db.execute(
+            select(Notification)
+            .options(selectinload(Notification.user))
+            .where(Notification.id == uuid_lib.UUID(notification_id))
+        )).scalar_one_or_none()
+
+        # Caller tranzaksiyasi orqaga qaytgan bo'lishi mumkin
+        if notif is None:
+            return {"status": "not_found"}
+
+        chat_id = getattr(notif.user, "telegram_chat_id", None)
+        if not chat_id:
+            return {"status": "no_telegram"}
+
+        sent = await send_notification(chat_id, notif.title, notif.body, buttons)
+        return {"status": "sent" if sent else "failed"}
+
+
 async def _ask_for_contact(chat_id: int, full_name: str) -> None:
     await _call("sendMessage", {
         "chat_id": chat_id,
@@ -122,6 +181,11 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
     Faqat ikki holat qiziq: `/start <token>` va kontakt ulashish.
     Qolganiga qisqa yo'riqnoma qaytaradi.
     """
+    # Inline tugma bosildi (safar tasdiqi)
+    if update.get("callback_query"):
+        await _handle_callback(db, update["callback_query"])
+        return
+
     message = update.get("message") or {}
     chat = message.get("chat") or {}
     chat_id = chat.get("id")
@@ -204,6 +268,75 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
         "Raqamni tasdiqlash uchun saytdagi <b>«Telegram orqali tasdiqlash»</b> "
         "tugmasi orqali qayting."
     ))
+
+
+# ─── Tugma bosishlari ───────────────────────────────────────────────────────
+CONFIRM_YES_PREFIX = "cfy:"
+CONFIRM_NO_PREFIX = "cfn:"
+
+
+def confirmation_buttons(booking_id) -> list[list[dict]]:
+    """"Safaringiz bo'ldimi?" xabari uchun Ha/Yo'q tugmalari."""
+    return [[
+        {"text": "✅ Ha, bo'ldi", "callback_data": f"{CONFIRM_YES_PREFIX}{booking_id}"},
+        {"text": "❌ Yo'q", "callback_data": f"{CONFIRM_NO_PREFIX}{booking_id}"},
+    ]]
+
+
+async def _answer_callback(callback_id: str, text: str = "") -> None:
+    """Telegramga javob — busiz tugmada aylanma belgisi qotib qoladi."""
+    await _call("answerCallbackQuery", {"callback_query_id": callback_id, "text": text})
+
+
+async def _replace_message(chat_id, message_id, text: str) -> None:
+    """Tugmalarni olib tashlab, natijani o'sha xabarning o'zida ko'rsatadi —
+    foydalanuvchi ikkinchi marta bosa olmasin."""
+    await _call("editMessageText", {
+        "chat_id": str(chat_id),
+        "message_id": message_id,
+        "text": text,
+        "parse_mode": "HTML",
+    })
+
+
+async def _handle_callback(db: AsyncSession, cq: dict) -> None:
+    data = (cq.get("data") or "").strip()
+    cq_id = cq.get("id")
+    msg = cq.get("message") or {}
+    chat_id = (msg.get("chat") or {}).get("id")
+    message_id = msg.get("message_id")
+
+    if data.startswith(CONFIRM_YES_PREFIX):
+        booking_id, confirmed = data[len(CONFIRM_YES_PREFIX):], True
+    elif data.startswith(CONFIRM_NO_PREFIX):
+        booking_id, confirmed = data[len(CONFIRM_NO_PREFIX):], False
+    else:
+        await _answer_callback(cq_id, "Bu tugma endi ishlamaydi")
+        return
+
+    # Tugmani bosgan odam — chat egasi. Kim ekanini shu orqali topamiz.
+    user = (await db.execute(
+        select(User).where(User.telegram_chat_id == str(chat_id))
+    )).scalar_one_or_none()
+    if user is None:
+        await _answer_callback(cq_id, "Hisobingiz topilmadi")
+        return
+
+    from app.services import booking_service
+
+    try:
+        await booking_service.confirm_booking(db, booking_id, user, confirmed)
+    except Exception as exc:  # HTTPException ham shu yerga tushadi
+        detail = getattr(exc, "detail", None) or "Amalni bajarib bo'lmadi"
+        await _answer_callback(cq_id, str(detail)[:180])
+        return
+
+    await _answer_callback(cq_id, "Javobingiz qabul qilindi")
+    await _replace_message(
+        chat_id, message_id,
+        "✅ Javobingiz qabul qilindi: safar <b>bo'ldi</b>." if confirmed
+        else "Javobingiz qabul qilindi: safar <b>bo'lmadi</b>.",
+    )
 
 
 async def _get_valid_token(
