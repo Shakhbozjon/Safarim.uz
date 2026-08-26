@@ -5,7 +5,7 @@ from sqlalchemy import String, Boolean, Enum, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.db.base import Base
-from app.models.enums import TalkLevel, AdminRole
+from app.models.enums import TalkLevel, AdminRole, Gender
 
 
 class User(Base):
@@ -18,6 +18,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     profile_photo: Mapped[str | None] = mapped_column(String, nullable=True)
     talk_level: Mapped[TalkLevel] = mapped_column(Enum(TalkLevel), default=TalkLevel.normal)
+    # Faqat "faqat ayollar" safarlari uchun. NULL = hali so'ralmagan —
+    # ro'yxatdan o'tishda so'ralmaydi, birinchi marta kerak bo'lganda so'raladi.
+    gender: Mapped[Gender | None] = mapped_column(Enum(Gender), nullable=True)
     is_phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_driver: Mapped[bool] = mapped_column(Boolean, default=False)

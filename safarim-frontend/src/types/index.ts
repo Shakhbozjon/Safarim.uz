@@ -1,5 +1,8 @@
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+/** Faqat "faqat ayollar" safarlari uchun. null = hali so'ralmagan */
+export type Gender = "female" | "male";
+
 export interface User {
   id: string;
   phone: string;
@@ -7,6 +10,7 @@ export interface User {
   full_name: string;
   profile_photo: string | null;
   talk_level: "silent" | "normal" | "talkative";
+  gender: Gender | null;
   is_phone_verified: boolean;
   is_driver: boolean;
   is_admin: boolean;

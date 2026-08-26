@@ -7,6 +7,16 @@ class TalkLevel(str, enum.Enum):
     talkative = "talkative"
 
 
+class Gender(str, enum.Enum):
+    """Foydalanuvchining o'zi ko'rsatgan jinsi.
+
+    Faqat "faqat ayollar" safarlari uchun kerak — boshqa joyda ishlatilmaydi va
+    so'ralmaydi. Hujjat bilan tekshirilmaydi: o'zi bildirgan ma'lumot.
+    """
+    female = "female"
+    male = "male"
+
+
 class AdminRole(str, enum.Enum):
     super_admin = "super_admin"
     moderator = "moderator"

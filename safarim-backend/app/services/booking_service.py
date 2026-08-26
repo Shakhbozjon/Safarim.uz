@@ -11,7 +11,7 @@ from app.models.user import User
 from app.models.payment import DriverMonthlyCommission
 from app.models.enums import (
     BookingStatus, BookingPaymentStatus, TripStatus,
-    CancelledBy, PaymentMethod, DriverStatus,
+    CancelledBy, PaymentMethod, DriverStatus, Gender,
     CONFIRM_YES, CONFIRM_NO,
 )
 from app.schemas.booking import BookingCreate
@@ -53,6 +53,21 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
         .with_for_update(of=Trip)
     )
     trip = result.scalar_one_or_none()
+
+    # "Faqat ayollar" safari — yo'lovchi ayol bo'lishi shart.
+    # Bu tekshiruvsiz belgi shunchaki yorliq bo'lib qolardi: ayol ishonib band
+    # qilardi, yonida esa erkak o'tirishi mumkin edi.
+    if trip is not None and trip.women_only:
+        if passenger.gender is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Bu safar faqat ayol yo'lovchilar uchun. Davom etish uchun jinsingizni belgilang",
+            )
+        if passenger.gender != Gender.female:
+            raise HTTPException(
+                status_code=403,
+                detail="Bu safar faqat ayol yo'lovchilar uchun",
+            )
     if not trip:
         raise HTTPException(status_code=404, detail="Safar topilmadi")
 

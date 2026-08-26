@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from pydantic import BaseModel
-from app.models.enums import TalkLevel, AdminRole
+from app.models.enums import TalkLevel, AdminRole, Gender
 
 
 class UserResponse(BaseModel):
@@ -11,6 +11,7 @@ class UserResponse(BaseModel):
     full_name: str
     profile_photo: str | None
     talk_level: TalkLevel
+    gender: Gender | None
     is_phone_verified: bool
     is_driver: bool
     is_admin: bool

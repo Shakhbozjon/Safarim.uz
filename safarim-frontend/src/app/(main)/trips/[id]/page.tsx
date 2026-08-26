@@ -17,6 +17,7 @@ import Modal from "@/components/ui/Modal";
 import { TripDetailSkeleton } from "@/components/ui/Skeleton";
 import SeatIndicator from "@/components/trips/SeatIndicator";
 import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
+import WomenOnlyGate from "@/components/trips/WomenOnlyGate";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import { isAuthenticated, getApiError } from "@/lib/auth";
@@ -47,6 +48,7 @@ export default function TripDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "click" | "payme">("cash");
   const [bookingModal, setBookingModal] = useState(false);
   const [verifyModal, setVerifyModal] = useState(false);
+  const [genderModal, setGenderModal] = useState(false);
   const [bookingError, setBookingError] = useState("");
 
   // ── Trip yuklab olish ──
@@ -332,6 +334,12 @@ export default function TripDetailPage() {
                       setVerifyModal(true);
                       return;
                     }
+                    // "Faqat ayollar" safari — jins belgilanmagan yoki erkak
+                    // bo'lsa, backend rad etadi; sababini shu yerda tushuntiramiz
+                    if (trip.women_only && user && user.gender !== "female") {
+                      setGenderModal(true);
+                      return;
+                    }
                     setBookingModal(true);
                   }}
                 >
@@ -368,6 +376,12 @@ export default function TripDetailPage() {
       </div>
 
       {/* Booking modal */}
+      <WomenOnlyGate
+        open={genderModal}
+        onClose={() => setGenderModal(false)}
+        onAllowed={() => setBookingModal(true)}
+      />
+
       <PhoneVerifyModal
         open={verifyModal}
         onClose={() => setVerifyModal(false)}

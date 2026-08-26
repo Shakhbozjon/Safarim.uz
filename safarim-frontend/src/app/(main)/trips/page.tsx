@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpDown, MapPin } from "lucide-react";
 import SearchBar from "@/components/trips/SearchBar";
 import TripCard from "@/components/trips/TripCard";
-import TripFilters from "@/components/trips/TripFilters";
+import TripFilters, { DEFAULT_FILTERS, type Filters } from "@/components/trips/TripFilters";
 import { TripCardSkeleton } from "@/components/ui/Skeleton";
 import api from "@/lib/api";
 import type { TripResponse } from "@/types";
@@ -43,11 +43,12 @@ function TripsContent() {
   const seats              = Number(params.get("seats")) || 1;
 
   const [sort, setSort] = useState<SortKey>("time_asc");
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
 
   const isReady = fromId && toId && date;
 
   const { data: trips = [], isLoading, isError } = useQuery<TripResponse[]>({
-    queryKey: ["trips", fromId, toId, date, seats, sort],
+    queryKey: ["trips", fromId, toId, date, seats, sort, filters.womenOnly],
     queryFn: async () => {
       const { data } = await api.get("/trips/search", {
         params: {
@@ -56,6 +57,8 @@ function TripsContent() {
           departure_date:  date,
           seats,
           sort,
+          // Faqat yoqilganda yuboriladi — so'rov manzili keraksiz uzaymasin
+          ...(filters.womenOnly ? { women_only: true } : {}),
         },
       });
       return data;
@@ -119,7 +122,7 @@ function TripsContent() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <TripFilters variant="button" totalCount={trips.length} />
+          <TripFilters variant="button" totalCount={trips.length} onChange={setFilters} />
 
           <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-1 py-1">
             <ArrowUpDown size={13} className="text-gray-400 ml-1.5" />
@@ -138,7 +141,7 @@ function TripsContent() {
 
       <div className="flex gap-6">
         {/* Sidebar filters (faqat desktop) */}
-        <TripFilters variant="sidebar" totalCount={trips.length} />
+        <TripFilters variant="sidebar" totalCount={trips.length} onChange={setFilters} />
 
         {/* List */}
         <div className="flex-1 min-w-0">

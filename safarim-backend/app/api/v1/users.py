@@ -5,7 +5,7 @@ from pydantic import BaseModel, field_validator
 
 from app.db.session import get_db
 from app.models.user import User
-from app.models.enums import TalkLevel, OtpPurpose
+from app.models.enums import TalkLevel, OtpPurpose, Gender
 from app.schemas.user import UserResponse, UserPublicResponse
 from app.core.dependencies import get_current_user
 from app.core.security import hash_password
@@ -20,6 +20,7 @@ class UpdateProfileRequest(BaseModel):
     full_name: str | None = None
     email: str | None = None
     talk_level: TalkLevel | None = None
+    gender: Gender | None = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -66,6 +67,8 @@ async def update_profile(
         current_user.is_email_verified = False
     if data.talk_level is not None:
         current_user.talk_level = data.talk_level
+    if data.gender is not None:
+        current_user.gender = data.gender
 
     await db.commit()
     await db.refresh(current_user)

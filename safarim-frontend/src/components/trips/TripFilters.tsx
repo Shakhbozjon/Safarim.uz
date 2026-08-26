@@ -5,21 +5,26 @@ import { SlidersHorizontal, X, Wind, Luggage, ChevronDown } from "lucide-react";
 import { clsx } from "clsx";
 import Button from "@/components/ui/Button";
 
-interface Filters {
+export interface Filters {
   maxPrice: number;
   departureFrom: string;
   departureTo: string;
   amenities: { ac: boolean; luggage: boolean };
   minRating: number;
+  /** Faqat ayol yo'lovchilar uchun e'lon qilingan safarlar */
+  womenOnly: boolean;
 }
 
-const DEFAULT: Filters = {
+export const DEFAULT_FILTERS: Filters = {
   maxPrice: 500_000,
   departureFrom: "00:00",
   departureTo: "23:59",
   amenities: { ac: false, luggage: false },
   minRating: 0,
+  womenOnly: false,
 };
+
+const DEFAULT = DEFAULT_FILTERS;
 
 interface TripFiltersProps {
   onChange?: (filters: Filters) => void;
@@ -57,7 +62,8 @@ export default function TripFilters({ onChange, totalCount, variant = "both" }: 
     filters.maxPrice < 500_000 ||
     filters.amenities.ac ||
     filters.amenities.luggage ||
-    filters.minRating > 0;
+    filters.minRating > 0 ||
+    filters.womenOnly;
 
   function reset() {
     setFilters(DEFAULT);
@@ -147,6 +153,37 @@ export default function TripFilters({ onChange, totalCount, variant = "both" }: 
             })}
           </div>
         )}
+      </div>
+
+      {/* Xavfsizlik — ayol yo'lovchilar uchun */}
+      <div>
+        <p className="text-sm font-medium text-gray-700 mb-3">Xavfsizlik</p>
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <div className={clsx(
+            "w-5 h-5 mt-0.5 rounded-md border-2 flex items-center justify-center transition-all shrink-0",
+            filters.womenOnly
+              ? "bg-primary-500 border-primary-500"
+              : "border-gray-300 group-hover:border-gray-400"
+          )}>
+            {filters.womenOnly && (
+              <svg viewBox="0 0 10 8" fill="none" className="w-3 h-3">
+                <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+          <input
+            type="checkbox"
+            className="sr-only"
+            checked={filters.womenOnly}
+            onChange={(e) => update({ womenOnly: e.target.checked })}
+          />
+          <span className="min-w-0">
+            <span className="block text-sm text-gray-700">Faqat ayollar</span>
+            <span className="block text-xs text-gray-400 mt-0.5">
+              Barcha yo'lovchilar ayol bo'lgan safarlar
+            </span>
+          </span>
+        </label>
       </div>
 
       {/* Amenities */}
