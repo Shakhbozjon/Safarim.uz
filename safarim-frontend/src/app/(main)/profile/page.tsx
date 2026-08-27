@@ -78,10 +78,10 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0 flex-1 basis-full sm:basis-0">
                 <h1 className="text-xl font-bold text-gray-900 truncate">{user.full_name}</h1>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                   <Phone size={12} className="text-gray-400" />
                   <span className="text-sm text-gray-500">{user.phone}</span>
                   <button
