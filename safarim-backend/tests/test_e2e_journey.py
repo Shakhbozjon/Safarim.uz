@@ -83,7 +83,21 @@ async def _register(client, db, phone, name, password="Test1234!") -> str:
         "phone": phone, "otp_code": otp.code, "full_name": name, "password": password,
     })
     assert r.status_code == 201, r.text
+
+    # Ro'yxatdan o'tish raqamni tasdiqlamaydi — tasdiq alohida, Telegram orqali
+    # bo'ladi. Bu test uchun bot kerak emas: shu bosqichning o'zi
+    # `tests/test_telegram.py` da to'liq tekshirilgan, bu yerda esa u faqat
+    # safar oqimiga yo'l ochib beradi.
+    await _verify_phone(db, phone)
+
     return r.json()["access_token"]
+
+
+async def _verify_phone(db, phone: str) -> None:
+    """Telegram tasdiqlash bosqichini o'tkazib yuborish."""
+    user = (await db.execute(select(User).where(User.phone == phone))).scalar_one()
+    user.is_phone_verified = True
+    await db.commit()
 
 
 async def _two_regions(db):
