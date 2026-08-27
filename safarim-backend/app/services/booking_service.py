@@ -36,6 +36,56 @@ def _load_options():
     ]
 
 
+PAYMENT_LABELS = {
+    PaymentMethod.cash: "naqd",
+    PaymentMethod.click: "Click",
+    PaymentMethod.payme: "Payme",
+}
+
+
+def _place_name(region, district) -> str:
+    """Marshrut uchun "Toshkent (Yunusobod)" ko'rinishidagi nom."""
+    if region is None:
+        return "—"
+    return f"{region.name_uz} ({district.name_uz})" if district else region.name_uz
+
+
+def _booking_confirmed_body(trip: Trip, booking: Booking, from_wp=None, to_wp=None) -> str:
+    """Yo'lovchiga yuboriladigan tasdiq xabari matni.
+
+    Yo'lovchi kimni, qaysi mashinani kutishini va qanday bog'lanishini bilishi
+    kerak. Telefon raqami ilovada ham aynan shu `confirmed` holatdan boshlab
+    ochiladi (`serialize_booking`), shuning uchun bu yerda ham ko'rsatiladi.
+    """
+    driver = trip.driver
+    dp = getattr(driver, "driver_profile", None)
+    pay = PAYMENT_LABELS.get(booking.payment_method, booking.payment_method.value)
+
+    trip_route = f"{_place_name(trip.from_region, trip.from_district)} → {_place_name(trip.to_region, trip.to_district)}"
+    lines = []
+    if from_wp is not None and to_wp is not None:
+        # Yo'lovchi oraliq bekatdan chiqadi — o'z bo'limi birinchi o'rinda
+        lines.append(f"{_place_name(from_wp.region, from_wp.district)} → {_place_name(to_wp.region, to_wp.district)}")
+        lines.append(f"(safar yo'nalishi: {trip_route})")
+    else:
+        lines.append(trip_route)
+
+    lines += [
+        f"{trip.departure_date.strftime('%d.%m.%Y')}, {trip.departure_time.strftime('%H:%M')}",
+        f"{booking.seats_count} ta joy · {booking.total_price:,} so'm ({pay})",
+        "",
+        f"Haydovchi: {driver.full_name}",
+    ]
+    if dp is not None:
+        lines.append(f"Mashina: {dp.vehicle_make} {dp.vehicle_model}, {dp.vehicle_color}, {dp.vehicle_plate}")
+    lines.append(f"Telefon: {driver.phone}")
+
+    pickup = (from_wp.address if from_wp is not None else None) or trip.from_address
+    if pickup:
+        lines.append(f"Jo'nash joyi: {pickup}")
+    return "\n".join(lines)
+
+
 async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate) -> Booking:
     # Tasdiqlanmagan raqam bilan band qilib bo'lmaydi: haydovchi soxta raqamli
     # yo'lovchini kutib qolmasin.
@@ -48,7 +98,14 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
     # Safar mavjudmi? (row-lock: parallel band qilishlarda oversell oldini oladi)
     result = await db.execute(
         select(Trip)
-        .options(selectinload(Trip.driver).selectinload(User.driver_profile))
+        .options(
+            selectinload(Trip.driver).selectinload(User.driver_profile),
+            # Yo'lovchiga yuboriladigan tasdiq xabari marshrut nomlarini ko'rsatadi
+            selectinload(Trip.from_region),
+            selectinload(Trip.from_district),
+            selectinload(Trip.to_region),
+            selectinload(Trip.to_district),
+        )
         .where(Trip.id == data.trip_id)
         .with_for_update(of=Trip)
     )
@@ -98,17 +155,22 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
 
     # Narx hisoblash
     price_per_seat = trip.price_per_seat
+    from_wp = to_wp = None
 
     # Waypoint bilan band qilish
     if data.from_waypoint_id and data.to_waypoint_id:
         from_wp_result = await db.execute(
-            select(TripWaypoint).where(
+            select(TripWaypoint)
+            .options(selectinload(TripWaypoint.region), selectinload(TripWaypoint.district))
+            .where(
                 TripWaypoint.id == data.from_waypoint_id,
                 TripWaypoint.trip_id == trip.id,
             )
         )
         to_wp_result = await db.execute(
-            select(TripWaypoint).where(
+            select(TripWaypoint)
+            .options(selectinload(TripWaypoint.region), selectinload(TripWaypoint.district))
+            .where(
                 TripWaypoint.id == data.to_waypoint_id,
                 TripWaypoint.trip_id == trip.id,
             )
@@ -168,6 +230,17 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
         user_id=trip.driver_id,
         title="Yangi band qilish! 🎉",
         body=f"{passenger.full_name} {data.seats_count} ta joy band qildi.",
+        ref_type=NotificationRefType.booking,
+        ref_id=booking.id,
+    )
+
+    # Yo'lovchiga bildirishnoma: band qilish darrov tasdiqlanadi, shuning uchun
+    # xabar shu yerda — haydovchi va mashina ma'lumotlari bilan birga.
+    await notification_service.create(
+        db,
+        user_id=passenger.id,
+        title="Band qilishingiz tasdiqlandi ✅",
+        body=_booking_confirmed_body(trip, booking, from_wp, to_wp),
         ref_type=NotificationRefType.booking,
         ref_id=booking.id,
     )

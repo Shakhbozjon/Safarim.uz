@@ -82,7 +82,7 @@ function NotifCard({
             <span className="w-2 h-2 bg-blue-500 rounded-full shrink-0 mt-1.5" />
           )}
         </div>
-        <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{notif.body}</p>
+        <p className="text-sm text-gray-500 mt-0.5 line-clamp-2 whitespace-pre-line">{notif.body}</p>
         <p className="text-xs text-gray-400 mt-1">{timeAgo(notif.created_at)}</p>
       </div>
     </div>

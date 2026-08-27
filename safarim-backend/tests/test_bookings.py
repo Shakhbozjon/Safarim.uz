@@ -168,6 +168,43 @@ async def test_create_booking_success(
 
 
 @pytest.mark.asyncio
+async def test_passenger_notified_with_driver_details(
+    client: AsyncClient,
+    db: AsyncSession,
+    user: User,
+    driver_user: tuple,
+):
+    """Band qilingach yo'lovchiga haydovchi va mashina ma'lumotlari keladi.
+
+    Bron avtomatik tasdiqlanadi, shuning uchun yo'lovchi kimni kutishini shu
+    xabardan biladi (Telegramga ham aynan shu matn ketadi).
+    """
+    driver, dp = driver_user
+    trip = await _create_trip(db, driver_user)
+
+    resp = await client.post(
+        "/api/v1/bookings",
+        json={"trip_id": str(trip.id), "seats_count": 2, "payment_method": "cash"},
+        headers=auth_headers(user),
+    )
+    assert resp.status_code == 201
+
+    notifs = (await client.get(
+        "/api/v1/notifications", headers=auth_headers(user)
+    )).json()
+    assert len(notifs) == 1
+
+    assert "tasdiqlandi" in notifs[0]["title"]
+    body = notifs[0]["body"]
+    assert driver.full_name in body
+    assert dp.vehicle_plate in body
+    assert driver.phone in body
+    assert "Test Viloyat → Test Viloyat" in body
+    assert "2 ta joy" in body
+    assert "200,000 so'm" in body
+
+
+@pytest.mark.asyncio
 async def test_driver_cannot_book_own_trip(
     client: AsyncClient,
     db: AsyncSession,
