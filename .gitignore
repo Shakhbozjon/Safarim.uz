@@ -21,6 +21,9 @@ node_modules/
 .next/
 **/.next/
 out/
+# tsc kesh artefakti — har buildda o'zgaradi, kodga aloqasi yo'q
+*.tsbuildinfo
+**/*.tsbuildinfo
 
 # ── Backup / ma'lumotlar ──
 *.sql.gz
