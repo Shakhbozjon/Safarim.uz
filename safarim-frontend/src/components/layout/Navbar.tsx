@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Bell, Plus, User, LogOut, ChevronDown, Car } from "lucide-react";
@@ -30,6 +30,34 @@ export default function Navbar({ transparent = false }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = usePathname();
+  const headerRef = useRef<HTMLElement>(null);
+
+  const closeMenus = () => { setUserMenuOpen(false); setMobileOpen(false); };
+
+  // Menyu tashqariga bosilganda yoki Escape bosilganda yopiladi.
+  // `pointerdown` — sichqoncha va sensorli ekranda bir xil ishlaydi; `click`
+  // kutilsa mobil brauzerda yopilish sezilarli kechikadi.
+  useEffect(() => {
+    if (!userMenuOpen && !mobileOpen) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (headerRef.current?.contains(e.target as Node)) return;
+      closeMenus();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMenus();
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [userMenuOpen, mobileOpen]);
+
+  // Boshqa sahifaga o'tilganda ochiq menyu osilib qolmasin
+  useEffect(() => { closeMenus(); }, [pathname]);
 
   useEffect(() => {
     if (!transparent) return;
@@ -43,6 +71,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
   return (
     <>
       <header
+        ref={headerRef}
         className={clsx(
           "fixed top-0 inset-x-0 z-40 transition-all duration-300",
           isTransparent
@@ -128,7 +157,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                   {/* User dropdown */}
                   <div className="relative">
                     <button
-                      onClick={() => setUserMenuOpen((p) => !p)}
+                      onClick={() => { setMobileOpen(false); setUserMenuOpen((p) => !p); }}
                       className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
                     >
                       <Avatar src={user.profile_photo} name={user.full_name} size="sm" />
@@ -142,48 +171,45 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                     </button>
 
                     {userMenuOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                        <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl border border-gray-100 shadow-card-lg py-2 z-20 animate-scale-in">
-                          <div className="px-4 py-2.5 border-b border-gray-50">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {user.full_name}
-                            </p>
-                            <p className="text-xs text-gray-400 truncate">{user.phone}</p>
-                          </div>
-                          {[
-                            { href: "/profile", icon: User, label: "Profilim" },
-                            ...(user.is_driver
-                              ? [
-                                  { href: "/driver",      icon: Car,  label: "Panel" },
-                                  { href: "/create-trip", icon: Plus, label: "Safar qo'shish" },
-                                ]
-                              : [
-                                  { href: "/my-trips",             icon: Car,  label: "Safarlarim" },
-                                  { href: "/profile/driver-apply", icon: Plus, label: "Haydovchi bo'lish" },
-                                ]),
-                          ].map(({ href, icon: Icon, label }) => (
-                            <Link
-                              key={href}
-                              href={href}
-                              onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              <Icon size={15} className="text-gray-400" />
-                              {label}
-                            </Link>
-                          ))}
-                          <div className="border-t border-gray-50 mt-1 pt-1">
-                            <button
-                              onClick={() => { setUserMenuOpen(false); logout(); }}
-                              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
-                            >
-                              <LogOut size={15} />
-                              Chiqish
-                            </button>
-                          </div>
+                      <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl border border-gray-100 shadow-card-lg py-2 z-20 animate-scale-in">
+                        <div className="px-4 py-2.5 border-b border-gray-50">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {user.full_name}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">{user.phone}</p>
                         </div>
-                      </>
+                        {[
+                          { href: "/profile", icon: User, label: "Profilim" },
+                          ...(user.is_driver
+                            ? [
+                                { href: "/driver",      icon: Car,  label: "Panel" },
+                                { href: "/create-trip", icon: Plus, label: "Safar qo'shish" },
+                              ]
+                            : [
+                                { href: "/my-trips",             icon: Car,  label: "Safarlarim" },
+                                { href: "/profile/driver-apply", icon: Plus, label: "Haydovchi bo'lish" },
+                              ]),
+                        ].map(({ href, icon: Icon, label }) => (
+                          <Link
+                            key={href}
+                            href={href}
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <Icon size={15} className="text-gray-400" />
+                            {label}
+                          </Link>
+                        ))}
+                        <div className="border-t border-gray-50 mt-1 pt-1">
+                          <button
+                            onClick={() => { setUserMenuOpen(false); logout(); }}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <LogOut size={15} />
+                            Chiqish
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </>
@@ -200,7 +226,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
 
               {/* Mobile hamburger */}
               <button
-                onClick={() => setMobileOpen((p) => !p)}
+                onClick={() => { setUserMenuOpen(false); setMobileOpen((p) => !p); }}
                 className="md:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
               >
                 {mobileOpen ? <X size={20} /> : <Menu size={20} />}
