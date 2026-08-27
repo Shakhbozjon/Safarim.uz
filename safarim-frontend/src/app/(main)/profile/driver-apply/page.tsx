@@ -345,7 +345,8 @@ function Step2Form({
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile]       = useState<File | null>(null);
   const [clientError, setClientError] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   function handleFile(f: File) {
     setClientError("");
@@ -379,6 +380,13 @@ function Step2Form({
     reader.readAsDataURL(f);
   }
 
+  function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) handleFile(f);
+    // Bo'shatmasak, o'chirib qayta o'sha faylni tanlaganda `change` otilmaydi
+    e.target.value = "";
+  }
+
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
@@ -391,27 +399,37 @@ function Step2Form({
         <div>
           <h2 className="text-base font-semibold text-gray-900">Haydovchilik guvohnomasi</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Guvohnomangizning old tomonini aniq suratga oling (JPEG/PNG, maks 5MB)
+            Guvohnomangizning old tomonini <b>hoziroq suratga oling</b> — internetdan
+            olingan yoki boshqa rasm qabul qilinmaydi (JPEG/PNG, maks 5MB)
           </p>
         </div>
 
         {/* Upload zone */}
         <div
-          onClick={() => inputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           className={clsx(
-            "relative border-2 border-dashed rounded-2xl cursor-pointer transition-all",
-            "hover:border-primary-400 hover:bg-primary-50/30",
+            "relative border-2 border-dashed rounded-2xl transition-all",
             preview ? "border-primary-300 p-2" : "border-gray-200 p-8"
           )}
         >
+          {/* Kamera: `capture` telefonda galereya emas, to'g'ridan-to'g'ri kamerani
+              ochadi. Galereya alohida qoladi — ko'p haydovchida guvohnoma skani
+              allaqachon telefonida bor, ularni suratga olishga majburlash keraksiz. */}
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={pickFile}
+          />
           <input
             ref={inputRef}
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            onChange={pickFile}
           />
 
           {preview ? (
@@ -423,14 +441,11 @@ function Step2Form({
               />
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setPreview(null); setFile(null); }}
+                onClick={() => { setPreview(null); setFile(null); }}
                 className="absolute top-2 right-2 w-7 h-7 bg-red-500 rounded-lg flex items-center justify-center text-white hover:bg-red-600 transition-colors"
               >
                 <X size={14} />
               </button>
-              <div className="absolute bottom-2 left-2 bg-black/50 rounded-lg px-2 py-1">
-                <p className="text-white text-xs">Bosing — almashtirish</p>
-              </div>
             </div>
           ) : (
             <div className="text-center space-y-3">
@@ -439,9 +454,11 @@ function Step2Form({
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-700">
-                  Rasm yuklash uchun bosing
+                  Guvohnomani suratga oling
                 </p>
-                <p className="text-xs text-gray-400 mt-1">yoki bu yerga tashlang</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  quyidagi tugma orqali — yoki faylni bu yerga tashlang
+                </p>
               </div>
               <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
                 <Upload size={12} />
@@ -449,6 +466,29 @@ function Step2Form({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Tor ekranda yonma-yon qo'ysak tugma matni ikki qatorga bo'linadi */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            type="button"
+            fullWidth
+            className="gap-2"
+            onClick={() => cameraRef.current?.click()}
+          >
+            <Camera size={16} />
+            {preview ? "Qayta suratga olish" : "Suratga olish"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            fullWidth
+            className="gap-2"
+            onClick={() => inputRef.current?.click()}
+          >
+            <Upload size={16} />
+            Galereyadan
+          </Button>
         </div>
 
         {/* Tips */}
