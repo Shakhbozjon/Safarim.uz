@@ -8,6 +8,8 @@ import Button from "@/components/ui/Button";
 import api from "@/lib/api";
 import { getApiError } from "@/lib/auth";
 
+type Purpose = "verify" | "change_phone";
+
 interface PhoneVerifyModalProps {
   open: boolean;
   onClose: () => void;
@@ -15,20 +17,30 @@ interface PhoneVerifyModalProps {
   onVerified?: () => void;
   /** Nima uchun tasdiqlash kerakligini tushuntiruvchi bir qator */
   reason?: string;
+  /** "verify" — raqamni tasdiqlash, "change_phone" — boshqa raqamga almashtirish */
+  purpose?: Purpose;
+  /** Almashtirishda kerak: shu raqam o'zgarganini kutamiz */
+  currentPhone?: string;
 }
 
 /**
- * Telefon raqamni Telegram orqali tasdiqlash.
+ * Telefon raqamni Telegram orqali tasdiqlash yoki almashtirish.
  *
  * Foydalanuvchi Telegramga o'tadi va raqamini ulashadi; bu oyna esa fon rejimida
- * profilni so'rab turadi va tasdiq kelishi bilan yopiladi. Shu sababli qo'lda
+ * profilni so'rab turadi va natija kelishi bilan yopiladi. Shu sababli qo'lda
  * "tekshirish" tugmasi kerak emas.
+ *
+ * Almashtirishda bot raqamni solishtirmaydi — o'rnatadi. Shuning uchun bu yerda
+ * tasdiq belgisini emas, raqamning o'zgarganini kuzatamiz: allaqachon
+ * tasdiqlangan foydalanuvchida `is_phone_verified` hech qachon o'zgarmaydi.
  */
 export default function PhoneVerifyModal({
   open,
   onClose,
   onVerified,
-  reason = "Raqamingiz tasdiqlangach davom etasiz.",
+  reason,
+  purpose = "verify",
+  currentPhone,
 }: PhoneVerifyModalProps) {
   const qc = useQueryClient();
   const [url, setUrl] = useState("");
@@ -37,6 +49,14 @@ export default function PhoneVerifyModal({
   const [waiting, setWaiting] = useState(false);
   const onVerifiedRef = useRef(onVerified);
   onVerifiedRef.current = onVerified;
+
+  const isChange = purpose === "change_phone";
+  const title = isChange ? "Telefon raqamni o'zgartirish" : "Telefon raqamni tasdiqlash";
+  const hint =
+    reason ??
+    (isChange
+      ? "Hisobingizdagi raqam siz ulashgan Telegram raqamiga almashtiriladi."
+      : "Raqamingiz tasdiqlangach davom etasiz.");
 
   // Oyna ochilganda havolani olamiz
   useEffect(() => {
@@ -49,7 +69,7 @@ export default function PhoneVerifyModal({
     let cancelled = false;
     setLoading(true);
     setError("");
-    api.post("/telegram/link")
+    api.post("/telegram/link", { purpose })
       .then(({ data }) => {
         if (cancelled) return;
         if (data.already_verified) {
@@ -62,15 +82,18 @@ export default function PhoneVerifyModal({
       .catch((err) => { if (!cancelled) setError(getApiError(err)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [open, onClose]);
+  }, [open, onClose, purpose]);
 
-  // Telegramga o'tilgandan keyin tasdiqni kutamiz
+  // Telegramga o'tilgandan keyin natijani kutamiz
   useEffect(() => {
     if (!open || !waiting) return;
     const timer = setInterval(async () => {
       try {
         const { data } = await api.get("/auth/me");
-        if (data.is_phone_verified) {
+        const done = isChange
+          ? Boolean(currentPhone) && data.phone !== currentPhone
+          : data.is_phone_verified;
+        if (done) {
           clearInterval(timer);
           qc.setQueryData(["me"], data);
           onVerifiedRef.current?.();
@@ -81,22 +104,29 @@ export default function PhoneVerifyModal({
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [open, waiting, qc, onClose]);
+  }, [open, waiting, qc, onClose, isChange, currentPhone]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Telefon raqamni tasdiqlash">
+    <Modal open={open} onClose={onClose} title={title}>
       <div className="space-y-5">
         <div className="flex gap-3">
           <span className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
             <ShieldCheck size={20} />
           </span>
           <div className="min-w-0">
-            <p className="text-sm text-gray-700">{reason}</p>
+            <p className="text-sm text-gray-700">{hint}</p>
             <p className="text-xs text-gray-500 mt-1">
               Telegram raqamingizni o'zi yuboradi — kod terish shart emas.
             </p>
           </div>
         </div>
+
+        {isChange && currentPhone && (
+          <div className="bg-gray-50 text-sm rounded-xl px-4 py-3">
+            <span className="text-gray-500">Hozirgi raqam: </span>
+            <span className="font-medium text-gray-800">{currentPhone}</span>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3">{error}</div>
@@ -109,7 +139,7 @@ export default function PhoneVerifyModal({
             <a href={url} target="_blank" rel="noopener noreferrer" onClick={() => setWaiting(true)}>
               <Button fullWidth size="lg" className="gap-2">
                 <ExternalLink size={16} />
-                Telegram orqali tasdiqlash
+                {isChange ? "Telegram orqali o'zgartirish" : "Telegram orqali tasdiqlash"}
               </Button>
             </a>
 
@@ -123,8 +153,19 @@ export default function PhoneVerifyModal({
             <ol className="text-xs text-gray-500 space-y-1.5 list-decimal pl-4">
               <li>Yuqoridagi tugma Telegramdagi botni ochadi</li>
               <li>«Start» ni bosing</li>
-              <li>«📱 Raqamni ulashish» tugmasini bosing</li>
+              <li>
+                {isChange
+                  ? "«📱 Yangi raqamni ulashish» tugmasini bosing"
+                  : "«📱 Raqamni ulashish» tugmasini bosing"}
+              </li>
             </ol>
+
+            {isChange && (
+              <p className="text-xs text-gray-500">
+                Yangi raqam bilan <b>o'sha Telegram hisobidan</b> kirasiz — keyingi
+                safar saytga shu raqam bilan kiring.
+              </p>
+            )}
           </>
         ) : null}
 

@@ -29,6 +29,17 @@ class OtpPurpose(str, enum.Enum):
     change_phone = "change_phone"
 
 
+class TelegramLinkPurpose(str, enum.Enum):
+    """Telegram havolasi nima uchun ochilgani.
+
+    Bot kontaktni qabul qilganda ikki xil ish qilishi mumkin: raqamni hisobdagi
+    raqam bilan SOLISHTIRISH (tasdiqlash) yoki hisobdagi raqamni kelgan raqamga
+    ALMASHTIRISH. Buni tokendan bilmasa, bot ikki holatni ajrata olmaydi.
+    """
+    verify = "verify"
+    change_phone = "change_phone"
+
+
 class DriverStatus(str, enum.Enum):
     pending = "pending"
     approved = "approved"

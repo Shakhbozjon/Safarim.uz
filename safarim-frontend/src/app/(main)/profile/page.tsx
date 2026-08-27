@@ -30,6 +30,7 @@ export default function ProfilePage() {
   const { user, isLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("info");
   const [verifyModal, setVerifyModal] = useState(false);
+  const [changePhoneModal, setChangePhoneModal] = useState(false);
 
   // Haydovchi ariza holati (faqat login bo'lganda)
   const { data: driverStatus } = useQuery<{
@@ -83,6 +84,12 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2 mt-1">
                   <Phone size={12} className="text-gray-400" />
                   <span className="text-sm text-gray-500">{user.phone}</span>
+                  <button
+                    onClick={() => setChangePhoneModal(true)}
+                    className="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                  >
+                    O'zgartirish
+                  </button>
                 </div>
               </div>
               {user.is_phone_verified ? (
@@ -273,6 +280,13 @@ export default function ProfilePage() {
         open={verifyModal}
         onClose={() => setVerifyModal(false)}
         reason="Tasdiqlangan raqam safar band qilish va e'lon qilish uchun kerak."
+      />
+
+      <PhoneVerifyModal
+        open={changePhoneModal}
+        onClose={() => setChangePhoneModal(false)}
+        purpose="change_phone"
+        currentPhone={user.phone}
       />
     </div>
   );

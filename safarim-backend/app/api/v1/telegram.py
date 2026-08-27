@@ -1,13 +1,19 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.dependencies import get_current_user
 from app.db.session import get_db
+from app.models.enums import TelegramLinkPurpose
 from app.models.user import User
 from app.services import telegram_service
 
 router = APIRouter()
+
+
+class LinkRequest(BaseModel):
+    purpose: TelegramLinkPurpose = TelegramLinkPurpose.verify
 
 
 @router.post(
@@ -34,13 +40,18 @@ async def telegram_webhook(
 
 @router.post(
     "/link",
-    summary="Raqamni tasdiqlash uchun Telegram havolasini olish",
+    summary="Raqamni tasdiqlash yoki o'zgartirish uchun Telegram havolasini olish",
 )
 async def create_telegram_link(
+    data: LinkRequest | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if current_user.is_phone_verified:
+    purpose = data.purpose if data else TelegramLinkPurpose.verify
+
+    # Tasdiqlangan raqamni qayta tasdiqlash keraksiz. Almashtirishda esa
+    # tasdiqlangan bo'lishi to'siq emas — aksincha, odatiy holat shu.
+    if purpose == TelegramLinkPurpose.verify and current_user.is_phone_verified:
         return {"url": None, "already_verified": True}
 
     if not telegram_service.is_configured():
@@ -49,5 +60,5 @@ async def create_telegram_link(
             detail="Telegram tasdiqlash hozircha mavjud emas. Administrator bilan bog'laning.",
         )
 
-    url = await telegram_service.create_link(db, current_user)
+    url = await telegram_service.create_link(db, current_user, purpose)
     return {"url": url, "already_verified": False}

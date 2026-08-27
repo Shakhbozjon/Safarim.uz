@@ -21,10 +21,11 @@ import uuid as uuid_lib
 from datetime import datetime, timedelta
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.enums import TelegramLinkPurpose
 from app.models.telegram import TelegramLinkToken
 from app.models.user import User
 
@@ -130,16 +131,29 @@ async def deliver_notification(notification_id: str, buttons=None) -> dict:
         return {"status": "sent" if sent else "failed"}
 
 
-async def _ask_for_contact(chat_id: int, full_name: str) -> None:
-    await _call("sendMessage", {
-        "chat_id": chat_id,
-        "text": (
+async def _ask_for_contact(chat_id: int, full_name: str, purpose: TelegramLinkPurpose) -> None:
+    if purpose == TelegramLinkPurpose.change_phone:
+        text = (
+            f"Assalomu alaykum, {full_name}!\n\n"
+            "Hisobingizdagi raqam <b>ushbu Telegram raqamiga</b> almashtiriladi. "
+            "Davom etish uchun quyidagi tugmani bosing."
+        )
+    else:
+        text = (
             f"Assalomu alaykum, {full_name}!\n\n"
             "Raqamingizni tasdiqlash uchun quyidagi tugmani bosing. "
             "Telegram raqamingizni o'zi yuboradi — kod terish shart emas."
-        ),
+        )
+    await _call("sendMessage", {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
         "reply_markup": {
-            "keyboard": [[{"text": "📱 Raqamni ulashish", "request_contact": True}]],
+            "keyboard": [[{
+                "text": "📱 Yangi raqamni ulashish" if purpose == TelegramLinkPurpose.change_phone
+                        else "📱 Raqamni ulashish",
+                "request_contact": True,
+            }]],
             "resize_keyboard": True,
             "one_time_keyboard": True,
         },
@@ -147,8 +161,12 @@ async def _ask_for_contact(chat_id: int, full_name: str) -> None:
 
 
 # ─── Havola yaratish ────────────────────────────────────────────────────────
-async def create_link(db: AsyncSession, user: User) -> str:
-    """Foydalanuvchi uchun bir martalik tasdiqlash havolasini qaytaradi."""
+async def create_link(
+    db: AsyncSession,
+    user: User,
+    purpose: TelegramLinkPurpose = TelegramLinkPurpose.verify,
+) -> str:
+    """Bir martalik havola qaytaradi — raqamni tasdiqlash yoki almashtirish uchun."""
     if not is_configured():
         raise RuntimeError("Telegram bot sozlanmagan")
 
@@ -168,6 +186,7 @@ async def create_link(db: AsyncSession, user: User) -> str:
         id=uuid_lib.uuid4(),
         token=token,
         user_id=user.id,
+        purpose=purpose,
         expires_at=now + timedelta(minutes=settings.TELEGRAM_LINK_TTL_MINUTES),
     ))
     await db.commit()
@@ -220,7 +239,7 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
         # qaysi hisob haqida ekani ma'lum bo'lsin.
         link.chat_id = str(chat_id)
         await db.commit()
-        await _ask_for_contact(chat_id, link.user.full_name)
+        await _ask_for_contact(chat_id, link.user.full_name, link.purpose)
         return
 
     # 2) Kontakt ulashildi
@@ -243,17 +262,23 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
 
         user = link.user
         shared = normalize_phone(contact.get("phone_number", ""))
+
+        if link.purpose == TelegramLinkPurpose.change_phone:
+            await _apply_phone_change(db, link, chat_id, shared)
+            return
+
         if shared != user.phone:
             await send_message(chat_id, (
                 f"Bu raqam hisobdagi raqamga mos kelmadi.\n\n"
                 f"Hisobda: <code>{user.phone}</code>\n"
                 f"Yuborildi: <code>{shared}</code>\n\n"
-                "Saytga o'sha raqam bilan kiring yoki profildagi raqamni to'g'rilang."
+                "Saytga o'sha raqam bilan kiring yoki profildagi "
+                "<b>«Raqamni o'zgartirish»</b> tugmasi orqali raqamni almashtiring."
             ), remove_keyboard=True)
             return
 
         user.is_phone_verified = True
-        user.telegram_chat_id = str(chat_id)
+        await _bind_chat(db, user, chat_id)
         link.used_at = datetime.utcnow()
         await db.commit()
 
@@ -268,6 +293,76 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
         "Raqamni tasdiqlash uchun saytdagi <b>«Telegram orqali tasdiqlash»</b> "
         "tugmasi orqali qayting."
     ))
+
+
+async def _bind_chat(db: AsyncSession, user: User, chat_id: int | str) -> None:
+    """Chatni foydalanuvchiga biriktiradi — bitta chat faqat bitta hisobga.
+
+    Tugma bosilganda javob bergan odam chat bo'yicha topiladi
+    (`_handle_callback`). Ikki hisob bir chatni ulashsa, o'sha so'rov ikki qator
+    qaytarib yiqilardi — raqam almashgach eski bog'lanish qolib ketmasin.
+    """
+    await db.execute(
+        update(User)
+        .where(User.telegram_chat_id == str(chat_id), User.id != user.id)
+        .values(telegram_chat_id=None)
+    )
+    user.telegram_chat_id = str(chat_id)
+
+
+async def _apply_phone_change(
+    db: AsyncSession, link: TelegramLinkToken, chat_id: int, shared: str
+) -> None:
+    """Hisobdagi raqamni Telegram tasdiqlagan yangi raqamga almashtiradi.
+
+    Bu yerda raqam solishtirilmaydi — o'rnatiladi. Ikki tomon ham tekshirilgan:
+    raqam egaligini Telegram kafolatlaydi (kontakt faqat jo'natuvchining o'ziniki
+    bo'lishi mumkin), havolani esa faqat hisobga kirgan odam yarata oladi.
+    """
+    user = link.user
+
+    if not shared:
+        await send_message(chat_id, (
+            "Raqamni o'qib bo'lmadi. Saytdan havolani qaytadan oching."
+        ), remove_keyboard=True)
+        return
+
+    if shared == user.phone:
+        # O'sha raqamning o'zi — almashtirishga hojat yo'q, tasdiqlab qo'yamiz
+        user.is_phone_verified = True
+        await _bind_chat(db, user, chat_id)
+        link.used_at = datetime.utcnow()
+        await db.commit()
+        await send_message(chat_id, (
+            "Bu allaqachon hisobingizdagi raqam — tasdiqlandi ✅"
+        ), remove_keyboard=True)
+        return
+
+    # Raqam boshqa hisobda bo'lsa almashtirib bo'lmaydi: aks holda bir raqam
+    # ikki hisobda qolardi va kirish qaysi biriga tegishli ekani noaniq bo'lardi.
+    taken = (await db.execute(
+        select(User).where(User.phone == shared, User.id != user.id)
+    )).scalar_one_or_none()
+    if taken is not None:
+        await send_message(chat_id, (
+            f"<code>{shared}</code> raqami boshqa hisobga biriktirilgan.\n\n"
+            "O'sha hisobga shu raqam bilan kiring yoki administrator bilan bog'laning."
+        ), remove_keyboard=True)
+        return
+
+    old_phone = user.phone
+    user.phone = shared
+    user.is_phone_verified = True
+    await _bind_chat(db, user, chat_id)
+    link.used_at = datetime.utcnow()
+    await db.commit()
+
+    await send_message(chat_id, (
+        "✅ Raqamingiz o'zgartirildi.\n\n"
+        f"Eski: <code>{old_phone}</code>\n"
+        f"Yangi: <code>{shared}</code>\n\n"
+        "Bundan keyin saytga shu raqam bilan kiring."
+    ), remove_keyboard=True)
 
 
 # ─── Tugma bosishlari ───────────────────────────────────────────────────────

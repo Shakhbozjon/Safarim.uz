@@ -1,10 +1,11 @@
 from __future__ import annotations
 import uuid
 from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey
+from sqlalchemy import String, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
+from app.models.enums import TelegramLinkPurpose
 
 
 class TelegramLinkToken(Base):
@@ -30,6 +31,14 @@ class TelegramLinkToken(Base):
     # oradagi holat shu yerda saqlanadi, xotirada emas: prod'da gunicorn bir
     # nechta worker bilan ishlaydi va ikki xabar turli workerlarga tushishi mumkin.
     chat_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+
+    # Kontakt kelganda raqamni solishtiramizmi yoki almashtiramizmi
+    purpose: Mapped[TelegramLinkPurpose] = mapped_column(
+        Enum(TelegramLinkPurpose, name="telegramlinkpurpose"),
+        nullable=False,
+        default=TelegramLinkPurpose.verify,
+        server_default=TelegramLinkPurpose.verify.value,
+    )
 
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
