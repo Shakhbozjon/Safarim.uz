@@ -17,7 +17,12 @@ def _generate_otp() -> str:
     return "".join(random.choices(string.digits, k=6))
 
 
-async def send_otp(db: AsyncSession, phone: str, purpose: OtpPurpose) -> str:
+async def send_otp(db: AsyncSession, phone: str, purpose: OtpPurpose) -> tuple[str, str]:
+    """OTP yaratadi va yetkazadi. `(kod, kanal)` qaytaradi.
+
+    Kanal: "telegram" — foydalanuvchining o'z chatiga bordi; "sms" — Eskiz
+    yoki admin chatiga tushdi (ya'ni foydalanuvchi kodni ko'rmaydi).
+    """
     # Register uchun: telefon band emasligini tekshirish
     if purpose == OtpPurpose.register:
         result = await db.execute(select(User).where(User.phone == phone))
@@ -27,8 +32,8 @@ async def send_otp(db: AsyncSession, phone: str, purpose: OtpPurpose) -> str:
                 detail="Bu telefon raqam allaqachon ro'yxatdan o'tgan",
             )
 
-    # Login uchun: foydalanuvchi mavjudligini tekshirish
-    if purpose == OtpPurpose.login:
+    # Login va parol tiklash uchun: foydalanuvchi mavjudligini tekshirish
+    if purpose in (OtpPurpose.login, OtpPurpose.password_reset):
         result = await db.execute(select(User).where(User.phone == phone))
         if not result.scalar_one_or_none():
             raise HTTPException(
@@ -58,9 +63,49 @@ async def send_otp(db: AsyncSession, phone: str, purpose: OtpPurpose) -> str:
     await db.commit()
 
     message = f"UzSafar: tasdiqlash kodingiz {code}. {settings.OTP_EXPIRE_MINUTES} daqiqa ichida foydalaning."
-    await sms_service.send(phone, message)
+    channel = await _deliver_otp(db, phone, message)
 
-    return code
+    return code, channel
+
+
+async def _deliver_otp(db: AsyncSession, phone: str, message: str) -> str:
+    """Kodni imkon qadar foydalanuvchining O'Z Telegramiga yetkazadi.
+
+    Eskiz SMS sozlanmagan (yuridik shaxs talab qiladi), `sms_service` esa bunday
+    holatda kodni ADMIN chatiga yuboradi — ya'ni foydalanuvchi uni ko'rmaydi va
+    parolini o'zi tiklay olmaydi. Raqamini Telegram orqali tasdiqlagan
+    foydalanuvchining chati bizda bor, shuning uchun avval o'shanga uriniladi.
+    """
+    from app.services import telegram_service
+
+    user = (await db.execute(select(User).where(User.phone == phone))).scalar_one_or_none()
+    chat_id = getattr(user, "telegram_chat_id", None) if user else None
+
+    if chat_id and await telegram_service.send_message(chat_id, message):
+        return "telegram"
+
+    await sms_service.send(phone, message)
+    return "sms"
+
+
+async def reset_password(db: AsyncSession, phone: str, code: str, new_password: str) -> User:
+    """Parolni OTP orqali tiklaydi (tizimga kirmasdan).
+
+    Kod `send_otp(..., password_reset)` orqali foydalanuvchining Telegramiga
+    yuborilgan bo'ladi; `verify_otp` urinishlar sonini va muddatni tekshiradi.
+    """
+    user = (await db.execute(select(User).where(User.phone == phone))).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bu telefon raqam ro'yxatdan o'tmagan",
+        )
+
+    await verify_otp(db, phone, code, OtpPurpose.password_reset)
+
+    user.password_hash = hash_password(new_password)
+    await db.commit()
+    return user
 
 
 async def verify_otp(db: AsyncSession, phone: str, code: str, purpose: OtpPurpose) -> None:

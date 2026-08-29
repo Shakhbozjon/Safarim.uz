@@ -5,7 +5,7 @@ from app.db.session import get_db
 from app.core.ratelimit import limit_send_otp, limit_login, limit_register
 from app.schemas.auth import (
     SendOtpRequest, SendOtpResponse,
-    RegisterRequest, LoginRequest,
+    RegisterRequest, LoginRequest, ResetPasswordRequest,
     RefreshRequest, TokenResponse,
 )
 from app.schemas.user import UserResponse
@@ -24,16 +24,20 @@ router = APIRouter()
 )
 async def send_otp(data: SendOtpRequest, request: Request, db: AsyncSession = Depends(get_db)):
     await limit_send_otp(request, data.phone)
-    code = await auth_service.send_otp(db, data.phone, data.purpose)
+    code, channel = await auth_service.send_otp(db, data.phone, data.purpose)
     # Pilot rejimda OTP javobda qaytadi (SMS yo'q) — FAQAT allowlist'dagi tester
     # raqamlariga. Allowlist bo'sh bo'lsa hech kimga qaytarilmaydi: aks holda
     # istalgan odam begona raqamga OTP so'rab, kodni javobdan o'qib olardi.
     allowlist = settings.pilot_otp_allowlist
     show_otp = settings.PILOT_MODE and data.phone in allowlist
     return SendOtpResponse(
-        message="Tasdiqlash kodi yuborildi",
+        message=(
+            "Tasdiqlash kodi Telegramingizga yuborildi"
+            if channel == "telegram" else "Tasdiqlash kodi yuborildi"
+        ),
         expires_in=settings.OTP_EXPIRE_MINUTES * 60,
         pilot_otp=code if show_otp else None,
+        channel=channel,
     )
 
 
@@ -62,6 +66,27 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
 async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     await limit_login(request)
     user = await auth_service.login_user(db, data.phone, data.password)
+    return TokenResponse(
+        access_token=create_access_token(str(user.id)),
+        refresh_token=create_refresh_token(str(user.id)),
+    )
+
+
+@router.post(
+    "/reset-password",
+    response_model=TokenResponse,
+    summary="Parolni OTP orqali tiklash (tizimga kirmasdan)",
+)
+async def reset_password(
+    data: ResetPasswordRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    # Kod 6 xonali — bir IP dan cheksiz urinishga yo'l qo'ymaymiz.
+    # (OTP yozuvining o'z urinishlar hisoblagichi ham bor: verify_otp.)
+    await limit_login(request)
+    user = await auth_service.reset_password(
+        db, data.phone, data.otp_code, data.new_password
+    )
+    # Tiklangach darrov kiritamiz — foydalanuvchi yana parol terib o'tirmasin
     return TokenResponse(
         access_token=create_access_token(str(user.id)),
         refresh_token=create_refresh_token(str(user.id)),

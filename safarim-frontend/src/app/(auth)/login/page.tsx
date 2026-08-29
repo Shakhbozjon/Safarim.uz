@@ -107,6 +107,15 @@ export default function LoginPage() {
         <Button type="submit" fullWidth size="lg" loading={isSubmitting} className="mt-2">
           Kirish
         </Button>
+
+        <p className="text-center">
+          <Link
+            href="/forgot-password"
+            className="text-sm text-gray-500 hover:text-primary-600 hover:underline"
+          >
+            Parolni unutdingizmi?
+          </Link>
+        </p>
       </form>
     </>
   );
