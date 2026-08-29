@@ -38,6 +38,9 @@ class TelegramLinkPurpose(str, enum.Enum):
     """
     verify = "verify"
     change_phone = "change_phone"
+    # Parolni unutgan, Telegrami ulanmagan foydalanuvchi: kontakt hisobdagi
+    # raqamga mos kelsa, bot chatni bog'laydi va tiklash kodini o'sha yerga yuboradi
+    password_reset = "password_reset"
 
 
 class DriverStatus(str, enum.Enum):

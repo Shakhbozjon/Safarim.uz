@@ -54,6 +54,17 @@ class RegisterRequest(BaseModel):
         return v
 
 
+class TelegramResetLinkRequest(BaseModel):
+    phone: str
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not re.match(r"^\+998\d{9}$", v):
+            raise ValueError("Telefon raqam +998XXXXXXXXX formatida bo'lishi kerak")
+        return v
+
+
 class ResetPasswordRequest(BaseModel):
     """Parolni tiklash — tizimga kirmasdan, OTP bilan."""
     phone: str

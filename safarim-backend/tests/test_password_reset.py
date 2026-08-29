@@ -135,3 +135,97 @@ async def test_reset_password_short_password(client: AsyncClient, user: User):
         "phone": user.phone, "otp_code": "123456", "new_password": "123",
     })
     assert resp.status_code == 422
+
+
+# ─── Telegrami ulanmagan foydalanuvchi: bot orqali tiklash ────────────────────
+
+@pytest.fixture
+def bot_configured(monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "test-token")
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_USERNAME", "uzsafar_test_bot")
+
+
+def _start(token: str, chat_id: int) -> dict:
+    """Havola bosilganda Telegram yuboradigan `/start <token>` yangilanishi."""
+    return {"message": {"chat": {"id": chat_id}, "from": {"id": 42},
+                        "text": f"/start {token}"}}
+
+
+def _contact(phone: str, chat_id: int, sender_id: int = 42) -> dict:
+    return {
+        "message": {
+            "chat": {"id": chat_id},
+            "from": {"id": sender_id},
+            "contact": {"phone_number": phone, "user_id": sender_id},
+        }
+    }
+
+
+@pytest.mark.asyncio
+async def test_reset_link_unknown_phone(client: AsyncClient, bot_configured):
+    """Ro'yxatdan o'tmagan raqamga havola berilmaydi."""
+    resp = await client.post(
+        f"{API}/telegram-reset-link", json={"phone": "+998909998877"}
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_reset_link_returns_bot_url(
+    client: AsyncClient, user: User, bot_configured
+):
+    """Mavjud raqamga bot havolasi qaytadi."""
+    resp = await client.post(f"{API}/telegram-reset-link", json={"phone": user.phone})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["url"].startswith("https://t.me/uzsafar_test_bot?start=")
+
+
+@pytest.mark.asyncio
+async def test_bot_sends_code_when_contact_matches(
+    client: AsyncClient, db: AsyncSession, user: User, tg_sent: list, bot_configured
+):
+    """Kontakt hisobdagi raqamga mos → chat bog'lanadi va kod o'sha chatga ketadi."""
+    resp = await client.post(f"{API}/telegram-reset-link", json={"phone": user.phone})
+    assert resp.status_code == 200
+    token = resp.json()["url"].split("start=")[1]
+
+    # Havolani bosish → bot tokenni chatga bog'laydi, so'ng kontakt ulashiladi
+    await telegram_service.handle_update(db, _start(token, 888001))
+    await telegram_service.handle_update(db, _contact(user.phone, 888001))
+
+    await db.refresh(user)
+    assert user.telegram_chat_id == "888001"
+
+    code = await _otp_for(db, user.phone)
+    texts = [c["text"] for c in tg_sent if str(c.get("chat_id")) == "888001"]
+    assert any(code in t for t in texts), "Kod chatga yuborilmadi"
+
+    # Kod bilan parolni tiklash ishlaydi
+    done = await client.post(f"{API}/reset-password", json={
+        "phone": user.phone, "otp_code": code, "new_password": "YangiParol1",
+    })
+    assert done.status_code == 200, done.text
+
+
+@pytest.mark.asyncio
+async def test_bot_refuses_when_contact_differs(
+    client: AsyncClient, db: AsyncSession, user: User, tg_sent: list, bot_configured
+):
+    """Boshqa odamning raqami ulashilsa — kod yuborilmaydi, chat bog'lanmaydi."""
+    resp = await client.post(f"{API}/telegram-reset-link", json={"phone": user.phone})
+    token = resp.json()["url"].split("start=")[1]
+
+    await telegram_service.handle_update(db, _start(token, 888002))
+    await telegram_service.handle_update(db, _contact("+998907654321", 888002))
+
+    await db.refresh(user)
+    assert user.telegram_chat_id is None
+
+    otp = (await db.execute(
+        select(OtpCode).where(
+            OtpCode.phone == user.phone,
+            OtpCode.purpose == OtpPurpose.password_reset,
+        )
+    )).scalars().first()
+    assert otp is None, "Mos kelmagan kontakt uchun kod yaratilmasligi kerak"

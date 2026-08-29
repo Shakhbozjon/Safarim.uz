@@ -132,7 +132,13 @@ async def deliver_notification(notification_id: str, buttons=None) -> dict:
 
 
 async def _ask_for_contact(chat_id: int, full_name: str, purpose: TelegramLinkPurpose) -> None:
-    if purpose == TelegramLinkPurpose.change_phone:
+    if purpose == TelegramLinkPurpose.password_reset:
+        text = (
+            f"Assalomu alaykum, {full_name}!\n\n"
+            "Parolni tiklash uchun raqamingizni ulashing — u hisobdagi raqamga "
+            "mos kelsa, tiklash kodini shu yerga yuboraman."
+        )
+    elif purpose == TelegramLinkPurpose.change_phone:
         text = (
             f"Assalomu alaykum, {full_name}!\n\n"
             "Hisobingizdagi raqam <b>ushbu Telegram raqamiga</b> almashtiriladi. "
@@ -267,6 +273,10 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
             await _apply_phone_change(db, link, chat_id, shared)
             return
 
+        if link.purpose == TelegramLinkPurpose.password_reset:
+            await _send_reset_code(db, link, chat_id, shared)
+            return
+
         if shared != user.phone:
             await send_message(chat_id, (
                 f"Bu raqam hisobdagi raqamga mos kelmadi.\n\n"
@@ -308,6 +318,43 @@ async def _bind_chat(db: AsyncSession, user: User, chat_id: int | str) -> None:
         .values(telegram_chat_id=None)
     )
     user.telegram_chat_id = str(chat_id)
+
+
+async def _send_reset_code(
+    db: AsyncSession, link: TelegramLinkToken, chat_id: int, shared: str
+) -> None:
+    """Parolni tiklash kodini shu chatga yuboradi.
+
+    Bu yerda raqam SOLISHTIRILADI (almashtirishdan farqi shu): odam hisobga
+    kirmagan, shuning uchun uning aynan shu hisob egasi ekanini isbotlaydigan
+    yagona narsa — Telegram kafolatlagan raqamning hisobdagi raqamga mos
+    kelishi. Mos kelmasa hech narsa aytilmaydi va hech narsa o'zgarmaydi.
+    """
+    from app.models.enums import OtpPurpose
+    from app.services import auth_service
+
+    user = link.user
+
+    if shared != user.phone:
+        await send_message(chat_id, (
+            "Bu raqam tiklanayotgan hisobdagi raqamga mos kelmadi.\n\n"
+            "Saytda o'sha hisobning raqamini kiritganingizni tekshiring."
+        ), remove_keyboard=True)
+        return
+
+    # Chatni bog'laymiz — bundan keyingi kodlar va bildirishnomalar shu yerga keladi
+    await _bind_chat(db, user, chat_id)
+    link.used_at = datetime.utcnow()
+    await db.commit()
+
+    # Yangi kod yaratamiz: chat endi bog'langani uchun `send_otp` uni o'zi
+    # shu chatga yetkazadi. Eski kod foydalanuvchiga baribir yetib bormagan.
+    await auth_service.send_otp(db, user.phone, OtpPurpose.password_reset)
+
+    await send_message(chat_id, (
+        "Yuqoridagi kodni saytdagi <b>«Tasdiqlash kodi»</b> maydoniga kiriting "
+        "va yangi parolni o'rnating."
+    ), remove_keyboard=True)
 
 
 async def _apply_phone_change(

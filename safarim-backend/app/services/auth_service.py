@@ -88,6 +88,10 @@ async def _deliver_otp(db: AsyncSession, phone: str, message: str) -> str:
     return "sms"
 
 
+async def get_user_by_phone(db: AsyncSession, phone: str) -> User | None:
+    return (await db.execute(select(User).where(User.phone == phone))).scalar_one_or_none()
+
+
 async def reset_password(db: AsyncSession, phone: str, code: str, new_password: str) -> User:
     """Parolni OTP orqali tiklaydi (tizimga kirmasdan).
 

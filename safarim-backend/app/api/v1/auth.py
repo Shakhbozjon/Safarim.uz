@@ -5,11 +5,12 @@ from app.db.session import get_db
 from app.core.ratelimit import limit_send_otp, limit_login, limit_register
 from app.schemas.auth import (
     SendOtpRequest, SendOtpResponse,
-    RegisterRequest, LoginRequest, ResetPasswordRequest,
+    RegisterRequest, LoginRequest, ResetPasswordRequest, TelegramResetLinkRequest,
     RefreshRequest, TokenResponse,
 )
 from app.schemas.user import UserResponse
-from app.services import auth_service
+from app.models.enums import TelegramLinkPurpose
+from app.services import auth_service, telegram_service
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.core.config import settings
 from app.core.dependencies import get_current_user
@@ -70,6 +71,39 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
         access_token=create_access_token(str(user.id)),
         refresh_token=create_refresh_token(str(user.id)),
     )
+
+
+@router.post(
+    "/telegram-reset-link",
+    summary="Telegrami ulanmagan foydalanuvchi uchun parol tiklash havolasi",
+)
+async def telegram_reset_link(
+    data: TelegramResetLinkRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Botga havola beradi: foydalanuvchi kontaktini ulashadi, raqam hisobdagiga
+    mos kelsa bot chatni bog'laydi va tiklash kodini o'sha chatga yuboradi.
+
+    Havolani olish uchun hisobga kirish shart emas (aynan kira olmagan odam
+    uchun) — lekin havolaning o'zi hech narsa bermaydi: kod faqat raqam egasi
+    kontaktini ulashgandagina yuboriladi.
+    """
+    await limit_send_otp(request, data.phone)
+
+    if not telegram_service.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram orqali tiklash hozircha mavjud emas. Administrator bilan bog'laning.",
+        )
+
+    user = await auth_service.get_user_by_phone(db, data.phone)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bu telefon raqam ro'yxatdan o'tmagan",
+        )
+
+    url = await telegram_service.create_link(db, user, TelegramLinkPurpose.password_reset)
+    return {"url": url}
 
 
 @router.post(

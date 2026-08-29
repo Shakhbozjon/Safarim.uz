@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, Lock, Eye, EyeOff, ShieldCheck, AlertCircle } from "lucide-react";
+import { Phone, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, ExternalLink } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import api from "@/lib/api";
@@ -17,9 +17,10 @@ const RESEND_SEC = 60;
  * Parolni tiklash — tizimga kirmasdan.
  *
  * Kod foydalanuvchining O'Z Telegramiga boradi (raqamini Telegram orqali
- * tasdiqlagan bo'lsa). Tasdiqlamagan bo'lsa kod unga yetib bormaydi — Eskiz SMS
- * sozlanmagan — shuning uchun bu holat ochiq aytiladi va admin bilan bog'lanish
- * taklif qilinadi. Jim qolib "kod yuborildi" deyish odamni bekorga kutdirardi.
+ * tasdiqlagan bo'lsa). Tasdiqlamagan bo'lsa Eskiz SMS sozlanmagani uchun kod
+ * unga yetib bormaydi — shuning uchun bu yerda bot havolasi taklif qilinadi:
+ * kontaktini ulashsa va raqam hisobdagiga mos kelsa, bot chatni bog'lab kodni
+ * o'sha yerga yuboradi. Ya'ni Telegramsiz hisob ham tiklanadi.
  */
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function ForgotPasswordPage() {
   const [showPass, setShowPass] = useState(false);
 
   const [channel, setChannel]   = useState("");
+  const [botUrl, setBotUrl]     = useState("");
   const [busy, setBusy]         = useState(false);
   const [countdown, setCount]   = useState(0);
   const [errors, setErrors]     = useState<Record<string, string>>({});
@@ -66,6 +68,19 @@ export default function ForgotPasswordPage() {
       setChannel(data.channel);
       setStep("code");
       startCountdown();
+
+      // Telegrami ulanmagan bo'lsa kod unga yetib bormaydi — bot havolasini
+      // olamiz: kontaktini ulashsa, bot chatni bog'lab kodni o'sha yerga yuboradi
+      if (data.channel !== "telegram") {
+        try {
+          const { data: link } = await api.post("/auth/telegram-reset-link", {
+            phone: formatPhone(phone),
+          });
+          setBotUrl(link.url);
+        } catch {
+          setBotUrl("");   // bot sozlanmagan — pastdagi zaxira matn qoladi
+        }
+      }
     } catch (err: any) {
       setErrors({ general: getApiError(err) });
     } finally {
@@ -141,12 +156,35 @@ export default function ForgotPasswordPage() {
               <span>Kod Telegramingizga yuborildi.</span>
             </div>
           ) : (
-            <div className="bg-amber-50 text-amber-800 text-sm rounded-xl px-4 py-3 flex gap-2">
-              <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <span>
-                Bu raqam Telegram orqali tasdiqlanmagani uchun kod sizga yetib
-                bormaydi. Administrator bilan bog&apos;laning.
-              </span>
+            <div className="bg-amber-50 text-amber-800 text-sm rounded-xl px-4 py-3 space-y-3">
+              <div className="flex gap-2">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span>
+                  Bu raqam Telegramga ulanmagan. Kodni olish uchun botni oching
+                  va <b>raqamingizni ulashing</b> — u hisobdagi raqamga mos kelsa,
+                  kod o&apos;sha yerga yuboriladi.
+                </span>
+              </div>
+
+              {botUrl ? (
+                <>
+                  <a href={botUrl} target="_blank" rel="noopener noreferrer" className="block">
+                    <Button fullWidth className="gap-2">
+                      <ExternalLink size={16} />
+                      Telegram orqali kod olish
+                    </Button>
+                  </a>
+                  <p className="text-xs text-amber-700">
+                    Botda «Start» → «Raqamni ulashish». Kod kelgach shu sahifaga
+                    qayting va uni quyiga kiriting.
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-amber-700">
+                  Telegram orqali tiklash hozircha mavjud emas — administrator
+                  bilan bog&apos;laning.
+                </p>
+              )}
             </div>
           )}
 
