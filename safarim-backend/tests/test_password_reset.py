@@ -229,3 +229,64 @@ async def test_bot_refuses_when_contact_differs(
         )
     )).scalars().first()
     assert otp is None, "Mos kelmagan kontakt uchun kod yaratilmasligi kerak"
+
+
+# ─── Tizimga kirgan holda parol o'zgartirish (OTP'siz) ───────────────────────
+
+@pytest.mark.asyncio
+async def test_change_password_with_current(client: AsyncClient, user: User):
+    """Joriy parol to'g'ri bo'lsa yangi parol o'rnatiladi."""
+    from tests.conftest import auth_headers
+
+    resp = await client.post(
+        "/api/v1/users/me/change-password",
+        json={"current_password": "Test1234!", "new_password": "BoshqaParol9"},
+        headers=auth_headers(user),
+    )
+    assert resp.status_code == 200, resp.text
+
+    login = await client.post(
+        f"{API}/login", json={"phone": user.phone, "password": "BoshqaParol9"}
+    )
+    assert login.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_change_password_wrong_current(client: AsyncClient, user: User):
+    """Joriy parol noto'g'ri bo'lsa rad etiladi — eski parol saqlanadi."""
+    from tests.conftest import auth_headers
+
+    resp = await client.post(
+        "/api/v1/users/me/change-password",
+        json={"current_password": "YolgonParol", "new_password": "BoshqaParol9"},
+        headers=auth_headers(user),
+    )
+    assert resp.status_code == 400
+
+    login = await client.post(
+        f"{API}/login", json={"phone": user.phone, "password": "Test1234!"}
+    )
+    assert login.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_change_password_same_as_current(client: AsyncClient, user: User):
+    """Yangi parol eskisi bilan bir xil bo'lsa qabul qilinmaydi."""
+    from tests.conftest import auth_headers
+
+    resp = await client.post(
+        "/api/v1/users/me/change-password",
+        json={"current_password": "Test1234!", "new_password": "Test1234!"},
+        headers=auth_headers(user),
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_change_password_needs_auth(client: AsyncClient):
+    """Tokensiz o'zgartirib bo'lmaydi."""
+    resp = await client.post(
+        "/api/v1/users/me/change-password",
+        json={"current_password": "Test1234!", "new_password": "BoshqaParol9"},
+    )
+    assert resp.status_code in (401, 403)

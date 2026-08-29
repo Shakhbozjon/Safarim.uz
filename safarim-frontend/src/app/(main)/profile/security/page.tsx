@@ -1,104 +1,55 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Lock, Eye, EyeOff, CheckCircle, Phone, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
+import { getApiError } from "@/lib/auth";
 
-type Step = "send_otp" | "verify";
-
-const OTP_RESEND_SEC = 60;
-
+/**
+ * Parolni o'zgartirish — joriy parol bilan.
+ *
+ * OTP ishlatilmaydi: foydalanuvchi allaqachon tizimga kirgan, shuning uchun uni
+ * tasdiqlashning eng ishonchli usuli joriy parolni so'rash — u hech qanday
+ * yetkazish kanaliga (SMS, Telegram) bog'liq emas va hamma uchun ishlaydi.
+ * Parolini eslay olmagan odam chiqib "Parolni unutdingizmi?" orqali tiklaydi.
+ */
 export default function SecurityPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
 
-  const [step, setStep]           = useState<Step>("send_otp");
-  const [otp, setOtp]             = useState("");
+  const [current, setCurrent]     = useState("");
   const [newPassword, setNewPass] = useState("");
   const [confirmPass, setConfirm] = useState("");
+  const [showCurrent, setShowCur] = useState(false);
   const [showNew, setShowNew]     = useState(false);
-  const [showConfirm, setShowCf]  = useState(false);
 
-  const [sending, setSending]     = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [errors, setErrors]       = useState<Record<string, string>>({});
-  const [success, setSuccess]     = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [errors, setErrors]   = useState<Record<string, string>>({});
+  const [success, setSuccess] = useState(false);
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
-
-  const startCountdown = () => {
-    setCountdown(OTP_RESEND_SEC);
-    timerRef.current = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) { clearInterval(timerRef.current!); return 0; }
-        return c - 1;
-      });
-    }, 1000);
-  };
-
-  const handleSendOtp = async () => {
-    if (!user) return;
-    setSending(true);
-    setErrors({});
-    try {
-      await api.post("/auth/send-otp", { phone: user.phone, purpose: "password_reset" });
-      setStep("verify");
-      startCountdown();
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setErrors({ general: typeof detail === "string" ? detail : "Kod yuborishda xato" });
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (countdown > 0 || !user) return;
-    setSending(true);
-    setErrors({});
-    try {
-      await api.post("/auth/send-otp", { phone: user.phone, purpose: "password_reset" });
-      startCountdown();
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setErrors({ general: typeof detail === "string" ? detail : "Kod yuborishda xato" });
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const validate = () => {
+  const handleSubmit = async () => {
     const errs: Record<string, string> = {};
-    if (otp.length !== 6) errs.otp = "6 ta raqam kiriting";
+    if (!current) errs.current = "Joriy parolni kiriting";
     if (newPassword.length < 6) errs.new_password = "Kamida 6 ta belgi bo'lishi kerak";
     if (newPassword !== confirmPass) errs.confirm = "Parollar mos kelmadi";
-    return errs;
-  };
-
-  const handleChangePassword = async () => {
-    const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
+
     setErrors({});
     setSaving(true);
     try {
       await api.post("/users/me/change-password", {
-        otp_code: otp,
+        current_password: current,
         new_password: newPassword,
       });
       setSuccess(true);
       setTimeout(() => router.push("/profile"), 1800);
     } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setErrors({ general: typeof detail === "string" ? detail : "Xato yuz berdi" });
+      setErrors({ general: getApiError(err) });
     } finally {
       setSaving(false);
     }
@@ -125,81 +76,44 @@ export default function SecurityPage() {
         >
           <ChevronLeft size={18} className="text-gray-600" />
         </button>
-        <h1 className="text-lg font-bold text-gray-900">Parolni o'zgartirish</h1>
+        <h1 className="text-lg font-bold text-gray-900">Parolni o&apos;zgartirish</h1>
       </div>
 
-      {/* Step 1 — OTP yuborish */}
-      {step === "send_otp" && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
-          <div className="flex flex-col items-center text-center gap-3">
-            <div className="w-16 h-16 bg-primary-50 rounded-2xl flex items-center justify-center">
-              <Lock size={28} className="text-primary-500" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-gray-900">Telefon orqali tasdiqlash</h2>
-              <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-                Quyidagi raqamga bir martalik kod yuboriladi:
-              </p>
-            </div>
+      {success ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 flex flex-col items-center text-center gap-4">
+          <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center">
+            <CheckCircle size={32} className="text-green-500" />
           </div>
-
-          <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
-            <Phone size={16} className="text-gray-400 shrink-0" />
-            <span className="text-sm font-semibold text-gray-800 tracking-wider">{user.phone}</span>
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Parol o&apos;zgartirildi</h2>
+            <p className="text-sm text-gray-500 mt-1">Profilga qaytarilmoqdasiz...</p>
           </div>
-
-          {errors.general && (
-            <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3 text-center">
-              {errors.general}
-            </p>
-          )}
-
-          <Button fullWidth size="lg" onClick={handleSendOtp} loading={sending}>
-            Kod yuborish
-          </Button>
         </div>
-      )}
-
-      {/* Step 2 — OTP + yangi parol */}
-      {step === "verify" && !success && (
+      ) : (
         <div className="space-y-4">
-          {/* OTP */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-              Tasdiqlash kodi
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Joriy parol
             </p>
             <Input
-              placeholder="6 ta raqamli kod"
-              value={otp}
-              onChange={(e) => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setErrors({}); }}
-              inputMode="numeric"
-              error={errors.otp}
-              hint={`Kod ${user.phone} raqamiga yuborildi`}
-            />
-
-            {/* Qayta yuborish */}
-            <div className="flex items-center justify-end mt-2">
-              {countdown > 0 ? (
-                <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <RefreshCw size={11} />
-                  {countdown}s da qayta yuborish
-                </span>
-              ) : (
-                <button
-                  onClick={handleResend}
-                  disabled={sending}
-                  className="text-xs text-primary-600 font-medium hover:text-primary-700 flex items-center gap-1 disabled:opacity-50"
-                >
-                  <RefreshCw size={11} />
-                  Qayta yuborish
+              type={showCurrent ? "text" : "password"}
+              placeholder="Hozirgi parolingiz"
+              prefix={<Lock size={15} />}
+              value={current}
+              onChange={(e) => { setCurrent(e.target.value); setErrors({}); }}
+              error={errors.current}
+              suffix={
+                <button type="button" onClick={() => setShowCur((v) => !v)} tabIndex={-1}>
+                  {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
-              )}
-            </div>
+              }
+            />
           </div>
 
-          {/* Yangi parol */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Yangi parol</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Yangi parol
+            </p>
             <Input
               type={showNew ? "text" : "password"}
               placeholder="Kamida 6 ta belgi"
@@ -213,16 +127,11 @@ export default function SecurityPage() {
               }
             />
             <Input
-              type={showConfirm ? "text" : "password"}
+              type={showNew ? "text" : "password"}
               placeholder="Parolni tasdiqlang"
               value={confirmPass}
               onChange={(e) => { setConfirm(e.target.value); setErrors({}); }}
               error={errors.confirm}
-              suffix={
-                <button type="button" onClick={() => setShowCf((v) => !v)} tabIndex={-1}>
-                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              }
             />
           </div>
 
@@ -232,22 +141,16 @@ export default function SecurityPage() {
             </p>
           )}
 
-          <Button fullWidth size="lg" onClick={handleChangePassword} loading={saving}>
-            Parolni o'zgartirish
+          <Button fullWidth size="lg" onClick={handleSubmit} loading={saving}>
+            Parolni o&apos;zgartirish
           </Button>
-        </div>
-      )}
 
-      {/* Muvaffaqiyat */}
-      {success && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 flex flex-col items-center text-center gap-4">
-          <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center">
-            <CheckCircle size={32} className="text-green-500" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-gray-900">Parol o'zgartirildi</h2>
-            <p className="text-sm text-gray-500 mt-1">Profilga qaytarilmoqdasiz...</p>
-          </div>
+          <p className="text-center text-sm text-gray-500">
+            Joriy parolni eslay olmayapsizmi?{" "}
+            <Link href="/forgot-password" className="text-primary-600 font-medium hover:underline">
+              Telegram orqali tiklang
+            </Link>
+          </p>
         </div>
       )}
     </div>

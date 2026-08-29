@@ -5,12 +5,11 @@ from pydantic import BaseModel, field_validator
 
 from app.db.session import get_db
 from app.models.user import User
-from app.models.enums import TalkLevel, OtpPurpose, Gender
+from app.models.enums import TalkLevel, Gender
 from app.schemas.user import UserResponse, UserPublicResponse
 from app.core.dependencies import get_current_user
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.services.storage_service import storage_service
-from app.services import auth_service
 from app.core.config import settings
 
 router = APIRouter()
@@ -24,7 +23,14 @@ class UpdateProfileRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    otp_code: str
+    """Tizimga kirgan foydalanuvchi parolni joriy parol bilan almashtiradi.
+
+    Bu yerda OTP ishlatilmaydi: odam allaqachon kirgan, shuning uchun uni
+    tasdiqlashning eng ishonchli va hech qanday yetkazish kanaliga bog'liq
+    bo'lmagan usuli — joriy parolni so'rash. OTP faqat parolni UNUTGAN,
+    ya'ni kira olmagan holat uchun qoladi (`/auth/reset-password`).
+    """
+    current_password: str
     new_password: str
 
     @field_validator("new_password")
@@ -94,14 +100,21 @@ async def upload_profile_photo(
 
 @router.post(
     "/me/change-password",
-    summary="Parolni OTP orqali o'zgartirish",
+    summary="Parolni o'zgartirish (joriy parol bilan)",
 )
 async def change_password(
     data: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await auth_service.verify_otp(db, current_user.phone, data.otp_code, OtpPurpose.password_reset)
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Joriy parol noto'g'ri")
+
+    if data.current_password == data.new_password:
+        raise HTTPException(
+            status_code=400, detail="Yangi parol eskisidan farq qilishi kerak"
+        )
+
     current_user.password_hash = hash_password(data.new_password)
     await db.commit()
     return {"message": "Parol muvaffaqiyatli o'zgartirildi"}
