@@ -272,3 +272,78 @@ async def test_cancel_booking_by_passenger(
     # Naqd bron — hech narsa to'lanmagan, demak refund ham yo'q (0).
     # (Online to'langan bron bo'lsa 24h+ oldin 100% bo'lar edi.)
     assert data["refund_amount"] == 0
+
+
+# ─── Bo'sh natija uchun yaqin sanalar ─────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_nearest_dates_lists_days_with_trips(
+    client: AsyncClient,
+    db: AsyncSession,
+    driver_user: tuple,
+):
+    """So'ralgan kundan keyin safar bor kunlar sanog'i bilan qaytadi.
+
+    Bo'sh natija ekranida "boshqa sanani sinab ko'ring" o'rniga shu ro'yxat
+    ko'rsatiladi — o'lik ko'cha keyingi bosishga aylanadi.
+    """
+    driver, _dp = driver_user
+    region = Region(id=98, name_uz="Yaqin Viloyat", name_ru="Blizkiy", slug="yaqin", order=98)
+    db.add(region)
+    await db.flush()
+
+    base = date.today() + timedelta(days=3)
+    # base+1 kunda ikkita, base+3 kunda bitta safar
+    for offset, count in ((1, 2), (3, 1)):
+        for _ in range(count):
+            db.add(Trip(
+                driver_id=driver.id,
+                from_region_id=region.id, to_region_id=region.id,
+                departure_date=base + timedelta(days=offset), departure_time=time(9, 0),
+                total_seats=4, available_seats=4, price_per_seat=100_000,
+                payment_type=PaymentType.cash, luggage_size=LuggageSize.medium,
+                status=TripStatus.active,
+            ))
+    await db.commit()
+
+    resp = await client.get("/api/v1/trips/nearest-dates", params={
+        "from_region_id": region.id,
+        "to_region_id": region.id,
+        "after": base.isoformat(),
+    })
+    assert resp.status_code == 200, resp.text
+
+    data = resp.json()
+    assert [d["count"] for d in data] == [2, 1]
+    assert data[0]["date"] == (base + timedelta(days=1)).isoformat()
+
+
+@pytest.mark.asyncio
+async def test_nearest_dates_ignores_past_and_same_day(
+    client: AsyncClient,
+    db: AsyncSession,
+    driver_user: tuple,
+):
+    """So'ralgan kunning o'zi va undan oldingilar chiqmaydi."""
+    driver, _dp = driver_user
+    region = Region(id=97, name_uz="Test 97", name_ru="Test 97", slug="t97", order=97)
+    db.add(region)
+    await db.flush()
+
+    target = date.today() + timedelta(days=5)
+    db.add(Trip(
+        driver_id=driver.id,
+        from_region_id=region.id, to_region_id=region.id,
+        departure_date=target, departure_time=time(8, 0),
+        total_seats=4, available_seats=4, price_per_seat=100_000,
+        payment_type=PaymentType.cash, luggage_size=LuggageSize.medium,
+        status=TripStatus.active,
+    ))
+    await db.commit()
+
+    resp = await client.get("/api/v1/trips/nearest-dates", params={
+        "from_region_id": region.id,
+        "to_region_id": region.id,
+        "after": target.isoformat(),
+    })
+    assert resp.json() == []

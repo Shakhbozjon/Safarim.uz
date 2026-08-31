@@ -68,13 +68,45 @@ export default function HomePage() {
           {/* Left */}
           <div className="min-w-0">
             <h1 className="text-[clamp(30px,5.6vw,54px)] leading-[1.08] font-extrabold tracking-[-0.035em] text-gray-900 mb-3.5 text-balance">
-              O'zbekiston bo'ylab<br />qulay safar
+              Haydovchini<br />o&apos;zingiz tanlaysiz
             </h1>
-            <p className="text-[clamp(15.5px,1.6vw,18px)] leading-relaxed text-gray-500 mb-7 max-w-[460px]">
-              Haydovchi va yo'lovchilarni birlashtiruvchi platforma. Arzon, tez va xavfsiz boring.
+            {/* Yo'nalish nomi ataylab yozilmagan: sayt 14 viloyatni qamraydi va
+                boshqa yo'nalishdan kirgan odam o'zini chetda his qilmasin */}
+            <p className="text-[clamp(15.5px,1.6vw,18px)] leading-relaxed text-gray-500 mb-5 max-w-[460px]">
+              Qayerdan qayerga — o&apos;zingiz belgilaysiz. Har bir e&apos;londa{" "}
+              <b className="font-semibold text-gray-700">
+                haydovchining ismi, reytingi, mashinasi va narxi
+              </b>{" "}
+              ko&apos;rinadi, yoqqanini tanlab joy band qilasiz. Jo&apos;nash vaqti oldindan aniq.
             </p>
 
+            {/* Ikki yo'l tepada: haydovchi sahifa oxirigacha aylantirmasin */}
+            <div className="flex gap-2 mb-5 max-w-[460px]">
+              <div className="flex-1 text-center px-3 py-2.5 rounded-[13px] border-[1.5px] border-primary-500 bg-primary-50">
+                <span className="block text-[13px] font-bold text-primary-600">Yo&apos;lovchiman</span>
+                <span className="block text-[11px] text-primary-500/80">joy qidiraman</span>
+              </div>
+              <Link
+                href="/profile/driver-apply"
+                className="flex-1 text-center px-3 py-2.5 rounded-[13px] border-[1.5px] border-gray-200 bg-white hover:border-primary-300 transition-colors"
+              >
+                <span className="block text-[13px] font-bold text-gray-700">Haydovchiman</span>
+                <span className="block text-[11px] text-gray-400">e&apos;lon qo&apos;yaman</span>
+              </Link>
+            </div>
+
             <HeroSearchCard />
+
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3.5 text-[12.5px] font-semibold text-gray-500">
+              <span className="inline-flex items-center gap-1.5">
+                <i className="w-[5px] h-[5px] rounded-full bg-green-500" />
+                Hujjatlari tekshirilgan haydovchilar
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <i className="w-[5px] h-[5px] rounded-full bg-green-500" />
+                Narx oldindan aniq
+              </span>
+            </div>
 
             <div className="flex flex-wrap gap-2 mt-4 items-center">
               <span className="text-[13px] text-gray-500">Mashhur:</span>

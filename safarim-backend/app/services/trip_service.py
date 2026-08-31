@@ -200,33 +200,66 @@ async def create_trip(db: AsyncSession, user: User, data: TripCreate) -> Trip:
     return result.scalar_one()
 
 
-async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]:
-    # 1. To'g'ridan-to'g'ri safarlar
-    direct_condition = and_(
-        Trip.from_region_id == params.from_region_id,
-        Trip.to_region_id == params.to_region_id,
+def _route_condition(from_region_id: int, to_region_id: int):
+    """Yo'nalishga mos safarlar: to'g'ridan-to'g'ri yoki oraliq to'xtash orqali."""
+    direct = and_(
+        Trip.from_region_id == from_region_id,
+        Trip.to_region_id == to_region_id,
     )
 
-    # 2. Oraliq to'xtashli safarlar (waypoint orqali)
     from_wp = select(TripWaypoint.trip_id).where(
-        TripWaypoint.region_id == params.from_region_id
+        TripWaypoint.region_id == from_region_id
     ).scalar_subquery()
-
     to_wp = select(TripWaypoint.trip_id).where(
-        TripWaypoint.region_id == params.to_region_id
+        TripWaypoint.region_id == to_region_id
     ).scalar_subquery()
 
-    waypoint_condition = and_(
+    via_waypoint = and_(
         Trip.has_waypoints == True,
         Trip.id.in_(from_wp),
         Trip.id.in_(to_wp),
     )
+    return or_(direct, via_waypoint)
 
-    # Jarima pauzasidagi haydovchilar e'lonlari qidiruvda ko'rinmaydi
-    paused_driver_ids = select(DriverProfile.user_id).where(
+
+def _paused_driver_ids():
+    """Jarima pauzasidagi haydovchilar e'lonlari qidiruvda ko'rinmaydi."""
+    return select(DriverProfile.user_id).where(
         DriverProfile.paused_until > datetime.utcnow()
     ).scalar_subquery()
 
+
+async def nearest_dates(
+    db: AsyncSession,
+    from_region_id: int,
+    to_region_id: int,
+    after: date,
+    seats: int = 1,
+    limit: int = 3,
+) -> list[dict]:
+    """Shu yo'nalishda `after` dan keyingi safarli sanalar va har birida nechtaligi.
+
+    Qidiruv bo'sh chiqqanda ishlatiladi: "boshqa sanani sinab ko'ring" degan
+    maslahat o'rniga foydalanuvchiga tayyor sanalar beriladi.
+    """
+    rows = await db.execute(
+        select(Trip.departure_date, func.count(Trip.id))
+        .where(
+            Trip.status == TripStatus.active,
+            Trip.departure_date > after,
+            Trip.departure_date >= date.today(),
+            Trip.available_seats >= seats,
+            Trip.driver_id.notin_(_paused_driver_ids()),
+            _route_condition(from_region_id, to_region_id),
+        )
+        .group_by(Trip.departure_date)
+        .order_by(Trip.departure_date.asc())
+        .limit(limit)
+    )
+    return [{"date": d, "count": c} for d, c in rows.all()]
+
+
+async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]:
     query = (
         select(Trip)
         .options(*_load_options())
@@ -235,8 +268,8 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
             Trip.departure_date == params.departure_date,
             Trip.departure_date >= date.today(),   # o'tib ketgan safar chiqmasin
             Trip.available_seats >= params.seats,
-            Trip.driver_id.notin_(paused_driver_ids),
-            or_(direct_condition, waypoint_condition),
+            Trip.driver_id.notin_(_paused_driver_ids()),
+            _route_condition(params.from_region_id, params.to_region_id),
         )
     )
 

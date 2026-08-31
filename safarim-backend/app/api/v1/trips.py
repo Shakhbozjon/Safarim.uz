@@ -58,6 +58,22 @@ async def search_trips(
 
 
 @router.get(
+    "/nearest-dates",
+    summary="Yaqin kunlardagi safarli sanalar (bo'sh natija uchun)",
+)
+async def nearest_dates(
+    from_region_id: int = Query(..., description="Qayerdan (viloyat ID)"),
+    to_region_id: int = Query(..., description="Qayerga (viloyat ID)"),
+    after: date = Query(..., description="Shu sanadan keyingi kunlar"),
+    seats: int = Query(1, ge=1, le=4),
+    db: AsyncSession = Depends(get_db),
+):
+    return await trip_service.nearest_dates(
+        db, from_region_id, to_region_id, after, seats
+    )
+
+
+@router.get(
     "/my",
     response_model=list[TripResponse],
     summary="Mening safarlarim (haydovchi)",
