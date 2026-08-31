@@ -1,4 +1,5 @@
 import uuid
+from app.schemas.media import PhotoUrl
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -6,7 +7,7 @@ from pydantic import BaseModel
 class MessageSenderInfo(BaseModel):
     id: uuid.UUID
     full_name: str
-    profile_photo: str | None
+    profile_photo: PhotoUrl = None
 
     model_config = {"from_attributes": True}
 

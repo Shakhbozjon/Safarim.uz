@@ -95,3 +95,34 @@ async def test_blocked_user_denied(
 
     resp = await client.get("/api/v1/auth/me", headers=auth_headers(user))
     assert resp.status_code == 403
+
+
+# ─── Media manzillari ────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_profile_photo_returned_as_url(
+    client: AsyncClient, db: AsyncSession, user: User
+):
+    """Javobda MinIO kaliti emas, brauzer ocha oladigan to'liq manzil bo'lishi kerak.
+
+    Avval kalit ("avatars/x.jpg") o'sha holicha qaytardi va brauzer uni sayt
+    ildiziga nisbatan hal qilib 404 olardi — barcha avatarlar singan ko'rinardi.
+    """
+    user.profile_photo = "avatars/test.jpg"
+    await db.commit()
+
+    resp = await client.get("/api/v1/auth/me", headers=auth_headers(user))
+    assert resp.status_code == 200
+
+    photo = resp.json()["profile_photo"]
+    assert photo.startswith("http"), photo
+    assert "avatars/test.jpg" in photo
+
+
+@pytest.mark.asyncio
+async def test_profile_photo_none_stays_none(
+    client: AsyncClient, user: User
+):
+    """Rasm yo'q bo'lsa null qoladi — bo'sh manzil yasalmaydi."""
+    resp = await client.get("/api/v1/auth/me", headers=auth_headers(user))
+    assert resp.json()["profile_photo"] is None

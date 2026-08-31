@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel
 from app.models.enums import TalkLevel, AdminRole, Gender
+from app.schemas.media import PhotoUrl
 
 
 class UserResponse(BaseModel):
@@ -9,7 +10,7 @@ class UserResponse(BaseModel):
     phone: str
     email: str | None
     full_name: str
-    profile_photo: str | None
+    profile_photo: PhotoUrl = None
     talk_level: TalkLevel
     gender: Gender | None
     is_phone_verified: bool
@@ -25,7 +26,7 @@ class UserResponse(BaseModel):
 class UserPublicResponse(BaseModel):
     id: uuid.UUID
     full_name: str
-    profile_photo: str | None
+    profile_photo: PhotoUrl = None
     talk_level: TalkLevel
     created_at: datetime
 

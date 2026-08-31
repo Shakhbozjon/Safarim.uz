@@ -1,4 +1,5 @@
 import uuid
+from app.schemas.media import PhotoUrl
 from datetime import datetime
 from pydantic import BaseModel, field_validator
 from app.models.enums import ReviewerType
@@ -19,7 +20,7 @@ class ReviewCreate(BaseModel):
 class ReviewerInfo(BaseModel):
     id: uuid.UUID
     full_name: str
-    profile_photo: str | None
+    profile_photo: PhotoUrl = None
 
     model_config = {"from_attributes": True}
 

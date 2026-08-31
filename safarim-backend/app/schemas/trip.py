@@ -1,4 +1,5 @@
 import uuid
+from app.schemas.media import PhotoUrl
 from datetime import date, time, datetime
 from pydantic import BaseModel, field_validator
 from app.models.enums import PaymentType, TripStatus, LuggageSize, TalkLevel
@@ -34,7 +35,7 @@ class WaypointResponse(BaseModel):
 class TripDriverInfo(BaseModel):
     id: uuid.UUID
     full_name: str
-    profile_photo: str | None
+    profile_photo: PhotoUrl = None
     talk_level: TalkLevel
     rating_avg: float
     rating_count: int

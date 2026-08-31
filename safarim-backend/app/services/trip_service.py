@@ -15,6 +15,7 @@ from app.models.enums import (
 from app.schemas.trip import TripCreate, TripSearchParams, TripDriverInfo, TripResponse, WaypointResponse, LocationBrief
 from app.core.timeutils import now_tashkent_naive
 from app.services import notification_service, wallet_service
+from app.services.storage_service import photo_url
 
 
 def _load_options():
@@ -37,7 +38,7 @@ def serialize_trip(trip: Trip) -> TripResponse:
     driver_info = TripDriverInfo(
         id=trip.driver.id,
         full_name=trip.driver.full_name,
-        profile_photo=trip.driver.profile_photo,
+        profile_photo=photo_url(trip.driver.profile_photo),
         talk_level=trip.driver.talk_level,
         rating_avg=dp.rating_avg if dp else 0.0,
         rating_count=dp.rating_count if dp else 0,

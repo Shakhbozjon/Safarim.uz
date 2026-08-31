@@ -89,3 +89,22 @@ class StorageService:
 
 
 storage_service = StorageService()
+
+
+def photo_url(key: str | None) -> str | None:
+    """Rasm kalitini brauzer ocha oladigan to'liq manzilga aylantiradi.
+
+    Bazada faqat MinIO kaliti saqlanadi ("avatars/uuid.jpg"). Uni javobda o'sha
+    holicha berish mumkin emas: brauzer uni sayt ildiziga nisbatan hal qilib 404
+    oladi va rasm o'rniga singan belgi chiqadi — barcha avatarlar shu sababdan
+    ko'rinmasdi.
+
+    Allaqachon to'liq manzil kelsa tegilmaydi — funksiya ikki qatlamda
+    (sxema validatori va qo'lda yig'ilgan javoblarda) ishlatiladi.
+    """
+    if not key:
+        return None
+    if key.startswith("http://") or key.startswith("https://"):
+        return key
+    from app.core.config import settings
+    return storage_service.get_url(key, settings.MINIO_BUCKET_PHOTOS) or None

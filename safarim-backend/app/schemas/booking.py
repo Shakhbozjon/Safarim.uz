@@ -1,4 +1,5 @@
 import uuid
+from app.schemas.media import PhotoUrl
 from datetime import datetime
 from pydantic import BaseModel, field_validator
 from app.models.enums import BookingStatus, BookingPaymentStatus, PaymentMethod, CancelledBy
@@ -24,7 +25,7 @@ class BookingPassengerInfo(BaseModel):
     id: uuid.UUID
     full_name: str
     phone: str | None  # faqat booking tasdiqlanganidan keyin
-    profile_photo: str | None
+    profile_photo: PhotoUrl = None
 
     model_config = {"from_attributes": True}
 

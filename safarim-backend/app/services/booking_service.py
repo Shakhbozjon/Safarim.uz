@@ -19,6 +19,7 @@ from app.core.security import calculate_commission
 from app.core.config import settings
 from app.core.timeutils import now_tashkent_naive
 from app.services import notification_service, wallet_service
+from app.services.storage_service import photo_url
 from app.models.enums import NotificationRefType
 
 
@@ -902,7 +903,7 @@ def serialize_booking(booking: Booking, current_user: User, trip_serializer=None
             "driver": {
                 "id": trip.driver.id,
                 "full_name": trip.driver.full_name,
-                "profile_photo": trip.driver.profile_photo,
+                "profile_photo": photo_url(trip.driver.profile_photo),
                 "talk_level": trip.driver.talk_level,
                 "rating_avg": dp.rating_avg if dp else 0.0,
                 "rating_count": dp.rating_count if dp else 0,
@@ -918,7 +919,7 @@ def serialize_booking(booking: Booking, current_user: User, trip_serializer=None
             "id": booking.passenger.id,
             "full_name": booking.passenger.full_name,
             "phone": booking.passenger.phone if show_phone else None,
-            "profile_photo": booking.passenger.profile_photo,
+            "profile_photo": photo_url(booking.passenger.profile_photo),
         },
         "seats_count": booking.seats_count,
         "price_per_seat": booking.price_per_seat,

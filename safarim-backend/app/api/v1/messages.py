@@ -5,6 +5,7 @@ from app.db.session import get_db, AsyncSessionLocal
 from app.models.user import User
 from app.schemas.message import MessageResponse, UnreadCountResponse
 from app.services import message_service
+from app.services.storage_service import photo_url
 from app.core.dependencies import get_current_user
 from app.core.security import decode_token
 from app.core.ws_manager import ws_manager
@@ -142,7 +143,7 @@ async def chat_websocket(
                         "sender": {
                             "id": str(message.sender.id),
                             "full_name": message.sender.full_name,
-                            "profile_photo": message.sender.profile_photo,
+                            "profile_photo": photo_url(message.sender.profile_photo),
                         },
                         "content": message.content,
                         "is_read": message.is_read,
