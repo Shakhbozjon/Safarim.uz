@@ -15,6 +15,7 @@ import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import api from "@/lib/api";
+import { getApiError } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { clsx } from "clsx";
 import type { TripResponse, BookingResponse, DriverReviewsResponse, DriverProfileResponse } from "@/types";
@@ -161,6 +162,9 @@ export default function DriverDashboardPage() {
 
   // "Kelmadi" ogohlantirish modali — soxta belgilashning oldini olish uchun
   const [noShowConfirmId, setNoShowConfirmId] = useState<string | null>(null);
+  // Server rad etsa sabab ko'rinsin — avval xatolar jimgina yutilardi va
+  // tugma bosilganda "hech narsa bo'lmadi" degan taassurot qolardi
+  const [actionError, setActionError] = useState("");
 
   // Auth + driver guard
   useEffect(() => {
@@ -244,19 +248,23 @@ export default function DriverDashboardPage() {
   const completeMutation = useMutation({
     mutationFn: (id: string) => api.post(`/bookings/${id}/complete`),
     onSuccess: () => {
+      setActionError("");
       queryClient.invalidateQueries({ queryKey: ["driver-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
       queryClient.invalidateQueries({ queryKey: ["driver-wallet"] });
     },
+    onError: (err) => setActionError(getApiError(err)),
   });
 
   const noShowMutation = useMutation({
     mutationFn: (id: string) => api.post(`/bookings/${id}/no-show`),
     onSuccess: () => {
+      setActionError("");
       setNoShowConfirmId(null);
       queryClient.invalidateQueries({ queryKey: ["driver-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
     },
+    onError: (err) => setActionError(getApiError(err)),
   });
 
   const republishMutation = useMutation({
@@ -535,6 +543,15 @@ export default function DriverDashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+      {actionError && (
+        <div className="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 border border-red-100 flex items-start justify-between gap-3">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError("")} className="shrink-0 text-red-400 hover:text-red-600">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* ── Sarlavha ─────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col sm:flex-row sm:items-center gap-4">

@@ -121,7 +121,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
             </nav>
 
             {/* Right */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {user ? (
                 <>
                   {/* Notifications */}
@@ -219,7 +219,12 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                     <Button variant="ghost" size="sm">Kirish</Button>
                   </Link>
                   <Link href="/register">
-                    <Button size="sm">Ro'yxatdan o'tish</Button>
+                    {/* Tor Android ekranlarida (360px) to'liq matn logotip ustiga
+                        chiqib ketardi — mobil uchun qisqa shakl */}
+                    <Button size="sm" className="whitespace-nowrap">
+                      <span className="sm:hidden">Qo&apos;shilish</span>
+                      <span className="hidden sm:inline">Ro&apos;yxatdan o&apos;tish</span>
+                    </Button>
                   </Link>
                 </>
               )}

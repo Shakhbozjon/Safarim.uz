@@ -50,6 +50,41 @@ def _place_name(region, district) -> str:
     return f"{region.name_uz} ({district.name_uz})" if district else region.name_uz
 
 
+def _route_text(trip: Trip, from_wp=None, to_wp=None) -> tuple[str, str | None]:
+    """Marshrut matni. Ikkinchi qiymat — waypoint bo'lsa safarning to'liq yo'nalishi."""
+    full = f"{_place_name(trip.from_region, trip.from_district)} → {_place_name(trip.to_region, trip.to_district)}"
+    if from_wp is not None and to_wp is not None:
+        part = f"{_place_name(from_wp.region, from_wp.district)} → {_place_name(to_wp.region, to_wp.district)}"
+        return part, full
+    return full, None
+
+
+def _new_booking_body(trip: Trip, booking: Booking, passenger: User, from_wp=None, to_wp=None) -> str:
+    """Haydovchiga yangi band qilish haqidagi xabar matni.
+
+    Avval faqat "X 2 ta joy band qildi" deyilardi — haydovchi kimni, qayerdan
+    olishini va qanday bog'lanishini bilmasdi. Yo'lovchi raqami ilovada ham shu
+    `confirmed` holatdan ochiladi (`serialize_booking`), shuning uchun bu yerda
+    ham beriladi.
+    """
+    pay = PAYMENT_LABELS.get(booking.payment_method, booking.payment_method.value)
+    route, full = _route_text(trip, from_wp, to_wp)
+
+    lines = [
+        f"{passenger.full_name} — {booking.seats_count} ta joy",
+        f"Telefon: {passenger.phone}",
+        "",
+        route,
+    ]
+    if full:
+        lines.append(f"(safar yo'nalishi: {full})")
+    lines += [
+        f"{trip.departure_date.strftime('%d.%m.%Y')}, {trip.departure_time.strftime('%H:%M')}",
+        f"{booking.total_price:,} so'm ({pay})",
+    ]
+    return "\n".join(lines)
+
+
 def _booking_confirmed_body(trip: Trip, booking: Booking, from_wp=None, to_wp=None) -> str:
     """Yo'lovchiga yuboriladigan tasdiq xabari matni.
 
@@ -61,14 +96,11 @@ def _booking_confirmed_body(trip: Trip, booking: Booking, from_wp=None, to_wp=No
     dp = getattr(driver, "driver_profile", None)
     pay = PAYMENT_LABELS.get(booking.payment_method, booking.payment_method.value)
 
-    trip_route = f"{_place_name(trip.from_region, trip.from_district)} → {_place_name(trip.to_region, trip.to_district)}"
-    lines = []
-    if from_wp is not None and to_wp is not None:
-        # Yo'lovchi oraliq bekatdan chiqadi — o'z bo'limi birinchi o'rinda
-        lines.append(f"{_place_name(from_wp.region, from_wp.district)} → {_place_name(to_wp.region, to_wp.district)}")
-        lines.append(f"(safar yo'nalishi: {trip_route})")
-    else:
-        lines.append(trip_route)
+    # Oraliq bekatdan chiqsa yo'lovchining o'z bo'limi birinchi o'rinda turadi
+    route, full = _route_text(trip, from_wp, to_wp)
+    lines = [route]
+    if full:
+        lines.append(f"(safar yo'nalishi: {full})")
 
     lines += [
         f"{trip.departure_date.strftime('%d.%m.%Y')}, {trip.departure_time.strftime('%H:%M')}",
@@ -228,8 +260,8 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
     await notification_service.create(
         db,
         user_id=trip.driver_id,
-        title="Yangi band qilish! 🎉",
-        body=f"{passenger.full_name} {data.seats_count} ta joy band qildi.",
+        title="Yangi band qilish 🎉",
+        body=_new_booking_body(trip, booking, passenger, from_wp, to_wp),
         ref_type=NotificationRefType.booking,
         ref_id=booking.id,
     )
@@ -626,9 +658,13 @@ async def confirm_booking(
     if booking.status not in (BookingStatus.confirmed, BookingStatus.awaiting_confirmation):
         raise HTTPException(status_code=400, detail="Bu band qilish tasdiq bosqichida emas")
 
-    # Safar vaqti hali kelmagan bo'lsa tasdiqlab bo'lmaydi (mahalliy vaqtda)
+    # Safar vaqti hali kelmagan bo'lsa tasdiqlab bo'lmaydi (mahalliy vaqtda).
+    # Istisno: haydovchi safarni BOSHLAGAN bo'lsa soat tekshirilmaydi —
+    # carpooling'da mashina to'lgach jadvaldan oldin jo'nash odatiy hol va
+    # safarning haqiqiy holati jadvaldagi soatdan kuchliroq dalil. Busiz erta
+    # jo'nagan haydovchi "Tugatish" ni bosa 400 olardi.
     departure_dt = datetime.combine(booking.trip.departure_date, booking.trip.departure_time)
-    if now_tashkent_naive() < departure_dt:
+    if booking.trip.status != TripStatus.started and now_tashkent_naive() < departure_dt:
         raise HTTPException(status_code=400, detail="Safar vaqti hali kelmagan")
 
     # Tasdiq oynasini boshlash (agar hali boshlanmagan bo'lsa)

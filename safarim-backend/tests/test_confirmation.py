@@ -268,6 +268,39 @@ async def test_cannot_confirm_before_departure(db, user, driver_user):
     assert exc.value.status_code == 400
 
 
+@pytest.mark.asyncio
+async def test_started_trip_can_be_completed_before_departure(db, user, driver_user):
+    """Safar BOSHLANGAN bo'lsa jadvaldagi soatdan oldin ham yakunlash mumkin.
+
+    Carpooling'da mashina to'lgach jadvaldan oldin jo'nash odatiy hol. Avval
+    haydovchi bunday holatda "Tugatish" ni bossa 400 olardi.
+    """
+    driver, _ = driver_user
+    region = await _region(db)
+    future = date.today() + timedelta(days=2)
+    trip = Trip(
+        driver_id=driver.id, from_region_id=region.id, to_region_id=region.id,
+        departure_date=future, departure_time=time(10, 0), total_seats=4, available_seats=3,
+        price_per_seat=100_000, payment_type=PaymentType.cash, luggage_size=LuggageSize.medium,
+        status=TripStatus.started,
+    )
+    db.add(trip)
+    await db.flush()
+    bk = Booking(
+        trip_id=trip.id, passenger_id=user.id, seats_count=1, price_per_seat=100_000,
+        total_price=100_000, commission_rate=0.02, commission_amount=2_000, driver_amount=98_000,
+        payment_method=PaymentMethod.cash, payment_status=BookingPaymentStatus.pending,
+        status=BookingStatus.confirmed,
+    )
+    db.add(bk)
+    await db.commit()
+
+    await booking_service.complete_booking(db, str(bk.id), driver)
+
+    await db.refresh(bk)
+    assert bk.status == BookingStatus.completed
+
+
 # ─── Admin nizo hal qilish ───────────────────────────────────────────────────
 
 @pytest.mark.asyncio
