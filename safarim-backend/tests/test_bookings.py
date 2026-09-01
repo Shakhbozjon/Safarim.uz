@@ -347,3 +347,58 @@ async def test_nearest_dates_ignores_past_and_same_day(
         "after": target.isoformat(),
     })
     assert resp.json() == []
+
+
+# ─── Olib ketish shakli ───────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_trip_door_to_door_flag(
+    client: AsyncClient,
+    db: AsyncSession,
+    driver_user: tuple,
+):
+    """Haydovchi manzildan olib ketishni tanlasa, bayroq e'londa qaytadi."""
+    driver, _dp = driver_user
+    region = Region(id=96, name_uz="Test 96", name_ru="Test 96", slug="t96", order=96)
+    db.add(region)
+    await db.commit()
+
+    resp = await client.post("/api/v1/trips/", json={
+        "from_region_id": region.id,
+        "to_region_id": region.id,
+        "departure_date": (date.today() + timedelta(days=2)).isoformat(),
+        "departure_time": "09:00",
+        "total_seats": 4,
+        "price_per_seat": 100_000,
+        "payment_type": "cash",
+        "door_to_door": True,
+    }, headers=auth_headers(driver))
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["door_to_door"] is True
+
+
+@pytest.mark.asyncio
+async def test_trip_defaults_to_meeting_point(
+    client: AsyncClient,
+    db: AsyncSession,
+    driver_user: tuple,
+):
+    """Bayroq yuborilmasa — kelishilgan joy modeli (eski xatti-harakat)."""
+    driver, _dp = driver_user
+    region = Region(id=95, name_uz="Test 95", name_ru="Test 95", slug="t95", order=95)
+    db.add(region)
+    await db.commit()
+
+    resp = await client.post("/api/v1/trips/", json={
+        "from_region_id": region.id,
+        "to_region_id": region.id,
+        "departure_date": (date.today() + timedelta(days=2)).isoformat(),
+        "departure_time": "09:00",
+        "total_seats": 4,
+        "price_per_seat": 100_000,
+        "payment_type": "cash",
+        "from_address": "Metro Buyuk Ipak Yo'li",
+    }, headers=auth_headers(driver))
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["door_to_door"] is False
+    assert resp.json()["from_address"] == "Metro Buyuk Ipak Yo'li"

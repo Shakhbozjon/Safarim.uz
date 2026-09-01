@@ -42,6 +42,11 @@ class Trip(Base):
     women_only: Mapped[bool] = mapped_column(Boolean, default=False)
     luggage_size: Mapped[LuggageSize] = mapped_column(Enum(LuggageSize), default=LuggageSize.medium)
 
+    # Olib ketish shakli: True — yo'lovchining manziliga boradi, False —
+    # `from_address` dagi kelishilgan joydan oladi. Ikki model ham amalda bor:
+    # BlaBlaCar uslubidagi qat'iy nuqta va mahalliy eshikdan-eshikka odati.
+    door_to_door: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
     # Qo'shimcha
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     has_waypoints: Mapped[bool] = mapped_column(Boolean, default=False)

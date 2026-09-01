@@ -84,6 +84,8 @@ export interface TripResponse {
   from_region: LocationBrief;
   from_district: LocationBrief | null;
   from_address: string | null;
+  /** true — haydovchi yo'lovchining manziliga boradi; false — from_address dagi joydan oladi */
+  door_to_door: boolean;
   to_region: LocationBrief;
   to_district: LocationBrief | null;
   to_address: string | null;

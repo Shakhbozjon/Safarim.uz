@@ -145,9 +145,13 @@ export default function TripDetailPage() {
                   <p className="text-3xl font-bold text-primary-500 tabular-nums mt-0.5">
                     {fmtTime(trip.departure_time)}
                   </p>
-                  {trip.from_address && (
+                  {trip.door_to_door ? (
+                    <p className="text-sm font-medium text-green-700 mt-1.5 inline-flex items-center gap-1.5 bg-green-50 rounded-lg px-2 py-1">
+                      🚘 Manzilingizdan olib ketadi
+                    </p>
+                  ) : trip.from_address ? (
                     <p className="text-sm text-gray-400 mt-1">{trip.from_address}</p>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
