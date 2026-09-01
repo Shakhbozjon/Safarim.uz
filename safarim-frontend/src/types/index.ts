@@ -84,8 +84,6 @@ export interface TripResponse {
   from_region: LocationBrief;
   from_district: LocationBrief | null;
   from_address: string | null;
-  /** true — haydovchi yo'lovchining manziliga boradi; false — from_address dagi joydan oladi */
-  door_to_door: boolean;
   to_region: LocationBrief;
   to_district: LocationBrief | null;
   to_address: string | null;
@@ -157,6 +155,10 @@ export interface BookingResponse {
   trip_id: string;
   passenger: BookingPassengerInfo;
   seats_count: number;
+  /** Haydovchi shu manzildan oladi — yo'lovchi band qilishda kiritadi */
+  pickup_address: string | null;
+  /** Koordinata berilgan bo'lsa — telefon xaritasida ochiladigan havola */
+  pickup_map_url: string | null;
   price_per_seat: number;
   total_price: number;
   commission_rate: number;

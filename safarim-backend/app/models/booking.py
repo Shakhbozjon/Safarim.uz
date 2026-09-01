@@ -22,6 +22,13 @@ class Booking(Base):
     from_waypoint_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("trip_waypoints.id"), nullable=True)
     to_waypoint_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("trip_waypoints.id"), nullable=True)
 
+    # Olib ketish joyi — yo'lovchi band qilishda kiritadi.
+    # Koordinata ixtiyoriy: brauzer geolocation'i orqali olinadi va haydovchiga
+    # xarita havolasi bo'lib ko'rinadi. Xarita provayderi kerak emas.
+    pickup_address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    pickup_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pickup_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     # Narx (booking vaqtidagi snapshot)
     price_per_seat: Mapped[int] = mapped_column(Integer, nullable=False)
     total_price: Mapped[int] = mapped_column(Integer, nullable=False)

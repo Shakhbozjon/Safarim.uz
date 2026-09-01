@@ -51,6 +51,25 @@ export default function TripDetailPage() {
   const [genderModal, setGenderModal] = useState(false);
   const [bookingError, setBookingError] = useState("");
 
+  // Olib ketish joyi — haydovchi shu manzilga boradi. Koordinata ixtiyoriy:
+  // brauzerning o'zi beradi, xarita provayderi kerak emas.
+  const [pickup, setPickup] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoState, setGeoState] = useState<"idle" | "loading" | "error">("idle");
+
+  function useMyLocation() {
+    if (!navigator.geolocation) { setGeoState("error"); return; }
+    setGeoState("loading");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoState("idle");
+      },
+      () => setGeoState("error"),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
   // ── Trip yuklab olish ──
   const { data: trip, isLoading, isError } = useQuery<TripResponse>({
     queryKey: ["trip", id],
@@ -67,6 +86,9 @@ export default function TripDetailPage() {
         trip_id: id,
         seats_count: seats,
         payment_method: paymentMethod,
+        pickup_address: pickup.trim(),
+        pickup_lat: coords?.lat,
+        pickup_lng: coords?.lng,
       });
       return data;
     },
@@ -84,6 +106,10 @@ export default function TripDetailPage() {
   function handleBook() {
     if (!isAuthenticated()) {
       router.push("/login?next=/trips/" + id);
+      return;
+    }
+    if (pickup.trim().length < 5) {
+      setBookingError("Haydovchi sizni qayerdan olishini yozing");
       return;
     }
     setBookingError("");
@@ -145,13 +171,9 @@ export default function TripDetailPage() {
                   <p className="text-3xl font-bold text-primary-500 tabular-nums mt-0.5">
                     {fmtTime(trip.departure_time)}
                   </p>
-                  {trip.door_to_door ? (
-                    <p className="text-sm font-medium text-green-700 mt-1.5 inline-flex items-center gap-1.5 bg-green-50 rounded-lg px-2 py-1">
-                      🚘 Manzilingizdan olib ketadi
-                    </p>
-                  ) : trip.from_address ? (
+                  {trip.from_address && (
                     <p className="text-sm text-gray-400 mt-1">{trip.from_address}</p>
-                  ) : null}
+                  )}
                 </div>
               </div>
 
@@ -418,6 +440,42 @@ export default function TripDetailPage() {
                 {formatPrice(totalPrice)} so'm
               </span>
             </div>
+          </div>
+
+          {/* Olib ketish joyi — haydovchi shu yerga keladi */}
+          <div>
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2">
+              Haydovchi sizni qayerdan oladi?
+            </label>
+            <input
+              value={pickup}
+              onChange={(e) => setPickup(e.target.value)}
+              placeholder="Masalan: Chilonzor 19-kvartal, 42-uy"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-primary-400"
+            />
+            <button
+              type="button"
+              onClick={useMyLocation}
+              disabled={geoState === "loading"}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-60"
+            >
+              <MapPin size={13} />
+              {coords
+                ? "Joylashuv qo'shildi ✓"
+                : geoState === "loading"
+                  ? "Aniqlanmoqda…"
+                  : "Aniq joylashuvimni qo'shish"}
+            </button>
+            {geoState === "error" && (
+              <p className="text-xs text-gray-400 mt-1">
+                Joylashuvni olib bo&apos;lmadi — manzilni yozib qo&apos;ying, yetarli.
+              </p>
+            )}
+            {coords && (
+              <p className="text-xs text-gray-400 mt-1">
+                Haydovchi buni xaritada ochib ko&apos;ra oladi.
+              </p>
+            )}
           </div>
 
           {/* To'lov usuli */}

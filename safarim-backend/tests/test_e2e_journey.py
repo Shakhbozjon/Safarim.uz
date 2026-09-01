@@ -159,7 +159,7 @@ async def test_full_journey_registration_to_completion(client, db, admin_user, m
 
     # ── 5a. Yo'lovchi A — ONLINE bron (Click) ────────────────────────────────
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": trip_id, "seats_count": 1, "payment_method": "click",
+        "trip_id": trip_id, "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "click",
     }, headers=_auth(token_a))
     assert r.status_code == 201, r.text
     booking_a = r.json()["id"]
@@ -200,7 +200,7 @@ async def test_full_journey_registration_to_completion(client, db, admin_user, m
 
     # ── 5b. Yo'lovchi B — NAQD bron ──────────────────────────────────────────
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": trip_id, "seats_count": 1, "payment_method": "cash",
+        "trip_id": trip_id, "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash",
     }, headers=_auth(token_b))
     assert r.status_code == 201, r.text
     booking_b = r.json()["id"]
@@ -257,7 +257,7 @@ async def test_payme_online_payment_marks_paid(client, db, user, driver_user):
 
     # Yo'lovchi online bron qiladi
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "payme",
+        "trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "payme",
     }, headers=auth_headers(user))
     assert r.status_code == 201, r.text
     booking_id = r.json()["id"]
@@ -327,7 +327,7 @@ async def test_paid_online_cancel_flags_refund(client, db, user, driver_user, mo
     await db.refresh(trip)
 
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "click",
+        "trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "click",
     }, headers=auth_headers(user))
     booking_id = r.json()["id"]
 

@@ -86,7 +86,7 @@ async def test_cash_completion_deducts_commission_from_deposit(client, db, user,
 
     # Yo'lovchi naqd bron qiladi
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+        "trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash",
     }, headers=auth_headers(user))
     assert r.status_code == 201, r.text
     booking_id = r.json()["id"]
@@ -124,7 +124,7 @@ async def test_blocked_driver_cannot_receive_cash_booking(client, db, user, driv
 
     # Yo'lovchi naqd bron urinadi → rad etiladi
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+        "trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash",
     }, headers=auth_headers(user))
     assert r.status_code == 400, r.text
     assert "hamyon" in r.json()["detail"].lower()
@@ -151,7 +151,7 @@ async def test_redeposit_unblocks_and_allows_booking(client, db, user, driver_us
 
     # Endi naqd bron o'tadi
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+        "trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash",
     }, headers=auth_headers(user))
     assert r.status_code == 201, r.text
 
@@ -168,7 +168,7 @@ async def test_high_price_uses_5_percent_commission(client, db, user, driver_use
     trip = await _trip(db, driver, price=300_000)   # > 200,000 → 5%
 
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+        "trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash",
     }, headers=auth_headers(user))
     assert r.status_code == 201, r.text
     assert r.json()["commission_amount"] == 15_000   # 300k → 5%
@@ -195,7 +195,7 @@ async def test_free_mode_charges_no_commission(client, db, user, driver_user, mo
     trip = await _trip(db, driver, price=100_000)
 
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+        "trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash",
     }, headers=auth_headers(user))
     assert r.status_code == 201, r.text
     assert r.json()["commission_amount"] == 0
@@ -222,6 +222,6 @@ async def test_free_mode_never_blocks_driver(client, db, user, driver_user, monk
     trip = await _trip(db, driver)
 
     r = await client.post(f"{API}/bookings/", json={
-        "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+        "trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash",
     }, headers=auth_headers(user))
     assert r.status_code == 201, r.text   # bepul davr: rad etilmaydi

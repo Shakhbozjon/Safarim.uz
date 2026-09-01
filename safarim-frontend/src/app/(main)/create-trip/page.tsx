@@ -35,15 +35,8 @@ const schema = z.object({
   pets_allowed:    z.boolean(),
   women_only:      z.boolean(),
   luggage_size:    z.enum(["small", "medium", "large"]),
-  door_to_door:    z.boolean(),
-  from_address:    z.string().max(255).optional(),
   description:    z.string().max(500).optional(),
-}).refine(
-  // Kelishilgan joydan olsa, o'sha joy aytilishi shart — aks holda yo'lovchi
-  // baribir "qayerda uchrashamiz?" deb yozishga majbur bo'ladi
-  (d) => d.door_to_door || (d.from_address ?? "").trim().length >= 3,
-  { path: ["from_address"], message: "Uchrashuv joyini yozing" },
-);
+});
 
 type FormData = z.infer<typeof schema>;
 
@@ -80,8 +73,6 @@ export default function CreateTripPage() {
       total_seats:    4,
       price_per_seat: 45_000,
       payment_type:   "cash",
-      door_to_door:    false,
-      from_address:    "",
       smoking_allowed: false,
       pets_allowed:    false,
       women_only:      false,
@@ -143,7 +134,6 @@ export default function CreateTripPage() {
   const FIELD_STEP: Record<string, number> = {
     from_region_id: 1, from_district_id: 1, to_region_id: 1, to_district_id: 1,
     departure_date: 2, departure_time: 2, total_seats: 2,
-    door_to_door: 2, from_address: 2,
     price_per_seat: 3, payment_type: 3,
     smoking_allowed: 4, pets_allowed: 4, women_only: 4, luggage_size: 4, description: 4,
   };
@@ -333,51 +323,6 @@ export default function CreateTripPage() {
                   ))}
                 </div>
               </div>
-            </div>
-
-            {/* Olib ketish shakli — band qilingandan keyingi "qayerda
-                uchrashamiz?" muzokarasini oldindan yopadi */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Yo&apos;lovchini qayerdan olasiz?</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Yo&apos;lovchi buni e&apos;londa ko&apos;radi — keyin kelishib o&apos;tirmaysiz.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {([
-                  { v: false, title: "Kelishilgan joydan", desc: "Yo'lovchi o'sha joyga keladi" },
-                  { v: true,  title: "Manzilidan olaman",  desc: "Yo'lovchi manzilini yozadi" },
-                ]).map(({ v, title, desc }) => (
-                  <button
-                    key={String(v)}
-                    type="button"
-                    onClick={() => setValue("door_to_door", v)}
-                    className={clsx(
-                      "text-left p-3.5 rounded-xl border transition-all",
-                      watch("door_to_door") === v
-                        ? "border-primary-500 bg-primary-50"
-                        : "border-gray-100 bg-gray-50 hover:border-gray-200"
-                    )}
-                  >
-                    <span className={clsx(
-                      "block text-sm font-semibold",
-                      watch("door_to_door") === v ? "text-primary-700" : "text-gray-700"
-                    )}>{title}</span>
-                    <span className="block text-xs text-gray-500 mt-0.5">{desc}</span>
-                  </button>
-                ))}
-              </div>
-
-              {!watch("door_to_door") && (
-                <Input
-                  label="Uchrashuv joyi"
-                  placeholder="Masalan: Metro Buyuk Ipak Yo'li, 3-chiqish"
-                  error={errors.from_address?.message}
-                  {...register("from_address")}
-                />
-              )}
             </div>
 
             <div className="flex gap-3">

@@ -58,9 +58,6 @@ class TripCreate(BaseModel):
     pets_allowed: bool = False
     women_only: bool = False
     luggage_size: LuggageSize = LuggageSize.medium
-    # True — yo'lovchining manzilidan olib ketiladi (u band qilishda manzil
-    # yozadi); False — `from_address` dagi kelishilgan joydan
-    door_to_door: bool = False
     description: str | None = None
     waypoints: list[WaypointCreate] | None = None
 
@@ -120,7 +117,6 @@ class TripResponse(BaseModel):
     pets_allowed: bool
     women_only: bool
     luggage_size: LuggageSize
-    door_to_door: bool = False
     description: str | None
     has_waypoints: bool
     waypoints: list[WaypointResponse]

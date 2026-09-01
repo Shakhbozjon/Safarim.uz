@@ -465,7 +465,7 @@ export default function DriverDashboardPage() {
               tripBookings.map((bkg) => {
                 const st = BSTATUS[bkg.status] ?? BSTATUS.confirmed;
                 return (
-                  <div key={bkg.id} className="flex items-center gap-2.5">
+                  <div key={bkg.id} className="flex items-start gap-2.5">
                     <Avatar src={bkg.passenger.profile_photo} name={bkg.passenger.full_name} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
@@ -473,6 +473,27 @@ export default function DriverDashboardPage() {
                         <span className={clsx("text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0", st.cls)}>{st.label}</span>
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5">{bkg.seats_count} o'rin · {formatPrice(bkg.total_price)} so'm</p>
+                      {bkg.pickup_address && (
+                        <p className="text-xs text-gray-600 mt-1 flex items-start gap-1">
+                          <MapPin size={12} className="text-primary-500 shrink-0 mt-0.5" />
+                          <span className="min-w-0">
+                            {bkg.pickup_address}
+                            {bkg.pickup_map_url && (
+                              <>
+                                {" · "}
+                                <a
+                                  href={bkg.pickup_map_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-primary-600 hover:underline whitespace-nowrap"
+                                >
+                                  Xaritada
+                                </a>
+                              </>
+                            )}
+                          </span>
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-1.5 shrink-0">
                       {bkg.passenger.phone && (bkg.status === "confirmed" || bkg.status === "completed") && (

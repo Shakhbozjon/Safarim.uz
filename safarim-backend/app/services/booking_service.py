@@ -60,6 +60,17 @@ def _route_text(trip: Trip, from_wp=None, to_wp=None) -> tuple[str, str | None]:
     return full, None
 
 
+def map_link(lat: float | None, lng: float | None) -> str | None:
+    """Koordinatani telefonning o'z xarita ilovasida ochadigan havola.
+
+    Xarita provayderi kerak emas: bu havolani Android ham, iOS ham o'rnatilgan
+    xarita ilovasiga (Yandex, Google, 2GIS) uzatadi.
+    """
+    if lat is None or lng is None:
+        return None
+    return f"https://maps.google.com/?q={lat},{lng}"
+
+
 def _new_booking_body(trip: Trip, booking: Booking, passenger: User, from_wp=None, to_wp=None) -> str:
     """Haydovchiga yangi band qilish haqidagi xabar matni.
 
@@ -83,6 +94,15 @@ def _new_booking_body(trip: Trip, booking: Booking, passenger: User, from_wp=Non
         f"{trip.departure_date.strftime('%d.%m.%Y')}, {trip.departure_time.strftime('%H:%M')}",
         f"{booking.total_price:,} so'm ({pay})",
     ]
+
+    if booking.pickup_address:
+        lines += ["", f"Olib ketish joyi: {booking.pickup_address}"]
+        link = map_link(booking.pickup_lat, booking.pickup_lng)
+        if link:
+            # HTML teg qo'yib bo'lmaydi: bildirishnoma matni `_esc` bilan
+            # ekranlanadi. Telegram oddiy URL'ni o'zi bosiladigan qiladi.
+            lines.append(link)
+
     return "\n".join(lines)
 
 
@@ -233,6 +253,9 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
         commission_rate=commission_rate,
         commission_amount=commission_amount,
         driver_amount=driver_amount,
+        pickup_address=data.pickup_address,
+        pickup_lat=data.pickup_lat,
+        pickup_lng=data.pickup_lng,
         payment_method=data.payment_method,
         payment_status=BookingPaymentStatus.pending,
         status=BookingStatus.confirmed,  # carpooling'da avtomatik tasdiqlanadi
@@ -922,6 +945,8 @@ def serialize_booking(booking: Booking, current_user: User, trip_serializer=None
             "profile_photo": photo_url(booking.passenger.profile_photo),
         },
         "seats_count": booking.seats_count,
+        "pickup_address": booking.pickup_address,
+        "pickup_map_url": map_link(booking.pickup_lat, booking.pickup_lng),
         "price_per_seat": booking.price_per_seat,
         "total_price": booking.total_price,
         "commission_rate": booking.commission_rate,

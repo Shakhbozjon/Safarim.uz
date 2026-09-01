@@ -13,6 +13,20 @@ class BookingCreate(BaseModel):
     from_waypoint_id: uuid.UUID | None = None
     to_waypoint_id: uuid.UUID | None = None
 
+    # Haydovchi shu manzildan olib ketadi — band qilishdan keyin
+    # "qayerda uchrashamiz?" muzokarasi bo'lmasligi uchun majburiy
+    pickup_address: str
+    pickup_lat: float | None = None
+    pickup_lng: float | None = None
+
+    @field_validator("pickup_address")
+    @classmethod
+    def validate_pickup(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 5:
+            raise ValueError("Olib ketish manzilini to'liqroq yozing")
+        return v
+
     @field_validator("seats_count")
     @classmethod
     def validate_seats(cls, v: int) -> int:
@@ -35,6 +49,8 @@ class BookingResponse(BaseModel):
     trip_id: uuid.UUID
     passenger: BookingPassengerInfo
     seats_count: int
+    pickup_address: str | None = None
+    pickup_map_url: str | None = None
     price_per_seat: int
     total_price: int
     commission_rate: float

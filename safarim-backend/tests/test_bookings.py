@@ -154,6 +154,7 @@ async def test_create_booking_success(
         json={
             "trip_id": str(trip.id),
             "seats_count": 1,
+            "pickup_address": "Chilonzor 19-kvartal, 42-uy",
             "payment_method": "cash",
         },
         headers=auth_headers(user),
@@ -184,7 +185,7 @@ async def test_passenger_notified_with_driver_details(
 
     resp = await client.post(
         "/api/v1/bookings",
-        json={"trip_id": str(trip.id), "seats_count": 2, "payment_method": "cash"},
+        json={"trip_id": str(trip.id), "seats_count": 2, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash"},
         headers=auth_headers(user),
     )
     assert resp.status_code == 201
@@ -216,7 +217,7 @@ async def test_driver_cannot_book_own_trip(
 
     resp = await client.post(
         "/api/v1/bookings",
-        json={"trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash"},
+        json={"trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash"},
         headers=auth_headers(driver),
     )
     assert resp.status_code == 400
@@ -234,7 +235,7 @@ async def test_no_seats_available(
 
     resp = await client.post(
         "/api/v1/bookings",
-        json={"trip_id": str(trip.id), "seats_count": 10, "payment_method": "cash"},
+        json={"trip_id": str(trip.id), "seats_count": 10, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash"},
         headers=auth_headers(user),
     )
     # 422 — sxema 1-4 oralig'ini rad etadi; 400 — o'rin yetishmasligi biznes qoidasi
@@ -254,7 +255,7 @@ async def test_cancel_booking_by_passenger(
     # Bron qilish
     resp = await client.post(
         "/api/v1/bookings",
-        json={"trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash"},
+        json={"trip_id": str(trip.id), "seats_count": 1, "pickup_address": "Chilonzor 19, 42-uy", "payment_method": "cash"},
         headers=auth_headers(user),
     )
     booking_id = resp.json()["id"]
@@ -349,56 +350,64 @@ async def test_nearest_dates_ignores_past_and_same_day(
     assert resp.json() == []
 
 
-# ─── Olib ketish shakli ───────────────────────────────────────────────────────
+# ─── Olib ketish manzili ──────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_trip_door_to_door_flag(
-    client: AsyncClient,
-    db: AsyncSession,
-    driver_user: tuple,
+async def test_pickup_address_required(
+    client: AsyncClient, db: AsyncSession, user: User, driver_user: tuple,
 ):
-    """Haydovchi manzildan olib ketishni tanlasa, bayroq e'londa qaytadi."""
-    driver, _dp = driver_user
-    region = Region(id=96, name_uz="Test 96", name_ru="Test 96", slug="t96", order=96)
-    db.add(region)
-    await db.commit()
-
-    resp = await client.post("/api/v1/trips/", json={
-        "from_region_id": region.id,
-        "to_region_id": region.id,
-        "departure_date": (date.today() + timedelta(days=2)).isoformat(),
-        "departure_time": "09:00",
-        "total_seats": 4,
-        "price_per_seat": 100_000,
-        "payment_type": "cash",
-        "door_to_door": True,
-    }, headers=auth_headers(driver))
-    assert resp.status_code == 201, resp.text
-    assert resp.json()["door_to_door"] is True
+    """Manzilsiz band qilib bo'lmaydi — aks holda muzokara qaytadi."""
+    trip = await _create_trip(db, driver_user)
+    resp = await client.post(
+        "/api/v1/bookings",
+        json={"trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash"},
+        headers=auth_headers(user),
+    )
+    assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_trip_defaults_to_meeting_point(
-    client: AsyncClient,
-    db: AsyncSession,
-    driver_user: tuple,
+async def test_pickup_reaches_driver_with_map_link(
+    client: AsyncClient, db: AsyncSession, user: User, driver_user: tuple,
 ):
-    """Bayroq yuborilmasa — kelishilgan joy modeli (eski xatti-harakat)."""
+    """Manzil va koordinata haydovchiga boradigan xabarda bo'ladi."""
     driver, _dp = driver_user
-    region = Region(id=95, name_uz="Test 95", name_ru="Test 95", slug="t95", order=95)
-    db.add(region)
-    await db.commit()
+    trip = await _create_trip(db, driver_user)
 
-    resp = await client.post("/api/v1/trips/", json={
-        "from_region_id": region.id,
-        "to_region_id": region.id,
-        "departure_date": (date.today() + timedelta(days=2)).isoformat(),
-        "departure_time": "09:00",
-        "total_seats": 4,
-        "price_per_seat": 100_000,
-        "payment_type": "cash",
-        "from_address": "Metro Buyuk Ipak Yo'li",
-    }, headers=auth_headers(driver))
+    resp = await client.post(
+        "/api/v1/bookings",
+        json={
+            "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+            "pickup_address": "Chilonzor 19-kvartal, 42-uy",
+            "pickup_lat": 41.2856, "pickup_lng": 69.2034,
+        },
+        headers=auth_headers(user),
+    )
     assert resp.status_code == 201, resp.text
-    assert resp.json()["door_to_door"] is False
-    assert resp.json()["from_address"] == "Metro Buyuk Ipak Yo'li"
+    assert resp.json()["pickup_address"] == "Chilonzor 19-kvartal, 42-uy"
+    assert "41.2856" in resp.json()["pickup_map_url"]
+
+    notifs = (await client.get(
+        "/api/v1/notifications", headers=auth_headers(driver)
+    )).json()
+    body = notifs[0]["body"]
+    assert "Chilonzor 19-kvartal, 42-uy" in body
+    assert "maps.google.com" in body
+
+
+@pytest.mark.asyncio
+async def test_pickup_without_coords_has_no_link(
+    client: AsyncClient, db: AsyncSession, user: User, driver_user: tuple,
+):
+    """Koordinata berilmasa havola yasalmaydi — manzil o'zi yetarli."""
+    trip = await _create_trip(db, driver_user)
+    resp = await client.post(
+        "/api/v1/bookings",
+        json={
+            "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+            "pickup_address": "Yunusobod 4-kvartal, 12-uy",
+        },
+        headers=auth_headers(user),
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["pickup_map_url"] is None
