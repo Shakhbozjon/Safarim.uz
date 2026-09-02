@@ -14,17 +14,23 @@ import { saveTokens, formatPhone, getApiError } from "@/lib/auth";
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
 
+/** "901234567" → "+998 90 123-45-67". To'liq bo'lmasa null.
+ *
+ *  Raqamni guruhlab qaytarib ko'rsatish xatoni bir qarashda ko'rsatadi —
+ *  shu sabab "takrorlang" maydoni olib tashlandi: qayta terish ham xatoni
+ *  takrorlashi mumkin, ko'z bilan tekshirish esa arzonroq va ishonchliroq. */
+function prettyPhone(raw: string): string | null {
+  const d = onlyDigits(raw).replace(/^998/, "");
+  if (d.length !== 9) return null;
+  return `+998 ${d.slice(0, 2)} ${d.slice(2, 5)}-${d.slice(5, 7)}-${d.slice(7, 9)}`;
+}
+
 const schema = z.object({
   phone: z.string().min(9, "9 raqam kiriting").max(13),
-  confirm_phone: z.string(),
   full_name: z.string().min(3, "Kamida 3 ta harf"),
   password: z.string().min(6, "Kamida 6 ta belgi"),
   confirm_password: z.string(),
 })
-  .refine((d) => onlyDigits(d.phone) === onlyDigits(d.confirm_phone), {
-    message: "Raqamlar mos emas — qayta tekshiring",
-    path: ["confirm_phone"],
-  })
   .refine((d) => d.password === d.confirm_password, {
     message: "Parollar mos emas",
     path: ["confirm_password"],
@@ -148,21 +154,17 @@ export default function RegisterPage() {
               {...form.register("phone")}
             />
 
-            <Input
-              label="Telefon raqamni takrorlang"
-              type="tel"
-              placeholder="901234567"
-              prefix={
-                <span className="flex items-center gap-1.5 text-gray-500">
-                  <Phone size={15} />
-                  <span className="text-sm font-medium">+998</span>
-                </span>
-              }
-              hint="Xatoni oldini olish uchun raqamni qayta kiriting"
-              error={form.formState.errors.confirm_phone?.message}
-              onPaste={(e) => e.preventDefault()}
-              {...form.register("confirm_phone")}
-            />
+            {prettyPhone(form.watch("phone") ?? "") && (
+              <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                <p className="text-[13px] text-gray-500">Kiritilgan raqam</p>
+                <p className="text-lg font-bold text-gray-900 tabular-nums tracking-wide">
+                  {prettyPhone(form.watch("phone") ?? "")}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Tekshiring — keyin shu raqam bilan kirasiz.
+                </p>
+              </div>
+            )}
 
             <Input
               label="Ism familiya"
