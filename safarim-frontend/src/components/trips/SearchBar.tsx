@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, Calendar, Users, Search } from "lucide-react";
+import { ArrowLeftRight, Calendar, ChevronDown, Users, Search } from "lucide-react";
 import Button from "@/components/ui/Button";
 import LocationPicker, { LocationValue, EMPTY_LOCATION } from "@/components/ui/LocationPicker";
+import { dateLabel, isoOf } from "@/lib/date";
+
+const LABEL = "block text-[14px] font-bold text-gray-800 mb-1";
 
 interface SearchBarProps {
   compact?:          boolean;
@@ -49,6 +52,13 @@ export default function SearchBar({
   });
   const [date, setDate]   = useState(defaultDate);
   const [seats, setSeats] = useState(defaultSeats);
+
+  // Sana berilmagan bo'lsa sukut bo'yicha bugun. Render paytida emas,
+  // mount'dan keyin: `new Date()` serverda va brauzerda farq qilib
+  // hydration xatosiga olib kelishi mumkin.
+  useEffect(() => {
+    if (!defaultDate) setDate(isoOf(new Date()));
+  }, [defaultDate]);
 
   function swap() {
     setFrom(to);
@@ -110,14 +120,18 @@ export default function SearchBar({
 
         {/* Sana + qidirish (mobilда 2-qator) */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <div className="relative flex items-center gap-1.5 flex-1 min-w-0">
             <Calendar size={14} className="text-gray-400 shrink-0" />
+            <span className="text-sm font-medium text-gray-700 py-2.5 flex-1 min-w-0 sm:w-[120px]">
+              {dateLabel(date)}
+            </span>
             <input
               type="date"
               value={date}
-              min={new Date().toISOString().split("T")[0]}
+              min={date ? isoOf(new Date()) : undefined}
               onChange={(e) => setDate(e.target.value)}
-              className="text-sm text-gray-700 bg-transparent outline-none flex-1 min-w-0 w-full sm:w-[120px] py-2.5"
+              aria-label="Sana"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </div>
           <Button type="submit" size="sm" className="shrink-0" disabled={!canSearch}>
@@ -138,13 +152,11 @@ export default function SearchBar({
 
         {/* Qayerdan */}
         <div className="px-5 py-1">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-            Qayerdan
-          </label>
+          <label className={LABEL}>Qayerdan</label>
           <LocationPicker
             value={from}
             onChange={setFrom}
-            placeholder="Viloyat / shahar"
+            placeholder="Viloyat, shahar, tuman"
           />
         </div>
 
@@ -161,13 +173,11 @@ export default function SearchBar({
 
         {/* Qayerga */}
         <div className="px-5 py-1 border-t sm:border-t-0 sm:border-l border-gray-100">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-            Qayerga
-          </label>
+          <label className={LABEL}>Qayerga</label>
           <LocationPicker
             value={to}
             onChange={setTo}
-            placeholder="Viloyat / shahar"
+            placeholder="Viloyat, shahar, tuman"
           />
         </div>
 
@@ -175,15 +185,20 @@ export default function SearchBar({
 
         {/* Sana */}
         <div className="px-5 py-1 border-t lg:border-t-0 border-l-0 lg:border-l border-gray-100">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Sana</label>
-          <div className="flex items-center gap-2">
+          <label className={LABEL}>Sana</label>
+          {/* Sana "Bugun" deb ko'rinadi, bosilganda telefonning o'z kalendari
+              ochilsin — input matn ustiga shaffof qo'yiladi. */}
+          <div className="relative flex items-center gap-2 py-3">
             <Calendar size={16} className="text-primary-500 shrink-0" />
+            <span className="flex-1 text-base font-medium text-gray-900">{dateLabel(date)}</span>
+            <ChevronDown size={15} className="text-gray-400 shrink-0" />
             <input
               type="date"
               value={date}
-              min={new Date().toISOString().split("T")[0]}
+              min={date ? isoOf(new Date()) : undefined}
               onChange={(e) => setDate(e.target.value)}
-              className="flex-1 bg-transparent outline-none text-base font-medium text-gray-900 py-3"
+              aria-label="Sana"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </div>
         </div>
@@ -192,7 +207,7 @@ export default function SearchBar({
 
         {/* O'rin */}
         <div className="px-5 py-1 border-t lg:border-t-0 border-l-0 lg:border-l border-gray-100">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">O'rin</label>
+          <label className={LABEL}>Yo&apos;lovchi</label>
           <div className="flex items-center gap-3 py-3">
             <Users size={16} className="text-primary-500 shrink-0" />
             <button
@@ -202,8 +217,8 @@ export default function SearchBar({
             >
               −
             </button>
-            <span className="text-base font-semibold text-gray-900 w-4 text-center tabular-nums">
-              {seats}
+            <span className="text-base font-semibold text-gray-900 min-w-[92px] text-center tabular-nums">
+              {seats} yo&apos;lovchi
             </span>
             <button
               type="button"
