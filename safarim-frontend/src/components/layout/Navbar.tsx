@@ -218,13 +218,15 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                   <Link href="/login" className="hidden sm:block">
                     <Button variant="ghost" size="sm">Kirish</Button>
                   </Link>
-                  <Link href="/register">
-                    {/* Tor Android ekranlarida (360px) to'liq matn logotip ustiga
-                        chiqib ketardi — mobil uchun qisqa shakl */}
-                    <Button size="sm" className="whitespace-nowrap">
-                      <span className="sm:hidden">Qo&apos;shilish</span>
-                      <span className="hidden sm:inline">Ro&apos;yxatdan o&apos;tish</span>
-                    </Button>
+                  {/* Button komponenti emas, to'g'ridan-to'g'ri Link: `size="sm"`
+                      dagi `text-sm` bilan bir xil xususiylikda kurashmasdan
+                      shriftni kichraytirish uchun. 360px da to'liq matn shundagina
+                      logotip ustiga chiqmasdan sig'adi. */}
+                  <Link
+                    href="/register"
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-semibold text-[12.5px] px-3 py-2 transition-colors shrink-0"
+                  >
+                    Ro&apos;yxatdan o&apos;tish
                   </Link>
                 </>
               )}
