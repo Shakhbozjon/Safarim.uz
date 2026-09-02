@@ -4,8 +4,22 @@
     {
       "name": "safarim-frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "safarim-frontend"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "safarim-frontend"
+      ],
       "port": 3000
+    },
+    {
+      "name": "safarim-api",
+      "runtimeExecutable": "safarim-backend/venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "-c",
+        "import os,sys; os.chdir('safarim-backend'); sys.path.insert(0,'.'); import uvicorn; uvicorn.run('app.main:app', host='127.0.0.1', port=8000, reload=False)"
+      ],
+      "port": 8000
     }
   ]
 }
