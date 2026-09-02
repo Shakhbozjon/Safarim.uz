@@ -122,14 +122,15 @@ export default function Navbar({ transparent = false }: NavbarProps) {
 
             {/* Right */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Safar e'lon qilish — har doim ko'rinadi (desktopda ham, mehmonga ham).
-                  Haydovchi bo'lmaganni `/create-trip` "Haydovchi bo'ling" sahifasiga
-                  olib chiqadi, shuning uchun ro'yxatda rol tanlash keraksiz bo'ldi. */}
+              {/* Safar e'lon qilish. Faqat `md` dan boshlab: pastki menyuda ayni shu
+                  "+" bor va u `md:hidden` — ikkalasi birga chiqsa bir ekranda ikkita
+                  bir xil tugma paydo bo'lardi. Desktopda esa haydovchi e'lon qo'yish
+                  yo'lini umuman topolmasdi, bo'shliq aynan shu yerda edi. */}
               <Link
                 href="/create-trip"
                 title="Safar e'lon qilish"
                 aria-label="Safar e'lon qilish"
-                className="w-9 h-9 rounded-full bg-primary-500 hover:bg-primary-600 text-white flex items-center justify-center transition-colors shrink-0"
+                className="w-9 h-9 rounded-full bg-primary-500 hover:bg-primary-600 text-white hidden md:flex items-center justify-center transition-colors shrink-0"
               >
                 <Plus size={18} />
               </Link>
