@@ -107,13 +107,17 @@ function TripsContent() {
 
   if (!isReady) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 text-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+        {/* `text-center` faqat pastdagi xabar uchun: konteynerda tursa
+            formaning yorliqlari ham markazga tortilib qolardi */}
         <div className="mb-8">
           <SearchBar />
         </div>
-        <div className="text-5xl mb-4">🚗</div>
-        <p className="text-lg font-semibold text-gray-900 mb-2">Qidirish uchun shahar va sana tanlang</p>
-        <p className="text-sm text-gray-500">Qayerdan, qayerga va qachon — uchta maydonni to'ldiring</p>
+        <div className="text-center">
+          <div className="text-5xl mb-4">🚗</div>
+          <p className="text-lg font-semibold text-gray-900 mb-2">Qidirish uchun shahar va sana tanlang</p>
+          <p className="text-sm text-gray-500">Qayerdan, qayerga va qachon — uchta maydonni to'ldiring</p>
+        </div>
       </div>
     );
   }
