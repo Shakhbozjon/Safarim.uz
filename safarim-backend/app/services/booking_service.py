@@ -351,6 +351,65 @@ async def flag_refund_due(db: AsyncSession, booking: Booking, refund_amount: int
     )
 
 
+async def update_pickup(
+    db: AsyncSession,
+    booking_id: str,
+    passenger: User,
+    address: str,
+    lat: float | None,
+    lng: float | None,
+) -> Booking:
+    """Olib ketish manzilini o'zgartiradi va haydovchiga xabar beradi.
+
+    Yo'lovchi band qilishda ishxonasida bo'lib, ertalab boshqa joydan chiqishi
+    mumkin. Busiz uning yagona yo'li — haydovchiga qo'ng'iroq qilish.
+    """
+    import uuid as uuid_lib
+
+    result = await db.execute(
+        select(Booking)
+        .options(selectinload(Booking.trip))
+        .where(Booking.id == uuid_lib.UUID(booking_id))
+    )
+    booking = result.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Band qilish topilmadi")
+    if booking.passenger_id != passenger.id:
+        raise HTTPException(status_code=403, detail="Bu band qilish sizniki emas")
+    if booking.status not in (BookingStatus.pending, BookingStatus.confirmed):
+        raise HTTPException(
+            status_code=400, detail="Bu band qilishda manzilni o'zgartirib bo'lmaydi"
+        )
+
+    changed = address != (booking.pickup_address or "")
+    booking.pickup_address = address
+    booking.pickup_lat = lat
+    booking.pickup_lng = lng
+
+    # Manzil o'zgarmagan bo'lsa haydovchini bezovta qilmaymiz — yo'lovchi faqat
+    # koordinatani aniqlashtirgan bo'lishi mumkin
+    if changed:
+        body = f"{passenger.full_name}: {address}"
+        link = map_link(lat, lng)
+        if link:
+            body += f"\n{link}"
+        await notification_service.create(
+            db,
+            user_id=booking.trip.driver_id,
+            title="Olib ketish manzili o'zgardi",
+            body=body,
+            ref_type=NotificationRefType.booking,
+            ref_id=booking.id,
+        )
+
+    await db.commit()
+
+    result = await db.execute(
+        select(Booking).options(*_load_options()).where(Booking.id == booking.id)
+    )
+    return result.scalar_one()
+
+
 async def cancel_booking(
     db: AsyncSession,
     booking_id: str,

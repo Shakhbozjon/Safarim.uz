@@ -411,3 +411,103 @@ async def test_pickup_without_coords_has_no_link(
     )
     assert resp.status_code == 201, resp.text
     assert resp.json()["pickup_map_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_pickup_can_be_edited_and_driver_notified(
+    client: AsyncClient, db: AsyncSession, user: User, driver_user: tuple,
+):
+    """Yo'lovchi manzilni o'zgartirsa haydovchiga xabar boradi."""
+    driver, _dp = driver_user
+    trip = await _create_trip(db, driver_user)
+
+    created = await client.post(
+        "/api/v1/bookings",
+        json={
+            "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+            "pickup_address": "Chilonzor 19-kvartal, 42-uy",
+        },
+        headers=auth_headers(user),
+    )
+    booking_id = created.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/bookings/{booking_id}/pickup",
+        json={
+            "pickup_address": "Yunusobod 4-kvartal, 12-uy",
+            "pickup_lat": 41.3600, "pickup_lng": 69.2890,
+        },
+        headers=auth_headers(user),
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["pickup_address"] == "Yunusobod 4-kvartal, 12-uy"
+    assert "41.36" in resp.json()["pickup_map_url"]
+
+    notifs = (await client.get(
+        "/api/v1/notifications", headers=auth_headers(driver)
+    )).json()
+    assert notifs[0]["title"] == "Olib ketish manzili o'zgardi"
+    assert "Yunusobod 4-kvartal, 12-uy" in notifs[0]["body"]
+
+
+@pytest.mark.asyncio
+async def test_pickup_edit_only_by_owner(
+    client: AsyncClient, db: AsyncSession, user: User, driver_user: tuple,
+):
+    """Boshqa odam manzilni o'zgartira olmaydi."""
+    driver, _dp = driver_user
+    trip = await _create_trip(db, driver_user)
+
+    created = await client.post(
+        "/api/v1/bookings",
+        json={
+            "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+            "pickup_address": "Chilonzor 19-kvartal, 42-uy",
+        },
+        headers=auth_headers(user),
+    )
+    booking_id = created.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/bookings/{booking_id}/pickup",
+        json={"pickup_address": "Boshqa joy, 1-uy"},
+        headers=auth_headers(driver),
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_pickup_edit_without_change_is_quiet(
+    client: AsyncClient, db: AsyncSession, user: User, driver_user: tuple,
+):
+    """Manzil o'zgarmasa haydovchi bezovta qilinmaydi (faqat koordinata aniqlangan)."""
+    driver, _dp = driver_user
+    trip = await _create_trip(db, driver_user)
+    same = "Chilonzor 19-kvartal, 42-uy"
+
+    created = await client.post(
+        "/api/v1/bookings",
+        json={
+            "trip_id": str(trip.id), "seats_count": 1, "payment_method": "cash",
+            "pickup_address": same,
+        },
+        headers=auth_headers(user),
+    )
+    booking_id = created.json()["id"]
+
+    before = len((await client.get(
+        "/api/v1/notifications", headers=auth_headers(driver)
+    )).json())
+
+    resp = await client.patch(
+        f"/api/v1/bookings/{booking_id}/pickup",
+        json={"pickup_address": same, "pickup_lat": 41.28, "pickup_lng": 69.20},
+        headers=auth_headers(user),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["pickup_map_url"] is not None
+
+    after = len((await client.get(
+        "/api/v1/notifications", headers=auth_headers(driver)
+    )).json())
+    assert after == before

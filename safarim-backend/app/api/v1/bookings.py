@@ -3,7 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.booking import BookingCreate, BookingResponse, CancelBookingRequest, ConfirmBookingRequest
+from app.schemas.booking import (
+    BookingCreate, BookingResponse, CancelBookingRequest, ConfirmBookingRequest, PickupUpdate,
+)
 from app.services import booking_service
 from app.core.dependencies import get_current_user, get_current_driver
 
@@ -58,6 +60,22 @@ async def get_booking(
     db: AsyncSession = Depends(get_db),
 ):
     booking = await booking_service.get_booking(db, booking_id, current_user)
+    return booking_service.serialize_booking(booking, current_user)
+
+
+@router.patch(
+    "/{booking_id}/pickup",
+    summary="Olib ketish manzilini o'zgartirish (yo'lovchi)",
+)
+async def update_pickup(
+    booking_id: str,
+    data: PickupUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    booking = await booking_service.update_pickup(
+        db, booking_id, current_user, data.pickup_address, data.pickup_lat, data.pickup_lng
+    )
     return booking_service.serialize_booking(booking, current_user)
 
 

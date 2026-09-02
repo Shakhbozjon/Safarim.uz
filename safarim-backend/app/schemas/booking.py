@@ -35,6 +35,21 @@ class BookingCreate(BaseModel):
         return v
 
 
+class PickupUpdate(BaseModel):
+    """Yo'lovchi olib ketish manzilini o'zgartiradi (band qilingandan keyin)."""
+    pickup_address: str
+    pickup_lat: float | None = None
+    pickup_lng: float | None = None
+
+    @field_validator("pickup_address")
+    @classmethod
+    def validate_pickup(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 5:
+            raise ValueError("Olib ketish manzilini to'liqroq yozing")
+        return v
+
+
 class BookingPassengerInfo(BaseModel):
     id: uuid.UUID
     full_name: str

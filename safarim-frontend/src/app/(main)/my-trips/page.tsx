@@ -59,6 +59,35 @@ export default function MyTripsPage() {
   const [reviewError, setReviewError] = useState("");
   const [showAllPast, setShowAllPast] = useState(false);
 
+  // Olib ketish manzilini tahrirlash — yo'lovchi band qilishda ishxonasida
+  // bo'lib, ertalab boshqa joydan chiqishi mumkin
+  const [pickupModal, setPickupModal] = useState<string | null>(null);
+  const [pickupText, setPickupText]   = useState("");
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickupGeo, setPickupGeo]     = useState<"idle" | "loading" | "error">("idle");
+  const [pickupError, setPickupError] = useState("");
+
+  function openPickup(b: BookingResponse) {
+    setPickupModal(b.id);
+    setPickupText(b.pickup_address ?? "");
+    setPickupCoords(null);
+    setPickupGeo("idle");
+    setPickupError("");
+  }
+
+  function usePickupLocation() {
+    if (!navigator.geolocation) { setPickupGeo("error"); return; }
+    setPickupGeo("loading");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setPickupGeo("idle");
+      },
+      () => setPickupGeo("error"),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
   const { data: bookings = [], isLoading } = useQuery<BookingResponse[]>({
     queryKey: ["my-bookings"],
     queryFn: async () => (await api.get("/bookings/my")).data,
@@ -73,6 +102,18 @@ export default function MyTripsPage() {
     mutationFn: async (id: string) => { await api.post(`/bookings/${id}/cancel`); },
     onSuccess: () => { setCancelModal(null); qc.invalidateQueries({ queryKey: ["my-bookings"] }); },
     onError: (err: any) => setCancelError(getApiError(err)),
+  });
+
+  const pickupMutation = useMutation({
+    mutationFn: async ({ id, address, lat, lng }: {
+      id: string; address: string; lat?: number; lng?: number;
+    }) => {
+      await api.patch(`/bookings/${id}/pickup`, {
+        pickup_address: address, pickup_lat: lat, pickup_lng: lng,
+      });
+    },
+    onSuccess: () => { setPickupModal(null); qc.invalidateQueries({ queryKey: ["my-bookings"] }); },
+    onError: (err: any) => setPickupError(getApiError(err)),
   });
 
   const confirmMutation = useMutation({
@@ -182,6 +223,27 @@ export default function MyTripsPage() {
             </div>
           </div>
         </div>
+
+        {/* Olib ketish joyi — haydovchi shu yerga keladi */}
+        {(b.pickup_address || canCancel) && (
+          <div className="mt-3 pt-3 border-t border-gray-50 flex items-start gap-2">
+            <MapPin size={14} className="text-primary-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-gray-600 flex-1 min-w-0">
+              {b.pickup_address || <span className="text-gray-400">Olib ketish joyi ko&apos;rsatilmagan</span>}
+              {canCancel && (
+                <>
+                  {" · "}
+                  <button
+                    onClick={() => openPickup(b)}
+                    className="font-semibold text-primary-600 hover:underline"
+                  >
+                    O&apos;zgartirish
+                  </button>
+                </>
+              )}
+            </p>
+          </div>
+        )}
 
         {/* Narx + amallar */}
         <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-gray-50">
@@ -491,6 +553,67 @@ export default function MyTripsPage() {
       </div>
 
       {/* ── Cancel modal ─────────────────────────────────────────────────── */}
+      <Modal open={!!pickupModal} onClose={() => setPickupModal(null)} title="Olib ketish joyi">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Haydovchi shu manzilga keladi. O&apos;zgartirsangiz unga xabar boradi.
+          </p>
+
+          <input
+            value={pickupText}
+            onChange={(e) => setPickupText(e.target.value)}
+            placeholder="Masalan: Chilonzor 19-kvartal, 42-uy"
+            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-primary-400"
+          />
+
+          <button
+            type="button"
+            onClick={usePickupLocation}
+            disabled={pickupGeo === "loading"}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-60"
+          >
+            <MapPin size={13} />
+            {pickupCoords
+              ? "Joylashuv qo'shildi ✓"
+              : pickupGeo === "loading"
+                ? "Aniqlanmoqda…"
+                : "Aniq joylashuvimni qo'shish"}
+          </button>
+          {pickupGeo === "error" && (
+            <p className="text-xs text-gray-400">
+              Joylashuvni olib bo&apos;lmadi — manzilni yozib qo&apos;ying, yetarli.
+            </p>
+          )}
+
+          {pickupError && (
+            <div className="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 border border-red-100">{pickupError}</div>
+          )}
+
+          <div className="flex gap-3">
+            <Button variant="outline" fullWidth onClick={() => setPickupModal(null)}>Bekor qilish</Button>
+            <Button
+              fullWidth
+              loading={pickupMutation.isPending}
+              onClick={() => {
+                if (pickupText.trim().length < 5) {
+                  setPickupError("Manzilni to'liqroq yozing");
+                  return;
+                }
+                setPickupError("");
+                pickupMutation.mutate({
+                  id: pickupModal!,
+                  address: pickupText.trim(),
+                  lat: pickupCoords?.lat,
+                  lng: pickupCoords?.lng,
+                });
+              }}
+            >
+              Saqlash
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={!!cancelModal} onClose={() => setCancelModal(null)} title="Band qilishni bekor qilish">
         <div className="space-y-4">
           <div className="bg-yellow-50 rounded-xl p-4 text-sm text-yellow-800">
