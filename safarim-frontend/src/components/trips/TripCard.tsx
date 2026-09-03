@@ -7,14 +7,11 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import SeatIndicator from "@/components/trips/SeatIndicator";
 import type { TripResponse } from "@/types";
+import { formatPrice } from "@/lib/format";
 
 interface TripCardProps {
   trip: TripResponse;
   className?: string;
-}
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("uz-UZ").format(price);
 }
 
 /** "HH:MM:SS" yoki "HH:MM" → "HH:MM" */

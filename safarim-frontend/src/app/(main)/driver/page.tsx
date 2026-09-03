@@ -19,6 +19,7 @@ import { getApiError } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { clsx } from "clsx";
 import type { TripResponse, BookingResponse, DriverReviewsResponse, DriverProfileResponse } from "@/types";
+import { formatPrice } from "@/lib/format";
 
 interface EarningsRecord {
   month: string;
@@ -42,9 +43,6 @@ interface WalletInfo {
   }[];
 }
 
-function formatPrice(n: number) {
-  return new Intl.NumberFormat("uz-UZ").format(n);
-}
 function formatShort(n: number) {
   const abs = Math.abs(n);
   if (abs >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
@@ -1177,9 +1175,9 @@ export default function DriverDashboardPage() {
                     {[50_000, 100_000, 200_000].map((preset) => (
                       <button
                         key={preset}
-                        onClick={() => { setTopupAmount(preset.toLocaleString("uz-UZ")); setTopupError(""); }}
+                        onClick={() => { setTopupAmount(formatPrice(preset)); setTopupError(""); }}
                         className={`py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
-                          topupAmount === preset.toLocaleString("uz-UZ")
+                          topupAmount === formatPrice(preset)
                             ? "border-green-500 bg-green-50 text-green-700"
                             : "border-gray-100 text-gray-600 hover:border-gray-200"
                         }`}
@@ -1194,7 +1192,7 @@ export default function DriverDashboardPage() {
                     inputMode="numeric"
                     onChange={(e) => {
                       const raw = e.target.value.replace(/\D/g, "");
-                      setTopupAmount(raw ? parseInt(raw).toLocaleString("uz-UZ") : "");
+                      setTopupAmount(raw ? formatPrice(parseInt(raw)) : "");
                       setTopupError("");
                     }}
                   />
@@ -1283,7 +1281,7 @@ export default function DriverDashboardPage() {
                   inputMode="numeric"
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\D/g, "");
-                    setWithdrawAmount(raw ? parseInt(raw).toLocaleString("uz-UZ") : "");
+                    setWithdrawAmount(raw ? formatPrice(parseInt(raw)) : "");
                     setWithdrawError("");
                   }}
                 />

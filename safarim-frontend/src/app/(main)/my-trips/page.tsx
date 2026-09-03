@@ -18,6 +18,7 @@ import { getApiError } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import type { BookingResponse, BookingStatus, ReviewResponse } from "@/types";
 import { clsx } from "clsx";
+import { formatPrice } from "@/lib/format";
 
 
 const STATUS_CONFIG: Record<BookingStatus, { label: string; cls: string }> = {
@@ -30,9 +31,6 @@ const STATUS_CONFIG: Record<BookingStatus, { label: string; cls: string }> = {
   no_show:               { label: "Kelmadi",          cls: "bg-red-100 text-red-600" },
 };
 
-function formatPrice(n: number) {
-  return new Intl.NumberFormat("uz-UZ").format(n);
-}
 function formatShort(n: number) {
   const abs = Math.abs(n);
   if (abs >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";

@@ -22,6 +22,7 @@ import api from "@/lib/api";
 import { isAuthenticated, getApiError } from "@/lib/auth";
 import type { TripResponse, BookingResponse } from "@/types";
 import { clsx } from "clsx";
+import { formatPrice } from "@/lib/format";
 
 const MONTHS = [
   "yanvar", "fevral", "mart", "aprel", "may", "iyun",
@@ -30,10 +31,6 @@ const MONTHS = [
 const WEEKDAYS = [
   "Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba",
 ];
-
-function formatPrice(n: number) {
-  return new Intl.NumberFormat("uz-UZ").format(n);
-}
 
 // "Payshanba, 3-sentabr" — sahifa sarlavhasi sifatida
 function formatDate(d: string) {

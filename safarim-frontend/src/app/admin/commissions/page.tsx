@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import api from "@/lib/api";
+import { formatPrice } from "@/lib/format";
 
 interface CommissionRecord {
   id: string;
@@ -18,9 +19,6 @@ interface CommissionRecord {
   paid_at: string | null;
 }
 
-function formatPrice(n: number) {
-  return new Intl.NumberFormat("uz-UZ").format(n);
-}
 function formatMonth(m: string) {
   const [y, mo] = m.split("-");
   const months = [

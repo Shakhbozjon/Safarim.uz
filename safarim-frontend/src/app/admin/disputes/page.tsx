@@ -6,6 +6,7 @@ import { Scale, Phone, CheckCircle, XCircle, AlertTriangle, User as UserIcon, Ca
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import api from "@/lib/api";
+import { formatPrice } from "@/lib/format";
 
 interface Dispute {
   id: string;
@@ -21,9 +22,6 @@ interface Dispute {
   driver: { id: string | null; full_name: string; phone: string | null; fake_confirmation_count: number };
 }
 
-function formatPrice(n: number) {
-  return new Intl.NumberFormat("uz-UZ").format(n);
-}
 function fmtDate(d?: string | null) {
   if (!d) return "";
   return new Date(d).toLocaleDateString("uz-UZ", { day: "numeric", month: "short" });

@@ -10,6 +10,7 @@ import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { formatPrice } from "@/lib/format";
 
 interface UsersResponse {
   total: number;
@@ -304,7 +305,7 @@ export default function AdminUsersPage() {
                 inputMode="numeric"
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, "");
-                  setTopupAmount(raw ? parseInt(raw).toLocaleString("uz-UZ") : "");
+                  setTopupAmount(raw ? formatPrice(parseInt(raw)) : "");
                 }}
               />
               <Input

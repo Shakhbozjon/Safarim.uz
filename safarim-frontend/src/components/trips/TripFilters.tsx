@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SlidersHorizontal, X, Luggage, ChevronDown } from "lucide-react";
 import { clsx } from "clsx";
 import Button from "@/components/ui/Button";
+import { formatPrice } from "@/lib/format";
 
 export interface Filters {
   maxPrice: number;
@@ -114,7 +115,7 @@ export default function TripFilters({ onChange, totalCount, variant = "both" }: 
             <div className="flex justify-between text-xs text-gray-400">
               <span>20,000 so'm</span>
               <span className="font-semibold text-gray-700">
-                {new Intl.NumberFormat("uz-UZ").format(filters.maxPrice)} so'm
+                {formatPrice(filters.maxPrice)} so'm
               </span>
             </div>
           </div>

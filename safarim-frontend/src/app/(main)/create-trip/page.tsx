@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import BecomeDriver from "@/components/driver/BecomeDriver";
 import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
+import { formatPrice } from "@/lib/format";
 
 const schema = z.object({
   from_region_id:   z.number({ required_error: "Viloyat tanlang" }).positive("Viloyat tanlang"),
@@ -352,7 +353,7 @@ export default function CreateTripPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Bir joy narxi:{" "}
                   <span className="text-primary-600 font-bold tabular-nums">
-                    {new Intl.NumberFormat("uz-UZ").format(price)} so'm
+                    {formatPrice(price)} so'm
                   </span>
                 </label>
                 <input
@@ -473,7 +474,7 @@ export default function CreateTripPage() {
                 {[
                   { label: "Marshrut",  value: `${fromName || "—"} → ${toName || "—"}` },
                   { label: "O'rinlar",  value: `${seats} ta yo'lovchi` },
-                  { label: "Narx",      value: `${new Intl.NumberFormat("uz-UZ").format(price)} so'm/joy` },
+                  { label: "Narx",      value: `${formatPrice(price)} so'm/joy` },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-gray-500">{label}</span>
