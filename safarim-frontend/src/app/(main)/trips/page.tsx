@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, MapPin, Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import Link from "next/link";
 import SearchBar from "@/components/trips/SearchBar";
 import TripCard from "@/components/trips/TripCard";
 import TripFilters, { DEFAULT_FILTERS, MAX_PRICE, type Filters } from "@/components/trips/TripFilters";
 import { TripCardSkeleton } from "@/components/ui/Skeleton";
 import api from "@/lib/api";
+import { dateLabel } from "@/lib/date";
 import type { TripResponse } from "@/types";
-
-type SortKey = "time_asc" | "price_asc" | "price_desc";
 
 // `toLocaleDateString("uz-UZ")` Node'da va brauzerda har xil natija beradi
 // (ICU ma'lumotlari boshqacha) — bu hydration xatosiga olib kelardi.
@@ -22,12 +21,6 @@ const UZ_MONTHS = [
   "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
 ];
 const UZ_WEEKDAYS = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
-
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "time_asc",    label: "Jo'nash vaqti" },
-  { value: "price_asc",  label: "Arzon narx" },
-  { value: "price_desc", label: "Qimmat narx" },
-];
 
 function TripsContent() {
   const params = useSearchParams();
@@ -43,7 +36,13 @@ function TripsContent() {
   const date               = params.get("date") || "";
   const seats              = Number(params.get("seats")) || 1;
 
-  const [sort, setSort] = useState<SortKey>("time_asc");
+  // Qidiruvni o'zgartirish uchun ixcham panel bosiladi va to'liq forma ochiladi.
+  // Saralash olib tashlandi: natijalar jo'nash vaqti bo'yicha keladi.
+  const [expanded, setExpanded] = useState(false);
+
+  // Yangi qidiruvdan keyin forma yopiladi. Sahifa o'sha marshrutda qolgani
+  // uchun holat o'z-o'zidan tozalanmaydi va forma ochiq turib qolardi.
+  useEffect(() => setExpanded(false), [fromId, toId, date, seats]);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
 
   const isReady = fromId && toId && date;
@@ -52,7 +51,7 @@ function TripsContent() {
     // Backend faqat women_only va max_price ni qo'llab-quvvatlaydi — o'shalar
     // so'rovga qo'shiladi va queryKey ga kiradi. Vaqt, reyting va yuk esa
     // kelgan ro'yxat ustida pastda filtrlanadi (backendda bunday parametr yo'q).
-    queryKey: ["trips", fromId, toId, date, seats, sort, filters.womenOnly, filters.maxPrice],
+    queryKey: ["trips", fromId, toId, date, seats, filters.womenOnly, filters.maxPrice],
     queryFn: async () => {
       const { data } = await api.get("/trips/search", {
         params: {
@@ -60,7 +59,6 @@ function TripsContent() {
           to_region_id:    toId,
           departure_date:  date,
           seats,
-          sort,
           ...(filters.womenOnly ? { women_only: true } : {}),
           ...(filters.maxPrice < MAX_PRICE ? { max_price: filters.maxPrice } : {}),
         },
@@ -124,52 +122,45 @@ function TripsContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      {/* Search bar */}
-      <div className="mb-6">
-        <SearchBar
-          compact
-          defaultFromId={fromId}
-          defaultToId={toId}
-          defaultFromName={fromName}
-          defaultToName={toName}
-          defaultFromDistrictId={fromDistrictId}
-          defaultToDistrictId={toDistrictId}
-          defaultFromDistrictName={fromDistrictName}
-          defaultToDistrictName={toDistrictName}
-          defaultDate={date}
-          defaultSeats={seats}
-        />
-      </div>
-
-      {/* Heading */}
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <MapPin size={18} className="text-primary-500" />
-            {fromName} → {toName}
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {formatDate(date)} · {seats} yo'lovchi
-          </p>
+      {/* Qidiruv: yig'ilgan holatda bitta qator. Yo'nalish avval ikki joyda
+          — panelda va uning ostidagi sarlavhada — takrorlanardi. */}
+      {expanded ? (
+        <div className="mb-6">
+          <SearchBar
+            defaultFromId={fromId}
+            defaultToId={toId}
+            defaultFromName={fromName}
+            defaultToName={toName}
+            defaultFromDistrictId={fromDistrictId}
+            defaultToDistrictId={toDistrictId}
+            defaultFromDistrictName={fromDistrictName}
+            defaultToDistrictName={toDistrictName}
+            defaultDate={date}
+            defaultSeats={seats}
+          />
         </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <TripFilters variant="button" totalCount={visibleTrips.length} onChange={setFilters} />
-
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-1 py-1">
-            <ArrowUpDown size={13} className="text-gray-400 ml-1.5" />
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-              className="text-sm text-gray-700 bg-transparent outline-none py-1.5 pr-2 cursor-pointer"
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+      ) : (
+        <div className="mb-6 flex items-center gap-2 bg-white border-2 border-primary-500 rounded-full pl-4 pr-2 py-2">
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="flex items-center gap-3 flex-1 min-w-0 text-left"
+          >
+            <Search size={18} className="text-gray-500 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-gray-900 truncate">
+                {fromName} → {toName}
+              </span>
+              <span className="block text-[13px] text-gray-500">
+                {dateLabel(date)}, {seats} yo&apos;lovchi
+              </span>
+            </span>
+          </button>
+          <div className="shrink-0">
+            <TripFilters variant="button" totalCount={visibleTrips.length} onChange={setFilters} />
           </div>
         </div>
-      </div>
+      )}
 
       <div className="flex gap-6">
         {/* Sidebar filters (faqat desktop) */}
