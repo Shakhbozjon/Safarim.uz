@@ -5,9 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, Clock, Users, Luggage, MapPin, CheckCircle,
-  ChevronRight, Star, Shield, MessageCircle, Phone,
-  CigaretteOff, PawPrint, Wind,
+  ArrowLeft, Users, Luggage, MapPin, CheckCircle,
+  ChevronRight, Shield, MessageCircle, Phone, CalendarClock,
+  CigaretteOff, PawPrint, Wallet,
 } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import Stars from "@/components/ui/Stars";
@@ -15,7 +15,6 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { TripDetailSkeleton } from "@/components/ui/Skeleton";
-import SeatIndicator from "@/components/trips/SeatIndicator";
 import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import WomenOnlyGate from "@/components/trips/WomenOnlyGate";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,18 +23,31 @@ import { isAuthenticated, getApiError } from "@/lib/auth";
 import type { TripResponse, BookingResponse } from "@/types";
 import { clsx } from "clsx";
 
+const MONTHS = [
+  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+  "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
+];
+const WEEKDAYS = [
+  "Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba",
+];
+
 function formatPrice(n: number) {
   return new Intl.NumberFormat("uz-UZ").format(n);
 }
 
+// "Payshanba, 3-sentabr" — sahifa sarlavhasi sifatida
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("uz-UZ", {
-    day: "numeric", month: "long", year: "numeric", weekday: "long",
-  });
+  const dt = new Date(`${d}T00:00:00`);
+  return `${WEEKDAYS[dt.getDay()]}, ${dt.getDate()}-${MONTHS[dt.getMonth()]}`;
 }
 
 function fmtTime(t: string) {
   return t.slice(0, 5);
+}
+
+// Bo'limlar orasidagi kulrang polosa — alohida kartalar o'rniga
+function Band() {
+  return <div className="h-2 bg-gray-100" />;
 }
 
 export default function TripDetailPage() {
@@ -119,7 +131,7 @@ export default function TripDetailPage() {
   // ── Skeletons ──
   if (isLoading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-[640px] mx-auto px-4 sm:px-6 py-6">
         <TripDetailSkeleton />
       </div>
     );
@@ -127,7 +139,7 @@ export default function TripDetailPage() {
 
   if (isError || !trip) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 text-center">
+      <div className="max-w-[640px] mx-auto px-4 sm:px-6 py-16 text-center">
         <p className="text-lg font-semibold text-gray-900 mb-2">Safar topilmadi</p>
         <Button onClick={() => router.back()} variant="outline">Orqaga</Button>
       </div>
@@ -135,269 +147,267 @@ export default function TripDetailPage() {
   }
 
   const totalPrice = trip.price_per_seat * seats;
-  const commission = totalPrice * (totalPrice > 200_000 ? 0.05 : 0.02);
+  const isActive = trip.status === "active";
+
+  const fromSub = [trip.from_district?.name_uz, trip.from_address]
+    .filter(Boolean).join(", ");
+  const toSub = [trip.to_district?.name_uz, trip.to_address]
+    .filter(Boolean).join(", ");
+
+  function startBooking() {
+    if (!isAuthenticated()) {
+      router.push("/login?next=/trips/" + id);
+      return;
+    }
+    // Tasdiqlanmagan raqamni backend baribir rad etadi — sababini
+    // xato xabaridan emas, shu yerda ko'rsatamiz
+    if (user && !user.is_phone_verified) {
+      setVerifyModal(true);
+      return;
+    }
+    // "Faqat ayollar" safari — jins belgilanmagan yoki erkak
+    // bo'lsa, backend rad etadi; sababini shu yerda tushuntiramiz
+    if (trip!.women_only && user && user.gender !== "female") {
+      setGenderModal(true);
+      return;
+    }
+    setBookingModal(true);
+  }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-      {/* Back */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 mb-6 transition-colors"
-      >
-        <ArrowLeft size={16} />
-        Orqaga
-      </button>
+    <div className="max-w-[640px] mx-auto sm:px-6 sm:py-6">
+      <div className="bg-white sm:rounded-2xl sm:border sm:border-gray-100">
 
-      <div className="grid lg:grid-cols-[1fr_340px] gap-6">
-        {/* Left column */}
-        <div className="space-y-5">
+        {/* ── Sana + marshrut ── */}
+        <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-5">
+          <button
+            onClick={() => router.back()}
+            className="-ml-2 mb-4 w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+            aria-label="Orqaga"
+          >
+            <ArrowLeft size={18} />
+          </button>
 
-          {/* Route card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-5">
-              <Clock size={14} />
-              {formatDate(trip.departure_date)}
+          <h1 className="text-[26px] sm:text-3xl font-bold tracking-tight text-gray-900 mb-6">
+            {formatDate(trip.departure_date)}
+          </h1>
+
+          {/* Jo'nash */}
+          <div className="flex gap-3">
+            <div className="w-12 shrink-0 pt-0.5 text-[17px] font-bold text-gray-900 tabular-nums">
+              {fmtTime(trip.departure_time)}
             </div>
+            <div className="w-3 shrink-0 flex flex-col items-center pt-2">
+              <span className="w-3 h-3 rounded-full border-[3px] border-gray-900 shrink-0" />
+              <span className="w-0.5 flex-1 bg-gray-900 my-1" />
+            </div>
+            <div className="flex-1 min-w-0 pb-6">
+              <p className="text-lg font-bold text-gray-900">{trip.from_region.name_uz}</p>
+              {fromSub && <p className="text-sm text-gray-500 mt-0.5">{fromSub}</p>}
+            </div>
+          </div>
 
-            <div className="relative">
-              {/* From */}
-              <div className="flex items-start gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="route-dot-from mt-1.5" />
-                  <div className="w-0.5 bg-gray-200 flex-1 my-1" style={{ minHeight: "2.5rem" }} />
-                </div>
-                <div className="pb-6">
-                  <p className="text-2xl font-bold text-gray-900">{trip.from_region.name_uz}</p>
-                  <p className="text-3xl font-bold text-primary-500 tabular-nums mt-0.5">
-                    {fmtTime(trip.departure_time)}
+          {/* Yo'ldagi to'xtashlar */}
+          {trip.waypoints.map((wp) => (
+            <div key={wp.id} className="flex gap-3">
+              <div className="w-12 shrink-0 pt-1 text-sm font-semibold text-gray-400 tabular-nums">
+                {wp.arrival_time ? fmtTime(wp.arrival_time) : ""}
+              </div>
+              <div className="w-3 shrink-0 flex flex-col items-center pt-2">
+                <span className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 bg-white shrink-0" />
+                <span className="w-0.5 flex-1 bg-gray-900 my-1" />
+              </div>
+              <div className="flex-1 min-w-0 pb-6">
+                <p className="text-base font-semibold text-gray-700">{wp.region.name_uz}</p>
+                {wp.price_from_start > 0 && (
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {formatPrice(wp.price_from_start)} so&apos;m
                   </p>
-                  {trip.from_address && (
-                    <p className="text-sm text-gray-400 mt-1">{trip.from_address}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Waypoints */}
-              {trip.waypoints.map((wp) => (
-                <div key={wp.id} className="flex items-start gap-4 mb-0">
-                  <div className="flex flex-col items-center">
-                    <div className="w-2 h-2 rounded-full bg-gray-300 border-2 border-white ring-1 ring-gray-200 mt-1.5" />
-                    <div className="w-0.5 bg-gray-200 flex-1 my-1" style={{ minHeight: "2.5rem" }} />
-                  </div>
-                  <div className="pb-6">
-                    <p className="text-base font-semibold text-gray-700">{wp.region.name_uz}</p>
-                    {wp.arrival_time && (
-                      <p className="text-sm text-gray-500 tabular-nums">{fmtTime(wp.arrival_time)}</p>
-                    )}
-                    {wp.price_from_start > 0 && (
-                      <p className="text-xs text-primary-500 mt-0.5">
-                        {formatPrice(wp.price_from_start)} so'm
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {/* To */}
-              <div className="flex items-start gap-4">
-                <div className="route-dot-to mt-1.5" />
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{trip.to_region.name_uz}</p>
-                  {trip.to_address && (
-                    <p className="text-sm text-gray-400 mt-1">{trip.to_address}</p>
-                  )}
-                </div>
+                )}
               </div>
             </div>
-          </div>
+          ))}
 
-          {/* Driver card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Haydovchi</h2>
-            <div className="flex items-start gap-4">
-              <Avatar src={trip.driver.profile_photo} name={trip.driver.full_name} size="lg" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-lg font-bold text-gray-900">{trip.driver.full_name}</p>
-                    <Stars
-                      rating={trip.driver.rating_avg}
-                      showValue
-                      count={trip.driver.rating_count}
-                      className="mt-1"
-                    />
-                  </div>
-                  <Badge variant="success" dot>Tasdiqlangan</Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  {[
-                    { label: "Jami safarlar", value: trip.driver.total_trips },
-                    { label: "Muloqot darajasi", value: {
-                        silent: "Jim", normal: "Oddiy", talkative: "Suhbatdosh"
-                      }[trip.driver.talk_level] },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="bg-gray-50 rounded-xl p-3">
-                      <p className="text-xs text-gray-400">{label}</p>
-                      <p className="text-sm font-semibold text-gray-900 mt-0.5">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* Yetib borish */}
+          <div className="flex gap-3">
+            <div className="w-12 shrink-0" />
+            <div className="w-3 shrink-0 flex justify-center pt-2">
+              <span className="w-3 h-3 rounded-full border-[3px] border-gray-900 shrink-0" />
             </div>
-          </div>
-
-          {/* Amenities & conditions */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Shartlar</h2>
-            <div className="flex flex-wrap gap-3">
-              <div className={clsx(
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium",
-                trip.luggage_size === "large"
-                  ? "bg-gray-50 text-gray-700"
-                  : "bg-gray-50 text-gray-400"
-              )}>
-                <Luggage size={15} />
-                {{small: "Kichik yukxalta", medium: "O'rtacha yukxalta", large: "Katta yukxalta"}[trip.luggage_size]}
-              </div>
-
-              {!trip.smoking_allowed && (
-                <div className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2.5 rounded-xl text-sm font-medium">
-                  <CigaretteOff size={15} />Chekish ta'qiqlangan
-                </div>
-              )}
-              {trip.pets_allowed && (
-                <div className="flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-2.5 rounded-xl text-sm font-medium">
-                  <PawPrint size={15} />Hayvon mumkin
-                </div>
-              )}
-              {trip.women_only && (
-                <div className="flex items-center gap-2 bg-pink-50 text-pink-600 px-4 py-2.5 rounded-xl text-sm font-medium">
-                  Faqat ayollar
-                </div>
-              )}
-              <div className="flex items-center gap-2 bg-gray-50 text-gray-500 px-4 py-2.5 rounded-xl text-sm">
-                <Shield size={15} />Himoyalangan to'lov
-              </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-bold text-gray-900">{trip.to_region.name_uz}</p>
+              {toSub && <p className="text-sm text-gray-500 mt-0.5">{toSub}</p>}
             </div>
-
-            {trip.description && (
-              <div className="mt-4 pt-4 border-t border-gray-50">
-                <p className="text-sm text-gray-600 leading-relaxed">{trip.description}</p>
-              </div>
-            )}
-          </div>
-
-          {/* To'lov turi */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">To'lov turi</h2>
-            <p className="text-sm text-gray-600">
-              {{cash: "Naqd pul", click: "Click", payme: "Payme", any: "Har qanday usul"}[trip.payment_type]}
-            </p>
           </div>
         </div>
 
-        {/* Right column — Booking widget */}
-        <div className="lg:sticky lg:top-20 h-fit">
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-card-hover">
-            {trip.status !== "active" ? (
-              <div className="text-center py-4">
-                <p className="text-lg font-bold text-gray-700 mb-1">
-                  {trip.status === "full" ? "Joylar tugadi" : "Safar yakunlandi"}
-                </p>
-                <p className="text-sm text-gray-400">Boshqa safarlarni ko'ring</p>
-                <Link href="/trips" className="mt-4 block">
-                  <Button variant="outline" fullWidth>Qidirish</Button>
-                </Link>
-              </div>
-            ) : (
-              <>
-                <div className="mb-5">
-                  <p className="text-3xl font-bold text-gray-900 tabular-nums">
-                    {formatPrice(trip.price_per_seat * seats)}{" "}
-                    <span className="text-base font-normal text-gray-400">so'm</span>
+        <Band />
+
+        {/* ── Joy soni + narx ── */}
+        <div className="px-4 sm:px-6 py-5">
+          {isActive ? (
+            <>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-base font-semibold text-gray-900">Joy soni</p>
+                  <p className="text-sm text-gray-400 mt-0.5">
+                    {trip.available_seats} ta joy bo&apos;sh
                   </p>
-                  {seats > 1 && (
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {formatPrice(trip.price_per_seat)} so'm × {seats} joy
-                    </p>
-                  )}
-                  <SeatIndicator
-                    totalSeats={trip.total_seats}
-                    availableSeats={trip.available_seats}
-                    className="mt-3"
-                  />
                 </div>
-
-                {/* Seats selector */}
-                <div className="mb-5">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2">
-                    Joy soni
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setSeats(Math.max(1, seats - 1))}
-                      className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 font-bold transition-colors"
-                    >−</button>
-                    <span className="flex-1 text-center text-lg font-bold text-gray-900 tabular-nums">{seats}</span>
-                    <button
-                      onClick={() => setSeats(Math.min(trip.available_seats, seats + 1))}
-                      className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 font-bold transition-colors"
-                    >+</button>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSeats(Math.max(1, seats - 1))}
+                    disabled={seats <= 1}
+                    className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 hover:border-gray-400 disabled:opacity-40 disabled:hover:border-gray-200 transition-colors"
+                    aria-label="Kamaytirish"
+                  >−</button>
+                  <span className="w-8 text-center text-lg font-bold text-gray-900 tabular-nums">
+                    {seats}
+                  </span>
+                  <button
+                    onClick={() => setSeats(Math.min(trip.available_seats, seats + 1))}
+                    disabled={seats >= trip.available_seats}
+                    className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 hover:border-gray-400 disabled:opacity-40 disabled:hover:border-gray-200 transition-colors"
+                    aria-label="Ko'paytirish"
+                  >+</button>
                 </div>
+              </div>
 
-                <Button
-                  fullWidth
-                  size="lg"
-                  onClick={() => {
-                    if (!isAuthenticated()) {
-                      router.push("/login?next=/trips/" + id);
-                      return;
-                    }
-                    // Tasdiqlanmagan raqamni backend baribir rad etadi — sababini
-                    // xato xabaridan emas, shu yerda ko'rsatamiz
-                    if (user && !user.is_phone_verified) {
-                      setVerifyModal(true);
-                      return;
-                    }
-                    // "Faqat ayollar" safari — jins belgilanmagan yoki erkak
-                    // bo'lsa, backend rad etadi; sababini shu yerda tushuntiramiz
-                    if (trip.women_only && user && user.gender !== "female") {
-                      setGenderModal(true);
-                      return;
-                    }
-                    setBookingModal(true);
-                  }}
-                >
-                  Joy band qilish
-                </Button>
-
-                <div className="mt-5 space-y-2.5">
-                  {[
-                    { icon: Shield, text: "Himoyalangan to'lov" },
-                    { icon: Phone, text: "Band qilish tasdiqlanganidan keyin telefon ochiladi" },
-                    { icon: CheckCircle, text: "Bepul bekor qilish (24s oldin)" },
-                  ].map(({ icon: Icon, text }) => (
-                    <div key={text} className="flex items-start gap-2.5 text-xs text-gray-500">
-                      <Icon size={13} className="text-green-500 mt-0.5 shrink-0" />
-                      {text}
-                    </div>
-                  ))}
+              <div className="flex items-end justify-between gap-4 mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Users size={15} className="text-gray-400" />
+                  {formatPrice(trip.price_per_seat)} so&apos;m × {seats}
                 </div>
+                <p className="text-2xl font-bold text-gray-900 tabular-nums leading-none">
+                  {formatPrice(totalPrice)}{" "}
+                  <span className="text-sm font-medium text-gray-400">so&apos;m</span>
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-base font-semibold text-gray-700">
+                {trip.status === "full" ? "Joylar tugadi" : "Safar yakunlandi"}
+              </p>
+              <p className="text-lg font-bold text-gray-400 tabular-nums">
+                {formatPrice(trip.price_per_seat)} so&apos;m
+              </p>
+            </div>
+          )}
+        </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-50">
-                  <Link
-                    href={isAuthenticated() ? `/messages/new?driver=${trip.driver.id}` : `/login`}
-                    className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    <MessageCircle size={15} />
-                    Haydovchiga savol berish
-                    <ChevronRight size={14} className="ml-auto" />
-                  </Link>
-                </div>
-              </>
-            )}
+        <Band />
+
+        {/* ── Haydovchi ── */}
+        <div className="px-4 sm:px-6 py-5">
+          <div className="flex items-center gap-3">
+            <Avatar src={trip.driver.profile_photo} name={trip.driver.full_name} size="lg" />
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-bold text-gray-900 truncate">{trip.driver.full_name}</p>
+              <Stars
+                rating={trip.driver.rating_avg}
+                showValue
+                count={trip.driver.rating_count}
+                className="mt-1"
+              />
+            </div>
+            <Badge variant="success" dot>Tasdiqlangan</Badge>
           </div>
+
+          <div className="mt-5 space-y-3.5">
+            <div className="flex items-start gap-3 text-sm text-gray-600">
+              <Shield size={19} className="text-green-500 shrink-0" />
+              <span>Tasdiqlangan profil — {trip.driver.total_trips} ta safar</span>
+            </div>
+            <div className="flex items-start gap-3 text-sm text-gray-600">
+              <CalendarClock size={19} className="text-gray-400 shrink-0" />
+              <span>Band qilish haydovchi so&apos;rovingizni tasdiqlagach kuchga kiradi</span>
+            </div>
+            <div className="flex items-start gap-3 text-sm text-gray-600">
+              <Wallet size={19} className="text-gray-400 shrink-0" />
+              <span>
+                {{
+                  cash: "Naqd pul", click: "Click", payme: "Payme",
+                  any: "Naqd, Click yoki Payme",
+                }[trip.payment_type]}
+              </span>
+            </div>
+            <div className="flex items-start gap-3 text-sm text-gray-600">
+              <Phone size={19} className="text-gray-400 shrink-0" />
+              <span>Telefon raqami band qilish tasdiqlanganidan keyin ochiladi</span>
+            </div>
+            <div className="flex items-start gap-3 text-sm text-gray-600">
+              <CheckCircle size={19} className="text-green-500 shrink-0" />
+              <span>Bepul bekor qilish — jo&apos;nashdan 24 soat oldin</span>
+            </div>
+          </div>
+        </div>
+
+        <Band />
+
+        {/* ── Shartlar ── */}
+        <div className="px-4 sm:px-6 py-5">
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">
+              <Luggage size={14} />
+              {{
+                small: "Kichik yuk", medium: "O'rtacha yuk", large: "Katta yuk",
+              }[trip.luggage_size]}
+            </span>
+            {!trip.smoking_allowed && (
+              <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">
+                <CigaretteOff size={14} />Chekilmaydi
+              </span>
+            )}
+            {trip.pets_allowed && (
+              <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-sm">
+                <PawPrint size={14} />Hayvon mumkin
+              </span>
+            )}
+            {trip.women_only && (
+              <span className="inline-flex items-center gap-1.5 bg-pink-50 text-pink-600 px-3 py-1.5 rounded-full text-sm">
+                Faqat ayollar
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">
+              {{
+                silent: "Jim boradi", normal: "Oddiy suhbat", talkative: "Suhbatdosh",
+              }[trip.driver.talk_level]}
+            </span>
+          </div>
+
+          {trip.description && (
+            <p className="text-sm text-gray-600 leading-relaxed mt-4 pt-4 border-t border-gray-100">
+              {trip.description}
+            </p>
+          )}
+        </div>
+
+        {/* ── Pastdagi harakat paneli ── */}
+        <div className="sticky bottom-[72px] md:bottom-4 z-30 px-4 sm:px-6 py-3 bg-white border-t border-gray-100 sm:rounded-b-2xl">
+          {isActive ? (
+            <div className="flex gap-3">
+              <Link
+                href={isAuthenticated() ? `/messages/new?driver=${trip.driver.id}` : "/login"}
+                className="flex-1"
+              >
+                <Button variant="outline" fullWidth className="!rounded-full">
+                  <MessageCircle size={16} />
+                  Yozish
+                </Button>
+              </Link>
+              <Button onClick={startBooking} className="flex-[1.4] !rounded-full">
+                Band qilish
+              </Button>
+            </div>
+          ) : (
+            <Link href="/trips" className="block">
+              <Button variant="outline" fullWidth className="!rounded-full">
+                Boshqa safarlarni qidirish
+                <ChevronRight size={16} />
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -437,7 +447,7 @@ export default function TripDetailPage() {
             <div className="flex justify-between text-sm border-t border-gray-200 pt-3">
               <span className="font-semibold text-gray-900">Jami</span>
               <span className="text-lg font-bold text-primary-600 tabular-nums">
-                {formatPrice(totalPrice)} so'm
+                {formatPrice(totalPrice)} so&apos;m
               </span>
             </div>
           </div>
@@ -481,7 +491,7 @@ export default function TripDetailPage() {
           {/* To'lov usuli */}
           <div>
             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2">
-              To'lov usuli
+              To&apos;lov usuli
             </label>
             <div className="grid grid-cols-3 gap-2">
               {([
