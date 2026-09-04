@@ -506,7 +506,8 @@ async def cancel_trip(db: AsyncSession, trip_id: str, user: User, reason: str | 
 
 
 async def start_trip(db: AsyncSession, trip_id: str, user: User) -> Trip:
-    """Haydovchi safarni boshlaydi (o'rin to'lmasa ham). Safar 'started' bo'ladi:
+    """Haydovchi safarni boshlaydi (o'rin to'lmasa ham, lekin kamida bitta
+    tasdiqlangan yo'lovchi bo'lishi shart). Safar 'started' bo'ladi:
     qidiruvda ko'rinmaydi, yangi bron qabul qilinmaydi. Tasdiqlangan yo'lovchilar
     qoladi (keyin Tugatish/Kelmadi). Kutilayotgan (pending) bronlar — bekor + xabar."""
     trip = await get_trip(db, trip_id)
@@ -515,6 +516,22 @@ async def start_trip(db: AsyncSession, trip_id: str, user: User) -> Trip:
         raise HTTPException(status_code=403, detail="Bu safar sizniki emas")
     if trip.status not in (TripStatus.active, TripStatus.full):
         raise HTTPException(status_code=400, detail="Bu safarni boshlab bo'lmaydi")
+
+    # Yo'lovchisiz boshlash ma'nosiz: "started" safar qidiruvdan yo'qoladi va
+    # yangi bron qabul qilmaydi — safar shunchaki o'lik qolib ketardi.
+    confirmed_count = await db.scalar(
+        select(func.count())
+        .select_from(Booking)
+        .where(
+            Booking.trip_id == trip.id,
+            Booking.status == BookingStatus.confirmed,
+        )
+    )
+    if not confirmed_count:
+        raise HTTPException(
+            status_code=400,
+            detail="Tasdiqlangan yo'lovchi yo'q — safarni boshlab bo'lmaydi",
+        )
 
     # Kutilayotgan (tasdiqlanmagan) bronlarni bekor qilish + yo'lovchiga xabar
     result = await db.execute(

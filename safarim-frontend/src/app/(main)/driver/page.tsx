@@ -413,7 +413,11 @@ export default function DriverDashboardPage() {
     const isStarted = trip.status === "started";
     const seatsLeft = trip.available_seats;
     const isPast = isExpired || trip.departure_date < todayStr;
-    const canStart = isLive(trip.status) && !isStarted && !isPast && !isCancelled;
+    // Yo'lovchisiz boshlash ma'nosiz — safar qidiruvdan yo'qoladi va yangi
+    // buyurtma qabul qilinmaydi. Backend ham shuni rad etadi.
+    const confirmedCount = tripBookings.filter(b => b.status === "confirmed").length;
+    const isStartable = isLive(trip.status) && !isStarted && !isPast && !isCancelled;
+    const canStart = isStartable && confirmedCount > 0;
     return (
       <div key={trip.id} className="border border-gray-100 rounded-xl overflow-hidden">
         <button
@@ -540,6 +544,15 @@ export default function DriverDashboardPage() {
               >
                 <Play size={14} />Safarni boshlash
               </Button>
+            )}
+
+            {isStartable && confirmedCount === 0 && (
+              <div className="flex items-start gap-1.5 text-[11px] text-gray-500 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                <Play size={12} className="shrink-0 mt-0.5 text-gray-400" />
+                {pCount > 0
+                  ? "Safarni boshlash uchun avval buyurtmani tasdiqlang"
+                  : "Yo'lovchi bo'lmagani uchun safarni boshlab bo'lmaydi"}
+              </div>
             )}
 
             <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
