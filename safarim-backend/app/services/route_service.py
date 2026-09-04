@@ -42,8 +42,6 @@ def serialize(route: DriverRoute) -> DriverRouteResponse:
         to_region=_brief(route.to_region),
         to_district=_brief(route.to_district),
         to_address=route.to_address,
-        departure_time=route.departure_time,
-        return_time=route.return_time,
         total_seats=route.total_seats,
         price_per_seat=route.price_per_seat,
         payment_type=route.payment_type,
@@ -69,9 +67,7 @@ async def _reload(db: AsyncSession, route_id) -> DriverRoute:
     return result.scalar_one()
 
 
-async def upsert_from_trip(
-    db: AsyncSession, user: User, trip: Trip, return_time: str | None = None
-) -> DriverRoute:
+async def upsert_from_trip(db: AsyncSession, user: User, trip: Trip) -> DriverRoute:
     """Yangi e'lon qilingan safarni doimiy yo'nalish shabloniga aylantiradi.
 
     Haydovchida bitta yo'nalish — mavjudi bo'lsa ustiga yoziladi (oxirgi
@@ -100,9 +96,9 @@ async def upsert_from_trip(
     route.to_region_id = trip.to_region_id
     route.to_district_id = trip.to_district_id
     route.to_address = trip.to_address
-    route.departure_time = trip.departure_time
-    if return_time:
-        route.return_time = time.fromisoformat(return_time)
+    # Vaqt saqlanmaydi — har e'londa haydovchi o'zi kiritadi
+    route.departure_time = None
+    route.return_time = None
     route.total_seats = trip.total_seats
     route.price_per_seat = trip.price_per_seat
     route.payment_type = trip.payment_type
@@ -127,11 +123,6 @@ async def update_route(db: AsyncSession, user: User, data: DriverRouteUpdate) ->
     # Yo'nalish o'zgarsa oraliq to'xtashlar eskirib qoladi
     if any(k in fields for k in ("from_region_id", "to_region_id")):
         route.waypoints = None
-
-    for key in ("departure_time", "return_time"):
-        if key in fields:
-            value = fields.pop(key)
-            setattr(route, key, time.fromisoformat(value) if value else None)
 
     for key, value in fields.items():
         setattr(route, key, value)
@@ -187,7 +178,7 @@ async def publish(
     if not route:
         raise HTTPException(status_code=404, detail="Doimiy yo'nalish belgilanmagan")
 
-    dep_time = time.fromisoformat(data.departure_time) if data.departure_time else route.departure_time
+    dep_time = time.fromisoformat(data.departure_time)
     seats = data.total_seats or route.total_seats
     price = data.price_per_seat or route.price_per_seat
 
@@ -216,12 +207,9 @@ async def publish(
     if not data.include_return:
         return trips, None
 
-    ret_time = (
-        time.fromisoformat(data.return_time) if data.return_time
-        else route.return_time
-    )
-    if ret_time is None:
-        raise HTTPException(status_code=400, detail="Qaytish vaqti ko'rsatilmagan")
+    if not data.return_time:
+        raise HTTPException(status_code=400, detail="Qaytish vaqtini kiriting")
+    ret_time = time.fromisoformat(data.return_time)
 
     ret_date = data.return_date or _default_return_date(data.departure_date, dep_time, ret_time)
 

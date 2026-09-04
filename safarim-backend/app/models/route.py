@@ -34,8 +34,10 @@ class DriverRoute(Base):
     to_district_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("districts.id"), nullable=True)
     to_address: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # Vaqtlar — qaytish ixtiyoriy
-    departure_time: Mapped[time] = mapped_column(Time, nullable=False)
+    # Vaqt shablonda saqlanmaydi: haydovchi har doim ham yozgan vaqtida jo'nay
+    # olmaydi, shuning uchun har e'londa qaytadan kiritiladi. Ustunlar eski
+    # qatorlar uchun qolgan.
+    departure_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     return_time: Mapped[time | None] = mapped_column(Time, nullable=True)
 
     # Sig'im va narx (oxirgi ishlatilgani — e'lon qilishda tasdiqlanadi)

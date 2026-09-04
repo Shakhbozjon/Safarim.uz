@@ -18,6 +18,7 @@ import { TripDetailSkeleton } from "@/components/ui/Skeleton";
 import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import WomenOnlyGate from "@/components/trips/WomenOnlyGate";
 import { useAuth } from "@/hooks/useAuth";
+import { useMounted } from "@/hooks/useMounted";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import api from "@/lib/api";
 import { isAuthenticated, getApiError } from "@/lib/auth";
@@ -52,6 +53,7 @@ export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const mounted = useMounted();
   const { user } = useAuth();
 
   const [seats, setSeats] = useState(1);
@@ -403,7 +405,7 @@ export default function TripDetailPage() {
           ) : isActive ? (
             <div className="flex gap-3">
               <Link
-                href={isAuthenticated() ? `/messages/new?driver=${trip.driver.id}` : "/login"}
+                href={mounted && isAuthenticated() ? `/messages/new?driver=${trip.driver.id}` : "/login"}
                 className="flex-1"
               >
                 <Button variant="outline" fullWidth className="!rounded-full">

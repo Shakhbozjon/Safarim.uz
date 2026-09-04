@@ -17,6 +17,7 @@ import { clsx } from "clsx";
 import api from "@/lib/api";
 import { getApiError, isAuthenticated } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
+import { useMounted } from "@/hooks/useMounted";
 import BecomeDriver from "@/components/driver/BecomeDriver";
 import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
@@ -39,7 +40,6 @@ const schema = z.object({
   description:    z.string().max(500).optional(),
   // "Bu mening doimiy yo'nalishim" — shu safar shablon bo'lib saqlanadi
   save_as_regular:     z.boolean().optional(),
-  regular_return_time: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -48,6 +48,7 @@ const STEPS = ["Marshrut", "Vaqt va joy", "Narx", "Qo'shimcha"];
 
 export default function CreateTripPage() {
   const router = useRouter();
+  const mounted = useMounted();
   const { user, isLoading: authLoading } = useAuth();
 
   // Haydovchi bo'lmaganlar uchun ariza holati (gate uchun)
@@ -159,7 +160,9 @@ export default function CreateTripPage() {
     (isAuthenticated() && authLoading) ||
     (!!user && !user.is_driver && statusLoading);
 
-  if (gateLoading) {
+  // `!mounted` — serverda cookie yo'q, brauzerda bor: birinchi render ikkalasida
+  // ham skeleton bo'lsin, aks holda hydration buziladi
+  if (!mounted || gateLoading) {
     return (
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
         <ProfileSkeleton />
@@ -283,28 +286,12 @@ export default function CreateTripPage() {
                       Bu mening doimiy yo&apos;nalishim
                     </span>
                     <span className="block text-xs text-gray-500 mt-0.5 leading-relaxed">
-                      Keyingi safar panelda bir bosishda e&apos;lon qilasiz — formani qaytadan
-                      to&apos;ldirmaysiz.
+                      Keyingi safar panelda sana va vaqtni kiritib e&apos;lon qilasiz —
+                      formani qaytadan to&apos;ldirmaysiz.
                     </span>
                   </span>
                 </button>
 
-                {watch("save_as_regular") && (
-                  <div className="mt-3 pl-8">
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                      Qaytish vaqti
-                      <span className="text-gray-400 font-normal ml-1">(ixtiyoriy)</span>
-                    </label>
-                    <input
-                      type="time"
-                      {...register("regular_return_time")}
-                      className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 outline-none focus:border-primary-500"
-                    />
-                    <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
-                      Kiritsangiz, panelda borish va qaytish safari birga e&apos;lon qilinadi.
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 

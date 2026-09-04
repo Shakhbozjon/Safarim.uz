@@ -82,8 +82,6 @@ export interface DriverRouteResponse {
   to_region: LocationBrief;
   to_district: LocationBrief | null;
   to_address: string | null;
-  departure_time: string;          // "HH:MM:SS"
-  return_time: string | null;
   total_seats: number;
   price_per_seat: number;
   payment_type: PaymentType;

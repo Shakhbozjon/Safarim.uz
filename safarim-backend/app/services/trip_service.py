@@ -203,7 +203,7 @@ async def create_trip(db: AsyncSession, user: User, data: TripCreate) -> Trip:
     # keyin haydovchi panelda bir bosishda qayta e'lon qiladi
     if data.save_as_regular:
         from app.services import route_service  # aylanma importni oldini olish
-        await route_service.upsert_from_trip(db, user, trip, data.regular_return_time)
+        await route_service.upsert_from_trip(db, user, trip)
 
     return trip
 

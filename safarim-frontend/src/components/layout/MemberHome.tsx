@@ -12,6 +12,7 @@ import RouteLink from "@/components/trips/RouteLink";
 import Badge from "@/components/ui/Badge";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { useMounted } from "@/hooks/useMounted";
 import type { BookingResponse } from "@/types";
 
 const QUICK = [
@@ -41,6 +42,7 @@ const ACTIVE_STATUSES = ["pending", "confirmed", "awaiting_confirmation"];
  */
 export default function MemberHome() {
   const router = useRouter();
+  const mounted = useMounted();
   const { user, isLoading } = useAuth();
 
   const isDriver = user?.is_driver === true;
@@ -63,8 +65,10 @@ export default function MemberHome() {
       )
     )[0];
 
-  // Haydovchi yo'naltirilguncha / profil yuklanguncha — bo'sh ekran o'rniga spinner
-  if (isLoading || isDriver) {
+  // Haydovchi yo'naltirilguncha / profil yuklanguncha — bo'sh ekran o'rniga spinner.
+  // `mounted` shart: serverda cookie ko'rinmaydi, brauzerda ko'rinadi — ikkala
+  // tomon birinchi renderda aynan shu spinnerni chizsin (hydration mos kelsin).
+  if (!mounted || isLoading || isDriver) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <span className="w-7 h-7 rounded-full border-2 border-gray-200 border-t-primary-500 animate-spin" />

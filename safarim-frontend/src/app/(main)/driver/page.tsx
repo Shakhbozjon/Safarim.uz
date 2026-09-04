@@ -168,8 +168,6 @@ export default function DriverDashboardPage() {
   const [rpError, setRpError]         = useState("");
   const [rpWarning, setRpWarning]     = useState("");
   // Tahrirlash oynasi
-  const [reTime, setReTime]           = useState("");
-  const [reReturnTime, setReReturnTime] = useState("");
   const [reSeats, setReSeats]         = useState(4);
   const [rePrice, setRePrice]         = useState("");
   const [reError, setReError]         = useState("");
@@ -326,8 +324,6 @@ export default function DriverDashboardPage() {
   const routeEditMutation = useMutation({
     mutationFn: async () => {
       await api.patch("/drivers/me/route", {
-        departure_time: reTime || undefined,
-        return_time: reReturnTime || null,
         total_seats: reSeats,
         price_per_seat: rePrice ? parseInt(rePrice.replace(/\D/g, "")) : undefined,
       });
@@ -455,7 +451,6 @@ export default function DriverDashboardPage() {
   // Safarlar guruhlari (boshlangan safar ham "kelgusi/faol" ro'yxatda ko'rinadi — Yo'lda)
   const isLive = (s: string) => s === "active" || s === "full" || s === "started";
 
-  const hhmm = (t: string) => t.slice(0, 5);
   const addDays = (iso: string, n: number) => {
     const d = new Date(`${iso}T00:00:00`);
     d.setDate(d.getDate() + n);
@@ -475,17 +470,15 @@ export default function DriverDashboardPage() {
 
   function openRoutePublish(dateIso: string) {
     if (!route) return;
-    const dep = hhmm(route.departure_time);
-    const ret = route.return_time ? hhmm(route.return_time) : "";
+    // Vaqt shablonda saqlanmaydi — har safar haydovchi o'zi kiritadi
     setRpDate(dateIso);
-    setRpTime(dep);
+    setRpTime("");
     setRpPrice(formatPrice(route.price_per_seat));
     setRpSeats(route.total_seats);
-    setRpReturn(!!ret);
-    setRpReturnTime(ret);
+    setRpReturn(false);
+    setRpReturnTime("");
+    setRpReturnDate(dateIso);
     setRpReturnPrice(formatPrice(route.price_per_seat));
-    // Qaytish vaqti borishdan kichik bo'lsa — ertasi kuni (17:00 → 06:00)
-    setRpReturnDate(dateIso && ret ? (ret <= dep ? addDays(dateIso, 1) : dateIso) : "");
     setRpError("");
     setRpWarning("");
     setRoutePublishOpen(true);
@@ -493,8 +486,6 @@ export default function DriverDashboardPage() {
 
   function openRouteEdit() {
     if (!route) return;
-    setReTime(hhmm(route.departure_time));
-    setReReturnTime(route.return_time ? hhmm(route.return_time) : "");
     setReSeats(route.total_seats);
     setRePrice(formatPrice(route.price_per_seat));
     setReError("");
@@ -812,22 +803,12 @@ export default function DriverDashboardPage() {
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 space-y-1.5">
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="font-semibold text-gray-900 truncate">
-                {route.from_region.name_uz} → {route.to_region.name_uz}
-              </span>
-              <span className="tabular-nums text-gray-600 shrink-0">{hhmm(route.departure_time)}</span>
-            </div>
-            {route.return_time && (
-              <div className="flex items-center justify-between gap-2 text-sm text-gray-500">
-                <span className="truncate">
-                  {route.to_region.name_uz} → {route.from_region.name_uz} <span className="text-gray-400">(qaytish)</span>
-                </span>
-                <span className="tabular-nums shrink-0">{hhmm(route.return_time)}</span>
-              </div>
-            )}
-            <p className="text-xs text-gray-400 pt-0.5">
-              {route.total_seats} o&apos;rin · {formatPrice(route.price_per_seat)} so&apos;m
+            <p className="text-sm font-semibold text-gray-900 truncate">
+              {route.from_region.name_uz} → {route.to_region.name_uz}
+            </p>
+            <p className="text-xs text-gray-400">
+              {route.total_seats} o&apos;rin · {formatPrice(route.price_per_seat)} so&apos;m ·
+              vaqt e&apos;lon qilishda kiritiladi
             </p>
           </div>
 
@@ -1311,7 +1292,12 @@ export default function DriverDashboardPage() {
                 <input
                   type="time"
                   value={rpTime}
-                  onChange={(e) => setRpTime(e.target.value)}
+                  onChange={(e) => {
+                    setRpTime(e.target.value);
+                    if (rpReturn && rpDate && rpReturnTime) {
+                      setRpReturnDate(rpReturnTime <= e.target.value ? addDays(rpDate, 1) : rpDate);
+                    }
+                  }}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary-500"
                 />
               </div>
@@ -1379,7 +1365,13 @@ export default function DriverDashboardPage() {
                     <input
                       type="time"
                       value={rpReturnTime}
-                      onChange={(e) => setRpReturnTime(e.target.value)}
+                      onChange={(e) => {
+                        setRpReturnTime(e.target.value);
+                        // Qaytish borishdan erta bo'lsa — ertasi kuni (17:00 → 06:00)
+                        if (rpDate && rpTime) {
+                          setRpReturnDate(e.target.value <= rpTime ? addDays(rpDate, 1) : rpDate);
+                        }
+                      }}
                       className="w-full border border-gray-200 rounded-xl px-2 py-2 text-xs outline-none focus:border-primary-500"
                     />
                   </div>
@@ -1416,7 +1408,7 @@ export default function DriverDashboardPage() {
               </Button>
               <Button
                 fullWidth
-                disabled={!rpDate}
+                disabled={!rpDate || !rpTime || (rpReturn && !rpReturnTime)}
                 loading={routePublishMutation.isPending}
                 onClick={() => routePublishMutation.mutate()}
               >
@@ -1440,24 +1432,6 @@ export default function DriverDashboardPage() {
             </p>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Borish vaqti</label>
-                <input
-                  type="time"
-                  value={reTime}
-                  onChange={(e) => setReTime(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Qaytish vaqti</label>
-                <input
-                  type="time"
-                  value={reReturnTime}
-                  onChange={(e) => setReReturnTime(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary-500"
-                />
-              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Narx (so&apos;m)</label>
                 <Input

@@ -25,8 +25,6 @@ class DriverRouteResponse(BaseModel):
     to_region: LocationBrief
     to_district: LocationBrief | None
     to_address: str | None
-    departure_time: time
-    return_time: time | None
     total_seats: int
     price_per_seat: int
     payment_type: PaymentType
@@ -45,15 +43,8 @@ class DriverRouteUpdate(BaseModel):
     to_region_id: int | None = None
     to_district_id: int | None = None
     to_address: str | None = None
-    departure_time: str | None = None
-    return_time: str | None = None
     total_seats: int | None = None
     price_per_seat: int | None = None
-
-    @field_validator("departure_time", "return_time")
-    @classmethod
-    def validate_times(cls, v: str | None) -> str | None:
-        return _valid_time(v)
 
     @field_validator("total_seats")
     @classmethod
@@ -73,11 +64,11 @@ class DriverRouteUpdate(BaseModel):
 class RoutePublishRequest(BaseModel):
     """Doimiy yo'nalishni bir sanaga e'lon qilish.
 
-    Narx tez-tez o'zgargani uchun u har safar tasdiqlanadi — berilmasa
-    shablondagi oxirgi narx ishlatiladi.
+    Vaqt shablonda saqlanmaydi (haydovchi har kuni bir xil vaqtda jo'nay
+    olmaydi), narx esa tez-tez o'zgaradi — ikkalasi ham shu yerda beriladi.
     """
     departure_date: date
-    departure_time: str | None = None
+    departure_time: str
     price_per_seat: int | None = None
     total_seats: int | None = None
 
