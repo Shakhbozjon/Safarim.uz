@@ -57,7 +57,7 @@ export function useGeolocation() {
       setState("error");
       setError(
         err.code === err.PERMISSION_DENIED
-          ? "Joylashuvga ruxsat berilmadi. iPhone sozlamalari: Privacy & Security → Location Services → yoqilgan bo'lsin → Safari Websites → «While Using the App». Ruxsatsiz ham bo'ladi — manzilni yozing."
+          ? "Joylashuvga ruxsat berilmadi. iPhone: Settings → Privacy & Security → Location Services → shu brauzer nomini toping (Safari Websites, Chrome, Edge…) → «While Using the App». Boshqa brauzerda ishlamasa, saytni Safarida oching. Ruxsatsiz ham bo'ladi — manzilni yozing."
           : err.code === err.TIMEOUT
             ? "Joylashuv aniqlanmadi — yana urinib ko'ring yoki manzilni yozing."
             : "Joylashuvni olib bo'lmadi — manzilni yozib qo'ying, yetarli.",
