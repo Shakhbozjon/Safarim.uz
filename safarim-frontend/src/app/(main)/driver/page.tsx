@@ -9,7 +9,7 @@ import {
   Calendar, Banknote, AlertCircle, AlertTriangle,
   ArrowDownLeft, ArrowUpRight, X, CreditCard, History,
   RefreshCw, Clock, Star, Phone, MessageCircle, TrendingUp,
-  ShieldCheck, Wallet, Play, EyeOff,
+  ShieldCheck, Wallet, Play, EyeOff, Check,
 } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
@@ -18,8 +18,9 @@ import api from "@/lib/api";
 import { getApiError } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { clsx } from "clsx";
-import type { TripResponse, BookingResponse, DriverReviewsResponse, DriverProfileResponse } from "@/types";
+import type { TripResponse, BookingResponse, DriverReviewsResponse, DriverProfileResponse, DriverRouteResponse } from "@/types";
 import { formatPrice } from "@/lib/format";
+import { isoOf } from "@/lib/date";
 
 interface EarningsRecord {
   month: string;
@@ -153,6 +154,26 @@ export default function DriverDashboardPage() {
   const [republishReturnTime, setRepublishReturnTime] = useState("");      // qaytish vaqti (ixtiyoriy)
   const [startConfirmId, setStartConfirmId]           = useState<string | null>(null);  // safarni boshlash tasdig'i
 
+  // Doimiy yo'nalishdan e'lon qilish oynasi — narx har safar tasdiqlanadi
+  const [routePublishOpen, setRoutePublishOpen] = useState(false);
+  const [routeEditOpen, setRouteEditOpen]       = useState(false);
+  const [rpDate, setRpDate]           = useState("");
+  const [rpTime, setRpTime]           = useState("");
+  const [rpPrice, setRpPrice]         = useState("");
+  const [rpSeats, setRpSeats]         = useState(4);
+  const [rpReturn, setRpReturn]       = useState(false);
+  const [rpReturnDate, setRpReturnDate] = useState("");
+  const [rpReturnTime, setRpReturnTime] = useState("");
+  const [rpReturnPrice, setRpReturnPrice] = useState("");
+  const [rpError, setRpError]         = useState("");
+  const [rpWarning, setRpWarning]     = useState("");
+  // Tahrirlash oynasi
+  const [reTime, setReTime]           = useState("");
+  const [reReturnTime, setReReturnTime] = useState("");
+  const [reSeats, setReSeats]         = useState(4);
+  const [rePrice, setRePrice]         = useState("");
+  const [reError, setReError]         = useState("");
+
   // Safarlar + ochilgan safar (yo'lovchilar) + depozit tarixi
   const [showAllTrips, setShowAllTrips]  = useState(false);
   const [expandedTrip, setExpandedTrip] = useState<string | null>(null);
@@ -175,6 +196,16 @@ export default function DriverDashboardPage() {
     queryKey: ["driver-trips"],
     queryFn: async () => {
       const { data } = await api.get("/trips/my");
+      return data;
+    },
+    enabled: !!user?.is_driver,
+  });
+
+  // Doimiy yo'nalish — safar e'lon qilishda "doimiy yo'nalishim" belgilangan bo'lsa
+  const { data: route } = useQuery<DriverRouteResponse | null>({
+    queryKey: ["driver-route"],
+    queryFn: async () => {
+      const { data } = await api.get("/drivers/me/route");
       return data;
     },
     enabled: !!user?.is_driver,
@@ -265,6 +296,58 @@ export default function DriverDashboardPage() {
     onError: (err) => setActionError(getApiError(err)),
   });
 
+  const routePublishMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post("/drivers/me/route/publish", {
+        departure_date: rpDate,
+        departure_time: rpTime || undefined,
+        price_per_seat: rpPrice ? parseInt(rpPrice.replace(/\D/g, "")) : undefined,
+        total_seats: rpSeats,
+        include_return: rpReturn,
+        return_date: rpReturn && rpReturnDate ? rpReturnDate : undefined,
+        return_time: rpReturn && rpReturnTime ? rpReturnTime : undefined,
+        return_price: rpReturn && rpReturnPrice
+          ? parseInt(rpReturnPrice.replace(/\D/g, "")) : undefined,
+      });
+      return data as { warning: string | null };
+    },
+    onSuccess: (data) => {
+      setRpError("");
+      queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
+      if (data.warning) {
+        setRpWarning(data.warning);      // borish chiqdi, qaytish chiqmadi
+      } else {
+        setRoutePublishOpen(false);
+      }
+    },
+    onError: (err) => setRpError(getApiError(err)),
+  });
+
+  const routeEditMutation = useMutation({
+    mutationFn: async () => {
+      await api.patch("/drivers/me/route", {
+        departure_time: reTime || undefined,
+        return_time: reReturnTime || null,
+        total_seats: reSeats,
+        price_per_seat: rePrice ? parseInt(rePrice.replace(/\D/g, "")) : undefined,
+      });
+    },
+    onSuccess: () => {
+      setRouteEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["driver-route"] });
+    },
+    onError: (err) => setReError(getApiError(err)),
+  });
+
+  const routeDeleteMutation = useMutation({
+    mutationFn: async () => { await api.delete("/drivers/me/route"); },
+    onSuccess: () => {
+      setRouteEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["driver-route"] });
+    },
+    onError: (err) => setReError(getApiError(err)),
+  });
+
   const republishMutation = useMutation({
     mutationFn: async ({ id, date, alsoReturn, returnTime }: {
       id: string; date: string; alsoReturn: boolean; returnTime: string;
@@ -299,7 +382,7 @@ export default function DriverDashboardPage() {
   function openRepublish(id: string) {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    setRepublishDate(tomorrow.toISOString().slice(0, 10));
+    setRepublishDate(isoOf(tomorrow));
     setRepublishError("");
     setRepublishReturn(false);
     setRepublishReturnTime("");
@@ -361,7 +444,7 @@ export default function DriverDashboardPage() {
   if (authLoading || !user?.is_driver) return null;
 
   // ─── Hisob-kitob ─────────────────────────────────────────────────────────
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = isoOf(new Date());
   const now = new Date();
 
   const completedBkgs = bookings.filter(b => b.status === "completed");
@@ -371,6 +454,52 @@ export default function DriverDashboardPage() {
 
   // Safarlar guruhlari (boshlangan safar ham "kelgusi/faol" ro'yxatda ko'rinadi — Yo'lda)
   const isLive = (s: string) => s === "active" || s === "full" || s === "started";
+
+  const hhmm = (t: string) => t.slice(0, 5);
+  const addDays = (iso: string, n: number) => {
+    const d = new Date(`${iso}T00:00:00`);
+    d.setDate(d.getDate() + n);
+    return isoOf(d);
+  };
+
+  /** Shu sanaga doimiy yo'nalish bo'yicha safar allaqachon bormi */
+  function routePublishedOn(dateIso: string) {
+    if (!route) return false;
+    return trips.some(t =>
+      t.from_region.id === route.from_region.id &&
+      t.to_region.id === route.to_region.id &&
+      t.departure_date === dateIso &&
+      isLive(t.status)
+    );
+  }
+
+  function openRoutePublish(dateIso: string) {
+    if (!route) return;
+    const dep = hhmm(route.departure_time);
+    const ret = route.return_time ? hhmm(route.return_time) : "";
+    setRpDate(dateIso);
+    setRpTime(dep);
+    setRpPrice(formatPrice(route.price_per_seat));
+    setRpSeats(route.total_seats);
+    setRpReturn(!!ret);
+    setRpReturnTime(ret);
+    setRpReturnPrice(formatPrice(route.price_per_seat));
+    // Qaytish vaqti borishdan kichik bo'lsa — ertasi kuni (17:00 → 06:00)
+    setRpReturnDate(dateIso && ret ? (ret <= dep ? addDays(dateIso, 1) : dateIso) : "");
+    setRpError("");
+    setRpWarning("");
+    setRoutePublishOpen(true);
+  }
+
+  function openRouteEdit() {
+    if (!route) return;
+    setReTime(hhmm(route.departure_time));
+    setReReturnTime(route.return_time ? hhmm(route.return_time) : "");
+    setReSeats(route.total_seats);
+    setRePrice(formatPrice(route.price_per_seat));
+    setReError("");
+    setRouteEditOpen(true);
+  }
   const upcomingTrips  = trips.filter(t => isLive(t.status) && t.departure_date >= todayStr);
   const pastTrips      = trips.filter(t => t.status === "expired" || (isLive(t.status) && t.departure_date < todayStr));
   const cancelledTrips = trips.filter(t => t.status === "cancelled");
@@ -662,6 +791,68 @@ export default function DriverDashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Doimiy yo'nalish — formani qayta to'ldirmasdan e'lon qilish ──── */}
+      {route && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="min-w-0">
+              <h2 className="font-bold text-gray-900">Doimiy yo&apos;nalishingiz</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Formani to&apos;ldirmasdan e&apos;lon qiling</p>
+            </div>
+            <button
+              onClick={openRouteEdit}
+              className="text-xs font-semibold text-primary-600 hover:text-primary-700 shrink-0"
+            >
+              Tahrirlash
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-semibold text-gray-900 truncate">
+                {route.from_region.name_uz} → {route.to_region.name_uz}
+              </span>
+              <span className="tabular-nums text-gray-600 shrink-0">{hhmm(route.departure_time)}</span>
+            </div>
+            {route.return_time && (
+              <div className="flex items-center justify-between gap-2 text-sm text-gray-500">
+                <span className="truncate">
+                  {route.to_region.name_uz} → {route.from_region.name_uz} <span className="text-gray-400">(qaytish)</span>
+                </span>
+                <span className="tabular-nums shrink-0">{hhmm(route.return_time)}</span>
+              </div>
+            )}
+            <p className="text-xs text-gray-400 pt-0.5">
+              {route.total_seats} o&apos;rin · {formatPrice(route.price_per_seat)} so&apos;m
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            {([
+              { label: "Bugun",  date: todayStr },
+              { label: "Ertaga", date: addDays(todayStr, 1) },
+            ]).map(({ label, date }) => {
+              const done = routePublishedOn(date);
+              return (
+                <Button
+                  key={label}
+                  size="sm"
+                  variant={done ? "secondary" : "primary"}
+                  disabled={done}
+                  onClick={() => openRoutePublish(date)}
+                  className="text-xs"
+                >
+                  {done ? `${label} ✓` : label}
+                </Button>
+              );
+            })}
+            <Button size="sm" variant="outline" className="text-xs" onClick={() => openRoutePublish("")}>
+              Sana tanlash
+            </Button>
           </div>
         </div>
       )}
@@ -1030,7 +1221,7 @@ export default function DriverDashboardPage() {
                 <input
                   type="date"
                   value={republishDate}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={isoOf(new Date())}
                   onChange={(e) => { setRepublishDate(e.target.value); setRepublishError(""); }}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
@@ -1084,6 +1275,237 @@ export default function DriverDashboardPage() {
                 {republishReturn ? "Borish va qaytishni e'lon qilish" : "Qayta e'lon qilish"}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Doimiy yo'nalishdan e'lon qilish ──────────────────────────────── */}
+      {routePublishOpen && route && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setRoutePublishOpen(false)} />
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-base font-bold text-gray-900 mb-1">
+              {route.from_region.name_uz} → {route.to_region.name_uz}
+            </h2>
+            <p className="text-xs text-gray-400 mb-4">Narx o&apos;zgargan bo&apos;lsa shu yerda tuzating</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Sana</label>
+                <input
+                  type="date"
+                  value={rpDate}
+                  min={todayStr}
+                  onChange={(e) => {
+                    const d = e.target.value;
+                    setRpDate(d);
+                    if (rpReturn && d && rpReturnTime) {
+                      setRpReturnDate(rpReturnTime <= rpTime ? addDays(d, 1) : d);
+                    }
+                  }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Vaqt</label>
+                <input
+                  type="time"
+                  value={rpTime}
+                  onChange={(e) => setRpTime(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Narx (so&apos;m)</label>
+                <Input
+                  value={rpPrice}
+                  inputMode="numeric"
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "");
+                    setRpPrice(raw ? formatPrice(parseInt(raw)) : "");
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">O&apos;rin</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRpSeats(Math.max(1, rpSeats - 1))}
+                    className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+                  >−</button>
+                  <span className="flex-1 text-center font-bold tabular-nums">{rpSeats}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRpSeats(Math.min(8, rpSeats + 1))}
+                    className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+                  >+</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Qaytish safari */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setRpReturn(!rpReturn)}
+                className="flex items-center gap-2.5 w-full text-left"
+              >
+                <span className={clsx(
+                  "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0",
+                  rpReturn ? "border-primary-500 bg-primary-500 text-white" : "border-gray-300 bg-white"
+                )}>
+                  {rpReturn && <Check size={13} strokeWidth={3} />}
+                </span>
+                <span className="text-sm font-medium text-gray-900">
+                  Qaytish safarini ham e&apos;lon qilish
+                </span>
+              </button>
+
+              {rpReturn && (
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-gray-500 mb-1">Sana</label>
+                    <input
+                      type="date"
+                      value={rpReturnDate}
+                      min={todayStr}
+                      onChange={(e) => setRpReturnDate(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-2 py-2 text-xs outline-none focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-gray-500 mb-1">Vaqt</label>
+                    <input
+                      type="time"
+                      value={rpReturnTime}
+                      onChange={(e) => setRpReturnTime(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-2 py-2 text-xs outline-none focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-gray-500 mb-1">Narx</label>
+                    <input
+                      value={rpReturnPrice}
+                      inputMode="numeric"
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "");
+                        setRpReturnPrice(raw ? formatPrice(parseInt(raw)) : "");
+                      }}
+                      className="w-full border border-gray-200 rounded-xl px-2 py-2 text-xs outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {rpError && (
+              <div className="mt-4 bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 border border-red-100">
+                {rpError}
+              </div>
+            )}
+            {rpWarning && (
+              <div className="mt-4 bg-amber-50 text-amber-700 text-sm rounded-xl px-4 py-3 border border-amber-100">
+                {rpWarning}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <Button variant="outline" fullWidth onClick={() => setRoutePublishOpen(false)}>
+                {rpWarning ? "Yopish" : "Bekor"}
+              </Button>
+              <Button
+                fullWidth
+                disabled={!rpDate}
+                loading={routePublishMutation.isPending}
+                onClick={() => routePublishMutation.mutate()}
+              >
+                E&apos;lon qilish
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Doimiy yo'nalishni tahrirlash ─────────────────────────────────── */}
+      {routeEditOpen && route && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setRouteEditOpen(false)} />
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-xl">
+            <h2 className="text-base font-bold text-gray-900 mb-1">Doimiy yo&apos;nalish</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              {route.from_region.name_uz} → {route.to_region.name_uz}. Yo&apos;nalishning o&apos;zini
+              o&apos;zgartirish uchun yangi safarni e&apos;lon qilishda &laquo;doimiy yo&apos;nalishim&raquo;
+              belgisini qo&apos;ying.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Borish vaqti</label>
+                <input
+                  type="time"
+                  value={reTime}
+                  onChange={(e) => setReTime(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Qaytish vaqti</label>
+                <input
+                  type="time"
+                  value={reReturnTime}
+                  onChange={(e) => setReReturnTime(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Narx (so&apos;m)</label>
+                <Input
+                  value={rePrice}
+                  inputMode="numeric"
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "");
+                    setRePrice(raw ? formatPrice(parseInt(raw)) : "");
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">O&apos;rin</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReSeats(Math.max(1, reSeats - 1))}
+                    className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+                  >−</button>
+                  <span className="flex-1 text-center font-bold tabular-nums">{reSeats}</span>
+                  <button
+                    type="button"
+                    onClick={() => setReSeats(Math.min(8, reSeats + 1))}
+                    className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+                  >+</button>
+                </div>
+              </div>
+            </div>
+
+            {reError && (
+              <div className="mt-4 bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 border border-red-100">
+                {reError}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <Button variant="outline" fullWidth onClick={() => setRouteEditOpen(false)}>Bekor</Button>
+              <Button fullWidth loading={routeEditMutation.isPending} onClick={() => routeEditMutation.mutate()}>
+                Saqlash
+              </Button>
+            </div>
+            <button
+              type="button"
+              onClick={() => routeDeleteMutation.mutate()}
+              className="mt-3 w-full text-xs font-semibold text-red-500 hover:text-red-600"
+            >
+              Doimiy yo&apos;nalishni o&apos;chirish
+            </button>
           </div>
         </div>
       )}

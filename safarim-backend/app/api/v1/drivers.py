@@ -9,7 +9,13 @@ from app.schemas.driver import (
     DriverProfileResponse, UpdatePreferencesRequest,
     DriverStatusResponse, EarningsResponse,
 )
-from app.services import driver_service, storage_service as stor, wallet_service, image_validation
+from app.schemas.route import (
+    DriverRouteResponse, DriverRouteUpdate, RoutePublishRequest, RoutePublishResponse,
+)
+from app.services import (
+    driver_service, storage_service as stor, wallet_service, image_validation,
+    route_service, trip_service,
+)
 from app.services.storage_service import storage_service
 from app.core.dependencies import get_current_user, get_current_driver
 from app.core.config import settings
@@ -265,3 +271,64 @@ async def withdraw_wallet(
         "new_balance": wallet.balance,
         "card_number": data.card_number,
     }
+
+
+# ─── Doimiy yo'nalish ─────────────────────────────────────────────────────────
+# Haydovchi har kuni bir xil safarni to'liq forma bilan qayta e'lon qilmasligi
+# uchun: safar e'lon qilishda "doimiy yo'nalishim" deb belgilaydi, keyin shu
+# yerdan bir bosishda (narxni tasdiqlab) e'lon qiladi.
+
+@router.get(
+    "/me/route",
+    response_model=DriverRouteResponse | None,
+    summary="Doimiy yo'nalishim",
+)
+async def get_my_route(
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    route = await route_service.get_route(db, current_user)
+    return route_service.serialize(route) if route else None
+
+
+@router.patch(
+    "/me/route",
+    response_model=DriverRouteResponse,
+    summary="Doimiy yo'nalishni tahrirlash",
+)
+async def update_my_route(
+    data: DriverRouteUpdate,
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    route = await route_service.update_route(db, current_user, data)
+    return route_service.serialize(route)
+
+
+@router.delete(
+    "/me/route",
+    status_code=204,
+    summary="Doimiy yo'nalishni o'chirish",
+)
+async def delete_my_route(
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    await route_service.delete_route(db, current_user)
+
+
+@router.post(
+    "/me/route/publish",
+    response_model=RoutePublishResponse,
+    summary="Doimiy yo'nalishdan safar e'lon qilish (borish + ixtiyoriy qaytish)",
+)
+async def publish_my_route(
+    data: RoutePublishRequest,
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    trips, warning = await route_service.publish(db, current_user, data)
+    return RoutePublishResponse(
+        trips=[trip_service.serialize_trip(t) for t in trips],
+        warning=warning,
+    )

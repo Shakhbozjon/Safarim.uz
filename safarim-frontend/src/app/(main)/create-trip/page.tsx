@@ -8,7 +8,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Calendar, Clock, Users,
-  Info, CheckCircle,
+  Info, CheckCircle, Check,
 } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -37,6 +37,9 @@ const schema = z.object({
   women_only:      z.boolean(),
   luggage_size:    z.enum(["small", "medium", "large"]),
   description:    z.string().max(500).optional(),
+  // "Bu mening doimiy yo'nalishim" — shu safar shablon bo'lib saqlanadi
+  save_as_regular:     z.boolean().optional(),
+  regular_return_time: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -78,6 +81,7 @@ export default function CreateTripPage() {
       pets_allowed:    false,
       women_only:      false,
       luggage_size:    "medium",
+      save_as_regular: false,
     },
   });
 
@@ -466,6 +470,51 @@ export default function CreateTripPage() {
                   placeholder="Masalan: Jizzax orqali ketamiz. Sigaret chekish ta'qiqlangan."
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none"
                 />
+              </div>
+
+              {/* Doimiy yo'nalish — har kuni bir xil safarni qayta to'ldirmaslik uchun */}
+              <div className={clsx(
+                "rounded-xl border p-4 transition-colors",
+                watch("save_as_regular") ? "border-primary-200 bg-primary-50/60" : "border-gray-100 bg-gray-50"
+              )}>
+                <button
+                  type="button"
+                  onClick={() => setValue("save_as_regular", !watch("save_as_regular"))}
+                  className="flex items-start gap-3 text-left w-full"
+                >
+                  <span className={clsx(
+                    "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors",
+                    watch("save_as_regular") ? "border-primary-500 bg-primary-500 text-white" : "border-gray-300 bg-white"
+                  )}>
+                    {watch("save_as_regular") && <Check size={13} strokeWidth={3} />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-gray-900">
+                      Bu mening doimiy yo&apos;nalishim
+                    </span>
+                    <span className="block text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      Keyingi safar panelda bir bosishda e&apos;lon qilasiz — formani qaytadan
+                      to&apos;ldirmaysiz.
+                    </span>
+                  </span>
+                </button>
+
+                {watch("save_as_regular") && (
+                  <div className="mt-3 pl-8">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                      Qaytish vaqti
+                      <span className="text-gray-400 font-normal ml-1">(ixtiyoriy)</span>
+                    </label>
+                    <input
+                      type="time"
+                      {...register("regular_return_time")}
+                      className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 outline-none focus:border-primary-500"
+                    />
+                    <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
+                      Kiritsangiz, panelda borish va qaytish safari birga e&apos;lon qilinadi.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Xulosa */}

@@ -197,7 +197,15 @@ async def create_trip(db: AsyncSession, user: User, data: TripCreate) -> Trip:
     result = await db.execute(
         select(Trip).options(*_load_options()).where(Trip.id == trip.id)
     )
-    return result.scalar_one()
+    trip = result.scalar_one()
+
+    # "Bu mening doimiy yo'nalishim" — shablonni shu safardan yangilaymiz,
+    # keyin haydovchi panelda bir bosishda qayta e'lon qiladi
+    if data.save_as_regular:
+        from app.services import route_service  # aylanma importni oldini olish
+        await route_service.upsert_from_trip(db, user, trip, data.regular_return_time)
+
+    return trip
 
 
 def _route_condition(from_region_id: int, to_region_id: int):

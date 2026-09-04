@@ -74,6 +74,26 @@ export interface WaypointResponse {
   arrival_time: string | null;
 }
 
+export interface DriverRouteResponse {
+  id: string;
+  from_region: LocationBrief;
+  from_district: LocationBrief | null;
+  from_address: string | null;
+  to_region: LocationBrief;
+  to_district: LocationBrief | null;
+  to_address: string | null;
+  departure_time: string;          // "HH:MM:SS"
+  return_time: string | null;
+  total_seats: number;
+  price_per_seat: number;
+  payment_type: PaymentType;
+  smoking_allowed: boolean;
+  pets_allowed: boolean;
+  women_only: boolean;
+  luggage_size: LuggageSize;
+  description: string | null;
+}
+
 export type TripStatus = "active" | "completed" | "cancelled" | "full" | "expired" | "started";
 export type LuggageSize = "small" | "medium" | "large";
 export type PaymentType = "cash" | "click" | "payme" | "any";

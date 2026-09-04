@@ -61,6 +61,11 @@ class TripCreate(BaseModel):
     description: str | None = None
     waypoints: list[WaypointCreate] | None = None
 
+    # "Bu mening doimiy yo'nalishim" — shu safar shablon sifatida saqlanadi va
+    # keyin panelda bir bosishda qayta e'lon qilinadi
+    save_as_regular: bool = False
+    regular_return_time: str | None = None  # qaytish vaqti, "HH:MM"
+
     @field_validator("departure_date")
     @classmethod
     def validate_date(cls, v: date) -> date:
