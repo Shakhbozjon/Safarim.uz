@@ -38,6 +38,13 @@ export function useGeolocation() {
       setError("Brauzeringiz joylashuvni bermaydi — manzilni yozib qo'ying.");
       return;
     }
+    // HTTPS bo'lmasa brauzer so'ramasdan rad etadi (masalan sayt IP orqali
+    // ochilgan bo'lsa) — sababi "ruxsat berilmadi" ga o'xshab ko'rinadi
+    if (!window.isSecureContext) {
+      setState("error");
+      setError("Sahifa xavfsiz ulanishda emas — https://uzsafar.uz orqali oching yoki manzilni yozing.");
+      return;
+    }
     setState("loading");
 
     const ok = (pos: GeolocationPosition) => {
@@ -50,7 +57,7 @@ export function useGeolocation() {
       setState("error");
       setError(
         err.code === err.PERMISSION_DENIED
-          ? "Joylashuvga ruxsat berilmadi. iPhone: manzil qatoridagi «aA» → Sayt sozlamalari → Joylashuv → «So'rash»; yoki Sozlamalar → Maxfiylik → Joylashuv xizmatlari → Safari. Ruxsatsiz ham bo'ladi — manzilni yozing."
+          ? "Joylashuvga ruxsat berilmadi. iPhone sozlamalari: Privacy & Security → Location Services → yoqilgan bo'lsin → Safari Websites → «While Using the App». Ruxsatsiz ham bo'ladi — manzilni yozing."
           : err.code === err.TIMEOUT
             ? "Joylashuv aniqlanmadi — yana urinib ko'ring yoki manzilni yozing."
             : "Joylashuvni olib bo'lmadi — manzilni yozib qo'ying, yetarli.",
