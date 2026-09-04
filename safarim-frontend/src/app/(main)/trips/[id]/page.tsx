@@ -324,7 +324,7 @@ export default function TripDetailPage() {
             {!isOwner && (
               <div className="flex items-start gap-3 text-sm text-gray-600">
                 <CalendarClock size={19} className="text-gray-400 shrink-0" />
-                <span>Band qilish haydovchi so&apos;rovingizni tasdiqlagach kuchga kiradi</span>
+                <span>Joy darrov band bo&apos;ladi — haydovchining javobini kutish shart emas</span>
               </div>
             )}
             <div className="flex items-start gap-3 text-sm text-gray-600">
@@ -340,7 +340,7 @@ export default function TripDetailPage() {
               <>
                 <div className="flex items-start gap-3 text-sm text-gray-600">
                   <Phone size={19} className="text-gray-400 shrink-0" />
-                  <span>Telefon raqami band qilish tasdiqlanganidan keyin ochiladi</span>
+                  <span>Haydovchining telefon raqami band qilganingizdan keyin ochiladi</span>
                 </div>
                 <div className="flex items-start gap-3 text-sm text-gray-600">
                   <CheckCircle size={19} className="text-green-500 shrink-0" />

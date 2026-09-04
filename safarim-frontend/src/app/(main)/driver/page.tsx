@@ -364,7 +364,6 @@ export default function DriverDashboardPage() {
   const todayStr = new Date().toISOString().slice(0, 10);
   const now = new Date();
 
-  const pendingBkgs   = bookings.filter(b => b.status === "pending");
   const completedBkgs = bookings.filter(b => b.status === "completed");
   // Safar bo'lib o'tdi — haydovchidan javob kutilmoqda. Safar sanasi o'tgani
   // uchun bu buyurtmalar "o'tgan safarlar" ichida yashirinib qolmasin.
@@ -398,14 +397,10 @@ export default function DriverDashboardPage() {
   function bookingsOfTrip(tripId: string) {
     return bookings.filter(b => b.trip_id === tripId);
   }
-  function pendingCountOfTrip(tripId: string) {
-    return bookings.filter(b => b.trip_id === tripId && b.status === "pending").length;
-  }
 
   // Bitta safar qatori — bosilganda yo'lovchilar/amallar ochiladi
   const renderTrip = (trip: TripResponse, forceOpen = false) => {
     const booked = trip.total_seats - trip.available_seats;
-    const pCount = pendingCountOfTrip(trip.id);
     const tripBookings = bookingsOfTrip(trip.id).filter(b => b.status !== "cancelled");
     const isOpen = forceOpen || expandedTrip === trip.id;
     const isExpired = trip.status === "expired";
@@ -453,9 +448,6 @@ export default function DriverDashboardPage() {
               {isCancelled ? "bekor" : isStarted ? "Yo'lda" : isExpired ? "yo'lovchi yig'ilmadi" : seatsLeft === 0 ? "To'ldi" : `${seatsLeft} o'rin qoldi`}
             </p>
           </div>
-          {pCount > 0 && (
-            <span className="text-[10px] font-semibold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded-full shrink-0">{pCount} yangi</span>
-          )}
           {!forceOpen && <ChevronDown size={16} className={clsx("text-gray-300 transition-transform shrink-0", isOpen && "rotate-180")} />}
         </button>
 
@@ -514,7 +506,7 @@ export default function DriverDashboardPage() {
               })
             )}
 
-            {tripBookings.filter(b => b.status === "confirmed" || b.status === "pending" || b.status === "awaiting_confirmation").map(b => (
+            {tripBookings.filter(b => b.status === "confirmed" || b.status === "awaiting_confirmation").map(b => (
               <div key={`act-${b.id}`} className="flex items-center justify-between gap-2 bg-white rounded-lg px-2.5 py-2 border border-gray-100">
                 <span className="text-xs text-gray-600 truncate">
                   {b.passenger.full_name} — {b.status === "awaiting_confirmation" ? "safar bo'ldimi?" : "yakunlash"}
@@ -549,9 +541,7 @@ export default function DriverDashboardPage() {
             {isStartable && confirmedCount === 0 && (
               <div className="flex items-start gap-1.5 text-[11px] text-gray-500 bg-gray-50 rounded-lg px-2.5 py-1.5">
                 <Play size={12} className="shrink-0 mt-0.5 text-gray-400" />
-                {pCount > 0
-                  ? "Safarni boshlash uchun avval buyurtmani tasdiqlang"
-                  : "Yo'lovchi bo'lmagani uchun safarni boshlab bo'lmaydi"}
+                Yo&apos;lovchi bo&apos;lmagani uchun safarni boshlab bo&apos;lmaydi
               </div>
             )}
 
