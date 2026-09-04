@@ -18,6 +18,7 @@ import { TripDetailSkeleton } from "@/components/ui/Skeleton";
 import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import WomenOnlyGate from "@/components/trips/WomenOnlyGate";
 import { useAuth } from "@/hooks/useAuth";
+import { useGeolocation } from "@/hooks/useGeolocation";
 import api from "@/lib/api";
 import { isAuthenticated, getApiError } from "@/lib/auth";
 import type { TripResponse, BookingResponse } from "@/types";
@@ -63,21 +64,7 @@ export default function TripDetailPage() {
   // Olib ketish joyi — haydovchi shu manzilga boradi. Koordinata ixtiyoriy:
   // brauzerning o'zi beradi, xarita provayderi kerak emas.
   const [pickup, setPickup] = useState("");
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [geoState, setGeoState] = useState<"idle" | "loading" | "error">("idle");
-
-  function useMyLocation() {
-    if (!navigator.geolocation) { setGeoState("error"); return; }
-    setGeoState("loading");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setGeoState("idle");
-      },
-      () => setGeoState("error"),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
-  }
+  const { coords, state: geoState, error: geoError, request: useMyLocation } = useGeolocation();
 
   // ── Trip yuklab olish ──
   const { data: trip, isLoading, isError } = useQuery<TripResponse>({
@@ -473,10 +460,8 @@ export default function TripDetailPage() {
                   ? "Aniqlanmoqda…"
                   : "Aniq joylashuvimni qo'shish"}
             </button>
-            {geoState === "error" && (
-              <p className="text-xs text-gray-400 mt-1">
-                Joylashuvni olib bo&apos;lmadi — manzilni yozib qo&apos;ying, yetarli.
-              </p>
+            {geoState === "error" && geoError && (
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{geoError}</p>
             )}
             {coords && (
               <p className="text-xs text-gray-400 mt-1">

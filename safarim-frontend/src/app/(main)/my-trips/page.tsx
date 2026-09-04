@@ -16,6 +16,7 @@ import { BookingCardSkeleton } from "@/components/ui/Skeleton";
 import api from "@/lib/api";
 import { getApiError } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
+import { useGeolocation } from "@/hooks/useGeolocation";
 import type { BookingResponse, BookingStatus, ReviewResponse } from "@/types";
 import { clsx } from "clsx";
 import { formatPrice } from "@/lib/format";
@@ -61,29 +62,20 @@ export default function MyTripsPage() {
   // bo'lib, ertalab boshqa joydan chiqishi mumkin
   const [pickupModal, setPickupModal] = useState<string | null>(null);
   const [pickupText, setPickupText]   = useState("");
-  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [pickupGeo, setPickupGeo]     = useState<"idle" | "loading" | "error">("idle");
   const [pickupError, setPickupError] = useState("");
+  const {
+    coords: pickupCoords,
+    state: pickupGeo,
+    error: pickupGeoError,
+    request: usePickupLocation,
+    reset: resetPickupGeo,
+  } = useGeolocation();
 
   function openPickup(b: BookingResponse) {
     setPickupModal(b.id);
     setPickupText(b.pickup_address ?? "");
-    setPickupCoords(null);
-    setPickupGeo("idle");
+    resetPickupGeo();
     setPickupError("");
-  }
-
-  function usePickupLocation() {
-    if (!navigator.geolocation) { setPickupGeo("error"); return; }
-    setPickupGeo("loading");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setPickupGeo("idle");
-      },
-      () => setPickupGeo("error"),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
   }
 
   const { data: bookings = [], isLoading } = useQuery<BookingResponse[]>({
@@ -577,10 +569,8 @@ export default function MyTripsPage() {
                 ? "Aniqlanmoqda…"
                 : "Aniq joylashuvimni qo'shish"}
           </button>
-          {pickupGeo === "error" && (
-            <p className="text-xs text-gray-400">
-              Joylashuvni olib bo&apos;lmadi — manzilni yozib qo&apos;ying, yetarli.
-            </p>
+          {pickupGeo === "error" && pickupGeoError && (
+            <p className="text-xs text-gray-500 leading-relaxed">{pickupGeoError}</p>
           )}
 
           {pickupError && (
