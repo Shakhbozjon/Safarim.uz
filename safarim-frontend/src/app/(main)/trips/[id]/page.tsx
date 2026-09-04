@@ -132,6 +132,9 @@ export default function TripDetailPage() {
 
   const totalPrice = trip.price_per_seat * seats;
   const isActive = trip.status === "active";
+  // Haydovchi panelidan "Safar sahifasi" ga o'tganda o'z safarini ko'radi —
+  // unga band qilish taklif qilinmaydi
+  const isOwner = !!user && user.id === trip.driver.id;
 
   const fromSub = [trip.from_district?.name_uz, trip.from_address]
     .filter(Boolean).join(", ");
@@ -229,7 +232,22 @@ export default function TripDetailPage() {
 
         {/* ── Joy soni + narx ── */}
         <div className="px-4 sm:px-6 py-5">
-          {isActive ? (
+          {isOwner ? (
+            // Haydovchi o'z safarini ko'rmoqda — band qilish yo'q (backend ham
+            // rad etadi), narx va bo'sh o'rin faqat ma'lumot uchun
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-base font-semibold text-gray-900">Bir joy narxi</p>
+                <p className="text-sm text-gray-400 mt-0.5">
+                  {trip.available_seats} ta joy bo&apos;sh — {trip.total_seats} tadan
+                </p>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 tabular-nums leading-none">
+                {formatPrice(trip.price_per_seat)}{" "}
+                <span className="text-sm font-medium text-gray-400">so&apos;m</span>
+              </p>
+            </div>
+          ) : isActive ? (
             <>
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -303,10 +321,12 @@ export default function TripDetailPage() {
               <Shield size={19} className="text-green-500 shrink-0" />
               <span>Tasdiqlangan profil — {trip.driver.total_trips} ta safar</span>
             </div>
-            <div className="flex items-start gap-3 text-sm text-gray-600">
-              <CalendarClock size={19} className="text-gray-400 shrink-0" />
-              <span>Band qilish haydovchi so&apos;rovingizni tasdiqlagach kuchga kiradi</span>
-            </div>
+            {!isOwner && (
+              <div className="flex items-start gap-3 text-sm text-gray-600">
+                <CalendarClock size={19} className="text-gray-400 shrink-0" />
+                <span>Band qilish haydovchi so&apos;rovingizni tasdiqlagach kuchga kiradi</span>
+              </div>
+            )}
             <div className="flex items-start gap-3 text-sm text-gray-600">
               <Wallet size={19} className="text-gray-400 shrink-0" />
               <span>
@@ -316,14 +336,18 @@ export default function TripDetailPage() {
                 }[trip.payment_type]}
               </span>
             </div>
-            <div className="flex items-start gap-3 text-sm text-gray-600">
-              <Phone size={19} className="text-gray-400 shrink-0" />
-              <span>Telefon raqami band qilish tasdiqlanganidan keyin ochiladi</span>
-            </div>
-            <div className="flex items-start gap-3 text-sm text-gray-600">
-              <CheckCircle size={19} className="text-green-500 shrink-0" />
-              <span>Bepul bekor qilish — jo&apos;nashdan 24 soat oldin</span>
-            </div>
+            {!isOwner && (
+              <>
+                <div className="flex items-start gap-3 text-sm text-gray-600">
+                  <Phone size={19} className="text-gray-400 shrink-0" />
+                  <span>Telefon raqami band qilish tasdiqlanganidan keyin ochiladi</span>
+                </div>
+                <div className="flex items-start gap-3 text-sm text-gray-600">
+                  <CheckCircle size={19} className="text-green-500 shrink-0" />
+                  <span>Bepul bekor qilish — jo&apos;nashdan 24 soat oldin</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -369,7 +393,14 @@ export default function TripDetailPage() {
 
         {/* ── Pastdagi harakat paneli ── */}
         <div className="sticky bottom-[72px] md:bottom-4 z-30 px-4 sm:px-6 py-3 bg-white border-t border-gray-100 sm:rounded-b-2xl">
-          {isActive ? (
+          {isOwner ? (
+            <Link href="/driver" className="block">
+              <Button fullWidth className="!rounded-full">
+                Safarni panelda boshqarish
+                <ChevronRight size={16} />
+              </Button>
+            </Link>
+          ) : isActive ? (
             <div className="flex gap-3">
               <Link
                 href={isAuthenticated() ? `/messages/new?driver=${trip.driver.id}` : "/login"}
