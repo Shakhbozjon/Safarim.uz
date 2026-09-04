@@ -305,9 +305,6 @@ export default function MyTripsPage() {
             </div>
           </div>
         </div>
-        <Link href="/trips" className="shrink-0">
-          <Button variant="outline" className="gap-1.5 w-full sm:w-auto">Safar qidirish</Button>
-        </Link>
       </div>
 
       {/* ── Safar tasdiqi (yo'lovchidan) ─────────────────────────────────── */}
@@ -368,8 +365,8 @@ export default function MyTripsPage() {
         );
       })}
 
-      {/* ── Tezkor qidiruv ───────────────────────────────────────────────── */}
-      <SearchBar compact />
+      {/* ── Qidiruv — /trips dagi bilan bir xil, yorliqli to'liq forma ───── */}
+      <SearchBar />
 
       {/* ── Faol safarlar (yangi/joriy buyurtmalar — eng tepada) ─────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
