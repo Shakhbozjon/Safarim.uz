@@ -31,9 +31,11 @@ export default function MobileBottomNav() {
 
   const NAV = isDriver
     ? [
+        // Ko'tarilgan "+" tugmasi olib tashlandi: panelning o'zida ham
+        // "Safar e'lon qilish", ham doimiy yo'nalish kartasi bor
         { href: "/driver",      icon: Home,          label: "Panel" },
+        { href: "/create-trip", icon: Plus,          label: "E'lon qilish" },
         { href: "/messages",    icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
-        { href: "/create-trip", icon: Plus,          label: "Qo'shish", primary: true },
         { href: "/profile",     icon: User,          label: "Profil" },
       ]
     : [

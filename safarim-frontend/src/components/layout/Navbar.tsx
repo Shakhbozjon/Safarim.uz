@@ -231,13 +231,16 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                 </>
               )}
 
-              {/* Mobile hamburger */}
+              {/* Mobile hamburger — haydovchida ko'rsatilmaydi: ichidagi
+                  yagona havola ("Panel") pastki menyuda allaqachon bor */}
+              {!user?.is_driver && (
               <button
                 onClick={() => { setUserMenuOpen(false); setMobileOpen((p) => !p); }}
                 className="md:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
               >
                 {mobileOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
+              )}
             </div>
           </div>
         </div>
