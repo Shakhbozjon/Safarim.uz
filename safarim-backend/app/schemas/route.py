@@ -74,6 +74,9 @@ class RoutePublishRequest(BaseModel):
 
     # Qaytish safari — sana berilmasa o'zi hisoblanadi (qaytish vaqti borish
     # vaqtidan kichik bo'lsa ertasi kuni)
+    # Shu kunga mos kelmaydigan yo'nalish ogohlantirishi tasdiqlandi
+    confirm_day_conflict: bool = False
+
     include_return: bool = False
     return_date: date | None = None
     return_time: str | None = None

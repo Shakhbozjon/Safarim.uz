@@ -140,7 +140,8 @@ async def duplicate_trip(
     db: AsyncSession = Depends(get_db),
 ):
     trip = await trip_service.duplicate_trip(
-        db, current_user, trip_id, data.departure_date, data.departure_time, data.reverse
+        db, current_user, trip_id, data.departure_date, data.departure_time,
+        data.reverse, data.confirm_day_conflict,
     )
     return trip_service.serialize_trip(trip)
 

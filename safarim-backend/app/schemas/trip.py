@@ -65,6 +65,9 @@ class TripCreate(BaseModel):
     # keyin panelda bir bosishda qayta e'lon qilinadi
     save_as_regular: bool = False
 
+    # Shu kunga mos kelmaydigan yo'nalish haqidagi ogohlantirish tasdiqlandi
+    confirm_day_conflict: bool = False
+
     @field_validator("departure_date")
     @classmethod
     def validate_date(cls, v: date) -> date:
@@ -149,6 +152,7 @@ class DuplicateTripRequest(BaseModel):
     departure_date: date
     departure_time: str | None = None  # "HH:MM" — berilmasa eski vaqt ishlatiladi
     reverse: bool = False  # True → qaytish safari (qayerdan/qayerga almashtiriladi)
+    confirm_day_conflict: bool = False
 
     @field_validator("departure_date")
     @classmethod

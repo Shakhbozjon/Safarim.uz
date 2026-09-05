@@ -40,6 +40,7 @@ const schema = z.object({
   description:    z.string().max(500).optional(),
   // "Bu mening doimiy yo'nalishim" — shu safar shablon bo'lib saqlanadi
   save_as_regular:     z.boolean().optional(),
+  confirm_day_conflict: z.boolean().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -69,6 +70,9 @@ export default function CreateTripPage() {
   const [verifyModal, setVerifyModal] = useState(false);
   // Tasdiqlash uchun to'xtatilgan forma — tasdiqlangach o'sha ma'lumot yuboriladi
   const [pendingSubmit, setPendingSubmit] = useState<FormData | null>(null);
+  // Shu kunga mos kelmaydigan yo'nalish: backend 409 qaytaradi, haydovchi
+  // tasdiqlasa o'sha ma'lumot `confirm_day_conflict` bilan qayta yuboriladi
+  const [dayConflict, setDayConflict] = useState<{ message: string; data: FormData } | null>(null);
   const [fromLoc, setFromLoc] = useState<LocationValue>(EMPTY_LOCATION);
   const [toLoc, setToLoc]     = useState<LocationValue>(EMPTY_LOCATION);
 
@@ -118,7 +122,11 @@ export default function CreateTripPage() {
     onSuccess: (trip) => {
       router.push(`/trips/${trip.id}`);
     },
-    onError: (err: any) => {
+    onError: (err: any, variables) => {
+      if (err?.response?.status === 409) {
+        setDayConflict({ message: getApiError(err), data: variables });
+        return;
+      }
       setApiError(getApiError(err));
       setStep(1);
     },
@@ -546,6 +554,38 @@ export default function CreateTripPage() {
         }}
         reason="Safar e'lon qilish uchun telefon raqamingiz tasdiqlangan bo'lishi kerak — yo'lovchilar siz bilan bog'lana olishi uchun."
       />
+
+      {/* Shu kunga mos kelmaydigan yo'nalish — to'sib qo'ymaymiz, so'raymiz */}
+      {dayConflict && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setDayConflict(null)} />
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-xl">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                <Info size={18} className="text-amber-500" />
+              </div>
+              <h2 className="text-base font-bold text-gray-900">Shu kunda boshqa safaringiz bor</h2>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed mb-5">{dayConflict.message}</p>
+            <div className="flex gap-3">
+              <Button variant="outline" fullWidth onClick={() => setDayConflict(null)}>
+                Bekor
+              </Button>
+              <Button
+                fullWidth
+                loading={mutation.isPending}
+                onClick={() => {
+                  const data = dayConflict.data;
+                  setDayConflict(null);
+                  mutation.mutate({ ...data, confirm_day_conflict: true });
+                }}
+              >
+                Ha, ulguraman
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

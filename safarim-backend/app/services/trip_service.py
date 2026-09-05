@@ -8,6 +8,7 @@ from app.models.trip import Trip, TripWaypoint
 from app.models.driver import DriverProfile
 from app.models.user import User
 from app.models.booking import Booking
+from app.models.location import Region
 from app.models.enums import (
     TripStatus, BookingStatus, BookingPaymentStatus, DriverStatus, CancelledBy,
     PaymentType, PaymentMethod, NotificationRefType,
@@ -103,6 +104,74 @@ def _pause_error(dp: DriverProfile) -> str | None:
     return None
 
 
+async def _duplicate_trip_exists(
+    db: AsyncSession, driver_id, from_region_id: int, to_region_id: int,
+    dep_date: "date", dep_time: "time",
+) -> bool:
+    """Aynan shu yo'nalish, sana VA vaqtga e'lon bormi (tasodifiy dublikat).
+
+    Vaqt ham solishtiriladi: qisqa yo'nalishda haydovchi bir kunda ikki reys
+    qilishi mumkin (06:00 va 15:00) — bu dublikat emas.
+    """
+    result = await db.execute(
+        select(Trip).where(
+            Trip.driver_id == driver_id,
+            Trip.from_region_id == from_region_id,
+            Trip.to_region_id == to_region_id,
+            Trip.departure_date == dep_date,
+            Trip.departure_time == dep_time,
+            Trip.status == TripStatus.active,
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def _day_conflict(
+    db: AsyncSession, driver_id, from_region_id: int, to_region_id: int, dep_date: "date",
+) -> str | None:
+    """Shu kunga mos kelmaydigan yo'nalish bo'lsa ogohlantirish matni.
+
+    Bir kunda ikkita alohida yo'nalishga ulgurish qiyin: haydovchi ertalab
+    Toshkentga ketsa, kechqurun boshqa viloyatdan chiqa olmaydi. Lekin to'sib
+    qo'ymaymiz — qisqa yo'nalishlarda (Farg'ona → Qo'qon) bu haqiqatan mumkin,
+    shuning uchun faqat tasdiq so'raymiz.
+
+    Ogohlantirish YO'Q, agar yangi safar:
+      * o'sha kungi safar bilan bir xil yo'nalishda bo'lsa (borish yoki qaytish), yoki
+      * oldingi safar tugagan viloyatdan boshlansa (zanjir: A→B, keyin B→C).
+    """
+    result = await db.execute(
+        select(Trip).where(
+            Trip.driver_id == driver_id,
+            Trip.departure_date == dep_date,
+            Trip.status.in_([TripStatus.active, TripStatus.full, TripStatus.started]),
+        )
+    )
+    day_trips = result.scalars().all()
+    if not day_trips:
+        return None
+
+    new_pair = {from_region_id, to_region_id}
+    for t in day_trips:
+        if {t.from_region_id, t.to_region_id} == new_pair:
+            return None
+        if t.to_region_id == from_region_id:
+            return None
+
+    other = day_trips[0]
+    names = await db.execute(
+        select(Region.id, Region.name_uz).where(
+            Region.id.in_([other.from_region_id, other.to_region_id, from_region_id])
+        )
+    )
+    name = {rid: n for rid, n in names.all()}
+    return (
+        f"Shu kunga sizda {name.get(other.from_region_id, '?')} → {name.get(other.to_region_id, '?')} "
+        f"safari bor, u {name.get(other.to_region_id, '?')}da tugaydi. "
+        f"Yangi safar {name.get(from_region_id, '?')}dan boshlanadi — ikkalasiga ham ulgurasizmi?"
+    )
+
+
 async def create_trip(db: AsyncSession, user: User, data: TripCreate) -> Trip:
     # Yo'lovchi haydovchiga qo'ng'iroq qila olishi kerak — raqam tasdiqlangan bo'lsin
     if not user.is_phone_verified:
@@ -132,20 +201,21 @@ async def create_trip(db: AsyncSession, user: User, data: TripCreate) -> Trip:
             detail=f"Avtomobilingizda maksimal {driver.vehicle_seats} o'rin bor",
         )
 
-    # Bir yo'nalishda bir kunda bitta safar (duplicate tekshirish)
-    result = await db.execute(
-        select(Trip).where(
-            Trip.driver_id == user.id,
-            Trip.from_region_id == data.from_region_id,
-            Trip.to_region_id == data.to_region_id,
-            Trip.departure_date == data.departure_date,
-            Trip.status == TripStatus.active,
-        )
-    )
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Bu yo'nalishda shu kunda safar allaqachon mavjud")
-
     dep_time = time.fromisoformat(data.departure_time)
+
+    # Aynan shu yo'nalish, sana va vaqt — tasodifiy dublikat
+    if await _duplicate_trip_exists(
+        db, user.id, data.from_region_id, data.to_region_id, data.departure_date, dep_time
+    ):
+        raise HTTPException(status_code=400, detail="Bu safar allaqachon e'lon qilingan")
+
+    # Shu kunga mos kelmaydigan yo'nalish — to'sib qo'ymaymiz, tasdiq so'raymiz
+    if not data.confirm_day_conflict:
+        warning = await _day_conflict(
+            db, user.id, data.from_region_id, data.to_region_id, data.departure_date
+        )
+        if warning:
+            raise HTTPException(status_code=409, detail=warning)
     has_waypoints = bool(data.waypoints and len(data.waypoints) > 0)
 
     trip = Trip(
@@ -581,6 +651,7 @@ async def duplicate_trip(
     new_date: date,
     new_time: str | None = None,
     reverse: bool = False,
+    confirm_day_conflict: bool = False,
 ) -> Trip:
     """Eski safarni yangi sana bilan qayta e'lon qiladi.
     reverse=True bo'lsa — qaytish safari (qayerdan/qayerga almashtiriladi)."""
@@ -613,18 +684,13 @@ async def duplicate_trip(
         from_region_id, from_district_id, from_address = src.from_region_id, src.from_district_id, src.from_address
         to_region_id, to_district_id, to_address = src.to_region_id, src.to_district_id, src.to_address
 
-    # Bir yo'nalishda shu kunda aktiv safar bo'lmasin
-    dup_result = await db.execute(
-        select(Trip).where(
-            Trip.driver_id == user.id,
-            Trip.from_region_id == from_region_id,
-            Trip.to_region_id == to_region_id,
-            Trip.departure_date == new_date,
-            Trip.status == TripStatus.active,
-        )
-    )
-    if dup_result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Bu yo'nalishda shu kunda safar allaqachon mavjud")
+    if await _duplicate_trip_exists(db, user.id, from_region_id, to_region_id, new_date, dep_time):
+        raise HTTPException(status_code=400, detail="Bu safar allaqachon e'lon qilingan")
+
+    if not confirm_day_conflict:
+        warning = await _day_conflict(db, user.id, from_region_id, to_region_id, new_date)
+        if warning:
+            raise HTTPException(status_code=409, detail=warning)
 
     new_trip = Trip(
         driver_id=user.id,

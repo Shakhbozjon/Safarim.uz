@@ -202,6 +202,7 @@ async def publish(
         luggage_size=route.luggage_size,
         description=route.description,
         waypoints=_waypoints_for_trip(route),
+        confirm_day_conflict=data.confirm_day_conflict,
     )))
 
     if not data.include_return:
@@ -235,6 +236,7 @@ async def publish(
             women_only=route.women_only,
             luggage_size=route.luggage_size,
             description=route.description,
+            confirm_day_conflict=True,   # borish tasdiqlangan bo'lsa qaytish ham
         )))
     except HTTPException as err:
         return trips, f"Qaytish safari e'lon qilinmadi: {err.detail}"

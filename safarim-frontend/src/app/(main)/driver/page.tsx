@@ -167,6 +167,9 @@ export default function DriverDashboardPage() {
   const [rpReturnPrice, setRpReturnPrice] = useState("");
   const [rpError, setRpError]         = useState("");
   const [rpWarning, setRpWarning]     = useState("");
+  // Shu kunga mos kelmaydigan yo'nalish — backend 409, haydovchi tasdiqlaydi
+  const [rpConflict, setRpConflict]   = useState("");
+  const [rConflict, setRConflict]     = useState("");
   // Tahrirlash oynasi
   const [reSeats, setReSeats]         = useState(4);
   const [rePrice, setRePrice]         = useState("");
@@ -295,8 +298,9 @@ export default function DriverDashboardPage() {
   });
 
   const routePublishMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (confirmConflict: boolean = false) => {
       const { data } = await api.post("/drivers/me/route/publish", {
+        confirm_day_conflict: confirmConflict,
         departure_date: rpDate,
         departure_time: rpTime || undefined,
         price_per_seat: rpPrice ? parseInt(rpPrice.replace(/\D/g, "")) : undefined,
@@ -311,6 +315,7 @@ export default function DriverDashboardPage() {
     },
     onSuccess: (data) => {
       setRpError("");
+      setRpConflict("");
       queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
       if (data.warning) {
         setRpWarning(data.warning);      // borish chiqdi, qaytish chiqmadi
@@ -318,7 +323,13 @@ export default function DriverDashboardPage() {
         setRoutePublishOpen(false);
       }
     },
-    onError: (err) => setRpError(getApiError(err)),
+    onError: (err: any) => {
+      if (err?.response?.status === 409) {
+        setRpConflict(getApiError(err));
+        return;
+      }
+      setRpError(getApiError(err));
+    },
   });
 
   const routeEditMutation = useMutation({
@@ -345,25 +356,37 @@ export default function DriverDashboardPage() {
   });
 
   const republishMutation = useMutation({
-    mutationFn: async ({ id, date, alsoReturn, returnTime }: {
+    mutationFn: async ({ id, date, alsoReturn, returnTime, confirmConflict }: {
       id: string; date: string; alsoReturn: boolean; returnTime: string;
+      confirmConflict?: boolean;
     }) => {
       // Borish safari (bir xil yo'nalish)
-      await api.post(`/trips/${id}/duplicate`, { departure_date: date });
+      await api.post(`/trips/${id}/duplicate`, {
+        departure_date: date,
+        confirm_day_conflict: !!confirmConflict,
+      });
       // Qaytish safari (teskari yo'nalish) — tanlangan bo'lsa
       if (alsoReturn) {
         await api.post(`/trips/${id}/duplicate`, {
           departure_date: date,
           departure_time: returnTime || undefined,
           reverse: true,
+          confirm_day_conflict: true,
         });
       }
     },
     onSuccess: () => {
       setRepublishId(null);
+      setRConflict("");
       queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
     },
-    onError: (err: any) => setRepublishError(extractError(err)),
+    onError: (err: any) => {
+      if (err?.response?.status === 409) {
+        setRConflict(extractError(err));
+        return;
+      }
+      setRepublishError(extractError(err));
+    },
   });
 
   const startMutation = useMutation({
@@ -380,6 +403,7 @@ export default function DriverDashboardPage() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     setRepublishDate(isoOf(tomorrow));
     setRepublishError("");
+    setRConflict("");
     setRepublishReturn(false);
     setRepublishReturnTime("");
     setRepublishId(id);
@@ -481,6 +505,7 @@ export default function DriverDashboardPage() {
     setRpReturnPrice(formatPrice(route.price_per_seat));
     setRpError("");
     setRpWarning("");
+    setRpConflict("");
     setRoutePublishOpen(true);
   }
 
@@ -1239,6 +1264,11 @@ export default function DriverDashboardPage() {
               {republishError && (
                 <p className="text-sm text-red-500 bg-red-50 rounded-xl px-3 py-2">{republishError}</p>
               )}
+              {rConflict && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
+                  {rConflict}
+                </p>
+              )}
               <Button
                 fullWidth
                 size="lg"
@@ -1250,10 +1280,13 @@ export default function DriverDashboardPage() {
                     date: republishDate,
                     alsoReturn: republishReturn,
                     returnTime: republishReturnTime,
+                    confirmConflict: !!rConflict,
                   });
                 }}
               >
-                {republishReturn ? "Borish va qaytishni e'lon qilish" : "Qayta e'lon qilish"}
+                {rConflict
+                  ? "Baribir e'lon qilish"
+                  : republishReturn ? "Borish va qaytishni e'lon qilish" : "Qayta e'lon qilish"}
               </Button>
             </div>
           </div>
@@ -1401,6 +1434,11 @@ export default function DriverDashboardPage() {
                 {rpWarning}
               </div>
             )}
+            {rpConflict && (
+              <div className="mt-4 bg-amber-50 text-amber-700 text-sm rounded-xl px-4 py-3 border border-amber-100 leading-relaxed">
+                {rpConflict}
+              </div>
+            )}
 
             <div className="flex gap-3 mt-5">
               <Button variant="outline" fullWidth onClick={() => setRoutePublishOpen(false)}>
@@ -1410,9 +1448,9 @@ export default function DriverDashboardPage() {
                 fullWidth
                 disabled={!rpDate || !rpTime || (rpReturn && !rpReturnTime)}
                 loading={routePublishMutation.isPending}
-                onClick={() => routePublishMutation.mutate()}
+                onClick={() => routePublishMutation.mutate(!!rpConflict)}
               >
-                E&apos;lon qilish
+                {rpConflict ? "Baribir e'lon qilish" : "E'lon qilish"}
               </Button>
             </div>
           </div>
