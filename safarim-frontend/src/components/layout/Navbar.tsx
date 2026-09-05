@@ -231,9 +231,10 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                 </>
               )}
 
-              {/* Mobile hamburger — haydovchida ko'rsatilmaydi: ichidagi
-                  yagona havola ("Panel") pastki menyuda allaqachon bor */}
-              {!user?.is_driver && (
+              {/* Mobile hamburger faqat mehmonga: ichidagi havolalar
+                  (qidiruv, profil, panel) kirgan foydalanuvchida pastki
+                  menyuda allaqachon bor; "Haydovchi bo'lish" esa profilda */}
+              {!user && (
               <button
                 onClick={() => { setUserMenuOpen(false); setMobileOpen((p) => !p); }}
                 className="md:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"

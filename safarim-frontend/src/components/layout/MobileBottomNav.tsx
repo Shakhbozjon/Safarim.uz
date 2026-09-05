@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Plus, MessageCircle, User } from "lucide-react";
+import { Home, Search, MessageCircle, User } from "lucide-react";
 import { clsx } from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { isAuthenticated } from "@/lib/auth";
@@ -39,28 +39,19 @@ export default function MobileBottomNav() {
         { href: "/profile",  icon: User,          label: "Profil" },
       ]
     : [
-        { href: "/",            icon: Home,          label: "Bosh sahifa" },
-        { href: "/trips",       icon: Search,        label: "Safarlar" },
-        { href: "/create-trip", icon: Plus,          label: "Qo'shish", primary: true },
-        { href: "/messages",    icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
-        { href: "/profile",     icon: User,          label: "Profil" },
+        // "+" (safar qo'shish) yo'q: yo'lovchi safar e'lon qilmaydi, u
+        // tugma "Haydovchi bo'ling" ekraniga olib borardi — funnel profilda
+        { href: "/",         icon: Home,          label: "Bosh sahifa" },
+        { href: "/trips",    icon: Search,        label: "Safarlar" },
+        { href: "/messages", icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
+        { href: "/profile",  icon: User,          label: "Profil" },
       ];
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-white border-t border-gray-100 safe-area-bottom">
       <div className="flex items-center justify-around px-2 py-2">
-        {NAV.map(({ href, icon: Icon, label, primary, badge }) => {
+        {NAV.map(({ href, icon: Icon, label, badge }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
-
-          if (primary) {
-            return (
-              <Link key={href} href={href} className="flex flex-col items-center -mt-5">
-                <div className="w-12 h-12 bg-primary-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/30">
-                  <Icon size={22} className="text-white" />
-                </div>
-              </Link>
-            );
-          }
 
           return (
             <Link
