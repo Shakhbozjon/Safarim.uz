@@ -22,6 +22,7 @@ import BecomeDriver from "@/components/driver/BecomeDriver";
 import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
 import { formatPrice } from "@/lib/format";
+import { isoOf, dateLabel } from "@/lib/date";
 
 const schema = z.object({
   from_region_id:   z.number({ required_error: "Viloyat tanlang" }).positive("Viloyat tanlang"),
@@ -322,14 +323,42 @@ export default function CreateTripPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
               <h2 className="text-base font-semibold text-gray-900 mb-1">Vaqt va o'rinlar</h2>
 
-              <Input
-                label="Sana"
-                type="date"
-                min={new Date().toISOString().split("T")[0]}
-                prefix={<Calendar size={15} />}
-                error={errors.departure_date?.message}
-                {...register("departure_date")}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Sana</label>
+                {/* Ko'p hollarda safar bugun yoki ertaga — sana terishning hojati yo'q */}
+                <div className="flex gap-2 mb-2">
+                  {[
+                    { label: "Bugun",  iso: isoOf(new Date()) },
+                    { label: "Ertaga", iso: isoOf(new Date(Date.now() + 86_400_000)) },
+                  ].map(({ label, iso }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setValue("departure_date", iso, { shouldValidate: true })}
+                      className={clsx(
+                        "px-3.5 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                        depDate === iso
+                          ? "border-primary-500 bg-primary-50 text-primary-700"
+                          : "border-gray-200 text-gray-600 hover:border-gray-300"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <Input
+                  type="date"
+                  min={isoOf(new Date())}
+                  prefix={<Calendar size={15} />}
+                  error={errors.departure_date?.message}
+                  {...register("departure_date")}
+                />
+                {depDate && (
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    Tanlangan: <span className="font-semibold text-gray-700">{dateLabel(depDate)}</span>
+                  </p>
+                )}
+              </div>
 
               <Input
                 label="Jo'nash vaqti"
@@ -394,21 +423,33 @@ export default function CreateTripPage() {
               <h2 className="text-base font-semibold text-gray-900 mb-1">Narxni belgilang</h2>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Bir joy narxi:{" "}
-                  <span className="text-primary-600 font-bold tabular-nums">
-                    {formatPrice(price)} so'm
-                  </span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Bir joy narxi</label>
+                {/* Haydovchi narxni biladi — surgichdan ko'ra yozgani tez, va
+                    surgichning yuqori chegarasi uzoq yo'nalishlarga yetmaydi */}
+                <div className="flex items-center gap-2">
+                  <input
+                    value={formatPrice(price || 0)}
+                    inputMode="numeric"
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "");
+                      setValue("price_per_seat", raw ? parseInt(raw) : 0, { shouldValidate: true });
+                    }}
+                    className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-lg font-bold text-gray-900 tabular-nums outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                  <span className="text-sm text-gray-500 shrink-0">so&apos;m</span>
+                </div>
+                {errors.price_per_seat && (
+                  <p className="text-xs text-red-500 mt-1.5">{errors.price_per_seat.message}</p>
+                )}
                 <input
                   type="range"
-                  min={10_000} max={300_000} step={5_000}
-                  value={price}
-                  onChange={(e) => setValue("price_per_seat", Number(e.target.value))}
-                  className="w-full accent-primary-500"
+                  min={10_000} max={500_000} step={5_000}
+                  value={Math.min(Math.max(price || 0, 10_000), 500_000)}
+                  onChange={(e) => setValue("price_per_seat", Number(e.target.value), { shouldValidate: true })}
+                  className="w-full accent-primary-500 mt-3"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>10,000</span><span>300,000 so'm</span>
+                  <span>10 000</span><span>500 000 so&apos;m</span>
                 </div>
               </div>
 
