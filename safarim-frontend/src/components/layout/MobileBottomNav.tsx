@@ -6,10 +6,15 @@ import { Home, Search, Plus, MessageCircle, User } from "lucide-react";
 import { clsx } from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { isAuthenticated } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  // Haydovchi kasbiy taksist: safar qidirmaydi va band qilmaydi — unga
+  // qidiruv va yo'lovchi buyurtmalari sahifasi emas, panel kerak
+  const isDriver = user?.is_driver === true;
 
   // O'qilmagan xabarlar soni
   const { data: unreadList = [] } = useQuery<{ booking_id: string; unread_count: number }[]>({
@@ -24,13 +29,20 @@ export default function MobileBottomNav() {
 
   const totalUnread = unreadList.reduce((sum, r) => sum + r.unread_count, 0);
 
-  const NAV = [
-    { href: "/",            icon: Home,          label: "Bosh sahifa" },
-    { href: "/trips",       icon: Search,        label: "Safarlar" },
-    { href: "/create-trip", icon: Plus,          label: "Qo'shish", primary: true },
-    { href: "/my-trips",    icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
-    { href: "/profile",     icon: User,          label: "Profil" },
-  ];
+  const NAV = isDriver
+    ? [
+        { href: "/driver",      icon: Home,          label: "Panel" },
+        { href: "/messages",    icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
+        { href: "/create-trip", icon: Plus,          label: "Qo'shish", primary: true },
+        { href: "/profile",     icon: User,          label: "Profil" },
+      ]
+    : [
+        { href: "/",            icon: Home,          label: "Bosh sahifa" },
+        { href: "/trips",       icon: Search,        label: "Safarlar" },
+        { href: "/create-trip", icon: Plus,          label: "Qo'shish", primary: true },
+        { href: "/messages",    icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
+        { href: "/profile",     icon: User,          label: "Profil" },
+      ];
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-white border-t border-gray-100 safe-area-bottom">

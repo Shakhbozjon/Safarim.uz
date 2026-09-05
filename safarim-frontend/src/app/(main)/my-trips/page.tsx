@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Clock, CheckCircle, XCircle, AlertCircle, Star, Car,
@@ -50,7 +51,14 @@ const METHOD_LABEL: Record<string, string> = { cash: "Naqd", click: "Click", pay
 
 export default function MyTripsPage() {
   const qc = useQueryClient();
+  const router = useRouter();
   const { user } = useAuth();
+
+  // Bu sahifa yo'lovchiniki — haydovchi bu yerda o'z e'lonlarini emas,
+  // bo'sh "safar band qilmagansiz" ekranini ko'rardi
+  useEffect(() => {
+    if (user?.is_driver) router.replace("/driver");
+  }, [user, router]);
   const [cancelModal, setCancelModal] = useState<string | null>(null);
   const [reviewModal, setReviewModal] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(5);

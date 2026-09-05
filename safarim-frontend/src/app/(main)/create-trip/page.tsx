@@ -194,7 +194,7 @@ export default function CreateTripPage() {
           {fromName} → {toName} yo'nalishidagi safaringiz e'lon qilindi.
         </p>
         <div className="flex gap-3">
-          <Button variant="outline" fullWidth onClick={() => router.push("/my-trips")}>
+          <Button variant="outline" fullWidth onClick={() => router.push("/driver")}>
             Safarlarimni ko'rish
           </Button>
           <Button fullWidth onClick={() => router.push("/create-trip")}>
