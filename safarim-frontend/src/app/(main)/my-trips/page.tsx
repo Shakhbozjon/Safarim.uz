@@ -20,6 +20,7 @@ import { useGeolocation } from "@/hooks/useGeolocation";
 import type { BookingResponse, BookingStatus, ReviewResponse } from "@/types";
 import { clsx } from "clsx";
 import { formatPrice } from "@/lib/format";
+import { shortDate } from "@/lib/date";
 
 
 const STATUS_CONFIG: Record<BookingStatus, { label: string; cls: string }> = {
@@ -43,7 +44,7 @@ function fmtTime(t?: string) {
 }
 function fmtDate(d?: string) {
   if (!d) return "";
-  return new Date(d).toLocaleDateString("uz-UZ", { day: "numeric", month: "short" });
+  return shortDate(d);
 }
 const METHOD_LABEL: Record<string, string> = { cash: "Naqd", click: "Click", payme: "Payme" };
 

@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { clsx } from "clsx";
 import type { TripResponse, BookingResponse, DriverReviewsResponse, DriverProfileResponse, DriverRouteResponse } from "@/types";
 import { formatPrice } from "@/lib/format";
-import { isoOf } from "@/lib/date";
+import { isoOf, shortDate as formatDate } from "@/lib/date";
 
 interface EarningsRecord {
   month: string;
@@ -49,9 +49,6 @@ function formatShort(n: number) {
   if (abs >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
   if (abs >= 1_000) return Math.round(n / 1_000) + "K";
   return String(n);
-}
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("uz-UZ", { day: "numeric", month: "short" });
 }
 
 // ─── Tranzaksiya turi ikonkasi ─────────────────────────────────────────────
@@ -153,6 +150,10 @@ export default function DriverDashboardPage() {
   const [republishReturn, setRepublishReturn]         = useState(false);   // qaytish safarini ham
   const [republishReturnTime, setRepublishReturnTime] = useState("");      // qaytish vaqti (ixtiyoriy)
   const [startConfirmId, setStartConfirmId]           = useState<string | null>(null);  // safarni boshlash tasdig'i
+  // Safarni bekor qilish — yo'lovchi yig'ilmasa yoki reja o'zgarsa
+  const [cancelTripId, setCancelTripId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError]   = useState("");
 
   // Doimiy yo'nalishdan e'lon qilish oynasi — narx har safar tasdiqlanadi
   const [routePublishOpen, setRoutePublishOpen] = useState(false);
@@ -387,6 +388,22 @@ export default function DriverDashboardPage() {
       }
       setRepublishError(extractError(err));
     },
+  });
+
+  const cancelTripMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/trips/${id}`, {
+        data: { reason: cancelReason.trim() || undefined },
+      });
+    },
+    onSuccess: () => {
+      setCancelTripId(null);
+      setCancelReason("");
+      setCancelError("");
+      queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-bookings"] });
+    },
+    onError: (err) => setCancelError(getApiError(err)),
   });
 
   const startMutation = useMutation({
@@ -694,6 +711,16 @@ export default function DriverDashboardPage() {
               <Link href={`/trips/${trip.id}`} className="text-xs text-primary-600 hover:underline flex items-center gap-0.5">
                 Safar sahifasi <ChevronRight size={12} />
               </Link>
+              {/* Yo'lovchi yig'ilmasa yoki reja o'zgarsa — e'lonni olib tashlash.
+                  Boshlangan safarni bekor qilib bo'lmaydi (backend ham rad etadi). */}
+              {isStartable && (
+                <button
+                  onClick={() => { setCancelTripId(trip.id); setCancelReason(""); setCancelError(""); }}
+                  className="text-xs font-semibold text-red-500 hover:text-red-600"
+                >
+                  Bekor qilish
+                </button>
+              )}
               {isPast && !isCancelled && (
                 <Button size="sm" variant="outline" className="text-xs px-3 gap-1.5" onClick={() => openRepublish(trip.id)}>
                   <RefreshCw size={13} />Qayta e'lon
@@ -1521,6 +1548,77 @@ export default function DriverDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ── Safarni bekor qilish ─────────────────────────────────────────── */}
+      {cancelTripId && (() => {
+        const t = trips.find(x => x.id === cancelTripId);
+        const riders = bookingsOfTrip(cancelTripId).filter(b => b.status === "confirmed").length;
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setCancelTripId(null)} />
+            <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-xl">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className={clsx(
+                  "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                  riders > 0 ? "bg-red-50" : "bg-gray-100"
+                )}>
+                  <AlertTriangle size={18} className={riders > 0 ? "text-red-500" : "text-gray-400"} />
+                </div>
+                <h2 className="text-base font-bold text-gray-900">Safarni bekor qilasizmi?</h2>
+              </div>
+
+              {t && (
+                <p className="text-sm text-gray-500 mb-3">
+                  {t.from_region.name_uz} → {t.to_region.name_uz} · {formatDate(t.departure_date)} · {t.departure_time.slice(0, 5)}
+                </p>
+              )}
+
+              {riders > 0 ? (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 leading-relaxed mb-4">
+                  Bu safarda <b>{riders} ta tasdiqlangan yo&apos;lovchi</b> bor. Bekor qilsangiz ularning
+                  buyurtmasi bekor bo&apos;ladi va xabar boradi. Yo&apos;lovchini oxirgi daqiqada
+                  qoldirish ishonchni yo&apos;qotadi — iloji bo&apos;lsa avval ular bilan gaplashing.
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                  Yo&apos;lovchi yo&apos;q — e&apos;lon qidiruvdan olib tashlanadi. Keyinroq
+                  &laquo;Qayta e&apos;lon&raquo; orqali boshqa sanaga chiqarishingiz mumkin.
+                </p>
+              )}
+
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Sabab <span className="text-gray-400 font-normal">(ixtiyoriy{riders > 0 ? ", yo'lovchiga ko'rinadi" : ""})</span>
+              </label>
+              <input
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Masalan: mashina buzildi"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary-500"
+              />
+
+              {cancelError && (
+                <div className="mt-4 bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 border border-red-100">
+                  {cancelError}
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-5">
+                <Button variant="outline" fullWidth onClick={() => setCancelTripId(null)}>
+                  Yo&apos;q, qolsin
+                </Button>
+                <Button
+                  fullWidth
+                  className="!bg-red-500 hover:!bg-red-600 !shadow-none"
+                  loading={cancelTripMutation.isPending}
+                  onClick={() => cancelTripMutation.mutate(cancelTripId)}
+                >
+                  Ha, bekor qilish
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Safarni boshlash tasdig'i ─────────────────────────────────────── */}
       {startConfirmId && (
