@@ -31,12 +31,12 @@ export default function MobileBottomNav() {
 
   const NAV = isDriver
     ? [
-        // Ko'tarilgan "+" tugmasi olib tashlandi: panelning o'zida ham
-        // "Safar e'lon qilish", ham doimiy yo'nalish kartasi bor
-        { href: "/driver",      icon: Home,          label: "Panel" },
-        { href: "/create-trip", icon: Plus,          label: "E'lon qilish" },
-        { href: "/messages",    icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
-        { href: "/profile",     icon: User,          label: "Profil" },
+        // E'lon qilish bandi yo'q: panelning o'zida ham "Safar e'lon qilish"
+        // tugmasi, ham doimiy yo'nalish kartasi bor. Bepul davr tugagach
+        // shu yerga "Hamyon" qo'shiladi.
+        { href: "/driver",   icon: Home,          label: "Panel" },
+        { href: "/messages", icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
+        { href: "/profile",  icon: User,          label: "Profil" },
       ]
     : [
         { href: "/",            icon: Home,          label: "Bosh sahifa" },
