@@ -15,6 +15,9 @@ import { useMounted } from "@/hooks/useMounted";
  * Saytda qo'lda yozilgan telefon/email turardi, ularga javob beradigan
  * odam yo'q edi.
  */
+/** Backenddagi tekshiruv bilan bir xil */
+const MIN_MESSAGE = 10;
+
 export default function SupportPage() {
   const mounted = useMounted();
   const { user } = useAuth();
@@ -23,6 +26,9 @@ export default function SupportPage() {
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  // Tugma o'chib turgani sababini aytmaydi — shuning uchun tugma doim
+  // bosiladi, kamchilik esa maydon ostida yoziladi
+  const [fieldError, setFieldError] = useState("");
 
   const filledName = mounted && user ? user.full_name : name;
   const filledContact = mounted && user ? user.phone : contact;
@@ -89,13 +95,18 @@ export default function SupportPage() {
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Xabar</label>
           <textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => { setMessage(e.target.value); setFieldError(""); }}
             rows={5}
             maxLength={2000}
             placeholder="Nima bo'ldi yoki nimani taklif qilasiz?"
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none"
           />
-          <p className="text-xs text-gray-400 mt-1 tabular-nums">{message.length}/2000</p>
+          <p className="text-xs text-gray-400 mt-1 tabular-nums">
+            {message.trim().length < MIN_MESSAGE
+              ? `Kamida ${MIN_MESSAGE} ta belgi — hozir ${message.trim().length} ta`
+              : `${message.length}/2000`}
+          </p>
+          {fieldError && <p className="text-xs text-red-500 mt-1">{fieldError}</p>}
         </div>
 
         {error && (
@@ -108,8 +119,19 @@ export default function SupportPage() {
           fullWidth
           size="lg"
           loading={mutation.isPending}
-          disabled={message.trim().length < 10 || filledContact.trim().length < 5}
-          onClick={() => { setError(""); mutation.mutate(); }}
+          onClick={() => {
+            if (filledContact.trim().length < 5) {
+              setFieldError("Javob bera olishimiz uchun telefon yoki Telegram yozing");
+              return;
+            }
+            if (message.trim().length < MIN_MESSAGE) {
+              setFieldError(`Xabarni to'liqroq yozing — kamida ${MIN_MESSAGE} ta belgi`);
+              return;
+            }
+            setFieldError("");
+            setError("");
+            mutation.mutate();
+          }}
         >
           <Send size={16} />
           Yuborish
