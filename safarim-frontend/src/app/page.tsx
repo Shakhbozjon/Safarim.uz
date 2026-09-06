@@ -4,13 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import MemberHome from "@/components/layout/MemberHome";
 import HeroSearchCard from "@/components/trips/HeroSearchCard";
-import RouteLink from "@/components/trips/RouteLink";
-
-const QUICK = [
-  { from: "Toshkent", to: "Samarqand", fromSlug: "tashkent-city", toSlug: "samarqand" },
-  { from: "Toshkent", to: "Namangan",  fromSlug: "tashkent-city", toSlug: "namangan" },
-  { from: "Toshkent", to: "Buxoro",    fromSlug: "tashkent-city", toSlug: "bukhara" },
-];
+import PopularRoutes from "@/components/trips/PopularRoutes";
 
 // Halol faktlar (yolg'on vanity-raqamlar emas) — yangi platforma uchun rost qiymatlar.
 const STATS = [
@@ -24,15 +18,6 @@ const STEPS = [
   { n: 1, title: "Safar toping", desc: "Shahar va sanani kiriting. Sizga mos safarni tanlang." },
   { n: 2, title: "Joy band qiling", desc: "Haydovchi profili va reytingini ko'rib, xavfsiz joy band qiling." },
   { n: 3, title: "Yo'lga chiqing", desc: "Haydovchi bilan bog'laning va safarni boshlang — arzon, tez va qulay." },
-];
-
-const ROUTES = [
-  { from: "Toshkent", to: "Samarqand", dur: "3s 30d", fromSlug: "tashkent-city", toSlug: "samarqand" },
-  { from: "Toshkent", to: "Namangan",  dur: "4s 20d", fromSlug: "tashkent-city", toSlug: "namangan" },
-  { from: "Toshkent", to: "Buxoro",    dur: "5s 10d", fromSlug: "tashkent-city", toSlug: "bukhara" },
-  { from: "Samarqand", to: "Buxoro",   dur: "2s 15d", fromSlug: "samarqand",     toSlug: "bukhara" },
-  { from: "Toshkent", to: "Farg'ona",  dur: "4s 50d", fromSlug: "tashkent-city", toSlug: "fergana" },
-  { from: "Toshkent", to: "Nukus",     dur: "9s",     fromSlug: "tashkent-city", toSlug: "karakalpakstan" },
 ];
 
 const SAFETY = [
@@ -93,19 +78,12 @@ export default function HomePage() {
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2 mt-4 items-center">
-              <span className="text-[13px] text-gray-500">Mashhur:</span>
-              {QUICK.map((r) => (
-                <RouteLink
-                  key={`${r.from}-${r.to}`}
-                  fromSlug={r.fromSlug}
-                  toSlug={r.toSlug}
-                  className="text-[13px] font-semibold text-gray-600 bg-white border border-gray-200 hover:border-primary-300 hover:text-primary-600 px-3 py-2 rounded-full transition-colors"
-                >
-                  {r.from} → {r.to}
-                </RouteLink>
-              ))}
-            </div>
+            <PopularRoutes
+              variant="chips"
+              limit={3}
+              label="Mashhur:"
+              className="flex flex-wrap gap-2 mt-4 items-center"
+            />
           </div>
 
           {/* Right — floating trip card */}
@@ -193,31 +171,13 @@ export default function HomePage() {
       {/* ═══ ROUTES ═══ */}
       <section className="bg-gray-50 border-y border-gray-100 py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between gap-5 flex-wrap mb-8 sm:mb-10">
-            <div>
-              <div className={EYEBROW}>Yo'nalishlar</div>
-              <h2 className={H2}>Mashhur marshrutlar</h2>
-            </div>
-            <Link href="/trips" className="text-[15px] font-bold text-primary-600 hover:text-primary-700 whitespace-nowrap">
-              Barchasini ko'rish →
-            </Link>
-          </div>
-          <div className="grid gap-3.5 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {ROUTES.map((rt) => (
-              <RouteLink
-                key={`${rt.from}-${rt.to}`}
-                fromSlug={rt.fromSlug}
-                toSlug={rt.toSlug}
-                className="bg-white border border-gray-100 rounded-2xl p-5 transition hover:border-primary-200 hover:shadow-card-hover"
-              >
-                <div className="flex items-center gap-2.5 text-[16.5px] font-bold tracking-tight mb-2 flex-wrap">
-                  <span>{rt.from}</span><span className="text-gray-300">→</span><span>{rt.to}</span>
-                </div>
-                <div className="text-[13px] text-gray-500 mb-4">Taxminan {rt.dur} yo'l</div>
-                <div className="text-[14px] font-bold text-primary-600">Bo'sh o'rin qidirish →</div>
-              </RouteLink>
-            ))}
-          </div>
+          <PopularRoutes
+            variant="cards"
+            limit={6}
+            heading="Mashhur marshrutlar"
+            headingClassName={H2}
+            moreHref="/trips"
+          />
         </div>
       </section>
 

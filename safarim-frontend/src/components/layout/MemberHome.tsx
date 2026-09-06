@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
+import { ArrowRight, CalendarDays } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import HeroSearchCard from "@/components/trips/HeroSearchCard";
@@ -13,8 +13,8 @@ import Avatar from "@/components/ui/Avatar";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useMounted } from "@/hooks/useMounted";
-import type { BookingResponse, PopularRoute } from "@/types";
-import { isoOf } from "@/lib/date";
+import type { BookingResponse } from "@/types";
+import PopularRoutes from "@/components/trips/PopularRoutes";
 
 const UZ_MON = ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
 
@@ -44,24 +44,6 @@ export default function MemberHome() {
   useEffect(() => {
     if (isDriver) router.replace("/driver");
   }, [isDriver, router]);
-
-  // Ommabop yo'nalishlar — qo'lda yozilgan ro'yxat emas, haqiqiy kelgusi
-  // safarlar bo'yicha. Safar bo'lmasa bo'lim umuman ko'rsatilmaydi.
-  const { data: popular = [] } = useQuery<PopularRoute[]>({
-    queryKey: ["popular-routes"],
-    queryFn: async () => (await api.get("/trips/popular-routes?limit=6")).data,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const routeHref = (r: PopularRoute) =>
-    `/trips?${new URLSearchParams({
-      from_id: String(r.from_region.id),
-      to_id: String(r.to_region.id),
-      from_name: r.from_region.name_uz,
-      to_name: r.to_region.name_uz,
-      date: isoOf(new Date()),
-      seats: "1",
-    })}`;
 
   const { data: bookings = [] } = useQuery<BookingResponse[]>({
     queryKey: ["bookings", "my"],
@@ -113,21 +95,11 @@ export default function MemberHome() {
         </div>
 
         {/* Eng ko'p safar bor yo'nalishlar — bir bosishda qidiruvga o'tadi */}
-        {popular.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
-            {popular.slice(0, 4).map((r) => (
-              <Link
-                key={`${r.from_region.id}-${r.to_region.id}`}
-                href={routeHref(r)}
-                className="shrink-0 inline-flex items-center gap-1.5 bg-white border border-gray-100 rounded-full px-3.5 py-2 text-[13px] font-medium text-gray-700 hover:border-primary-200 transition"
-              >
-                <span>{r.from_region.name_uz}</span>
-                <ArrowRight size={12} className="text-gray-300" />
-                <span>{r.to_region.name_uz}</span>
-              </Link>
-            ))}
-          </div>
-        )}
+        <PopularRoutes
+          variant="chips"
+          limit={4}
+          className="flex gap-2 overflow-x-auto pb-1 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0"
+        />
 
         {/* Yaqin safar */}
         {upcoming?.trip && (
@@ -164,28 +136,15 @@ export default function MemberHome() {
         )}
 
         {/* Ommabop yo'nalishlar — safar bor yo'nalishlargina ko'rsatiladi */}
-        {popular.length > 0 && (
-          <section>
-            <h2 className="text-[17px] font-bold text-gray-900 mb-3">Ommabop yo'nalishlar</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {popular.map((r) => (
-                <Link
-                  key={`${r.from_region.id}-${r.to_region.id}`}
-                  href={routeHref(r)}
-                  className="flex items-center gap-2.5 bg-white border border-gray-100 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-gray-800 hover:border-primary-200 hover:shadow-card-hover transition"
-                >
-                  <MapPin size={15} className="text-primary-500 shrink-0" />
-                  <span className="truncate">{r.from_region.name_uz}</span>
-                  <ArrowRight size={14} className="text-gray-300 shrink-0" />
-                  <span className="truncate">{r.to_region.name_uz}</span>
-                  <span className="ml-auto shrink-0 text-xs font-medium text-gray-400 tabular-nums">
-                    {r.trip_count} ta safar
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+        <section>
+          <PopularRoutes
+            variant="cards"
+            limit={6}
+            heading="Ommabop yo'nalishlar"
+            moreHref="/trips"
+            className="grid gap-3.5 sm:grid-cols-2"
+          />
+        </section>
       </main>
 
       <Footer />
