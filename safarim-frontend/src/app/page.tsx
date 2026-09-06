@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import MemberHome from "@/components/layout/MemberHome";
+import MemberStrip from "@/components/layout/MemberStrip";
 import HeroSearchCard from "@/components/trips/HeroSearchCard";
 import PopularRoutes from "@/components/trips/PopularRoutes";
 
@@ -36,20 +36,26 @@ const H2 = "text-[clamp(26px,4vw,38px)] font-extrabold tracking-tight text-gray-
 const EYEBROW = "text-[12.5px] font-bold uppercase tracking-[0.08em] text-primary-600 mb-3";
 
 export default function HomePage() {
-  // Tokenni serverda o'qiymiz — kirgan foydalanuvchiga marketing sahifasi
-  // bir lahzaga ham ko'rinmaydi (mijoz tomonda almashtirishdagi "flash" yo'q).
-  // Mehmon uchun sahifa avvalgidek SSR bilan chiqadi — SEO saqlanadi.
-  if (cookies().get("access_token")) {
-    return <MemberHome />;
-  }
+  // Sahifa hamma uchun bir xil. Tokenni serverda o'qiymiz: kirgan
+  // foydalanuvchiga mehmonga atalgan chaqiriqlar ko'rsatilmaydi va tepada
+  // shaxsiy qator (salomlashuv + yaqin safar) chiqadi.
+  const signedIn = !!cookies().get("access_token");
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
-      <Navbar transparent />
+      <Navbar transparent={!signedIn} />
+      {signedIn && <MemberStrip />}
 
       {/* ═══ HERO ═══ */}
       <section className="relative overflow-hidden gradient-hero">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-14 sm:pt-32 sm:pb-20 grid gap-8 lg:gap-14 items-center lg:grid-cols-2">
+        {/* Mehmonda navbar shaffof — geroy uning tagidan boshlanadi, shuning
+            uchun katta yuqori padding. Kirgan foydalanuvchida navbar o'z
+            joyini egallaydi, padding kichik bo'lmasa bo'sh chiziq qoladi. */}
+        <div
+          className={`relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-14 sm:pb-20 grid gap-8 lg:gap-14 items-center lg:grid-cols-2 ${
+            signedIn ? "pt-8 sm:pt-12" : "pt-28 sm:pt-32"
+          }`}
+        >
           {/* Left */}
           <div className="min-w-0">
             <h1 className="text-[clamp(30px,5.6vw,54px)] leading-[1.08] font-extrabold tracking-[-0.035em] text-gray-900 mb-3.5 text-balance">
@@ -242,7 +248,11 @@ export default function HomePage() {
       {/* ═══ FINAL CTA ═══ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-22 text-center w-full">
         <h2 className="text-[clamp(24px,3.6vw,34px)] font-extrabold tracking-tight text-gray-900 mb-3 text-balance">Bugunoq safarni boshlang</h2>
-        <p className="text-gray-500 text-base mb-7">Ro'yxatdan o'tish bepul — bir daqiqada birinchi safaringizni toping.</p>
+        <p className="text-gray-500 text-base mb-7">
+          {signedIn
+            ? "Qayerdan qayerga ketishingizni tanlang — bo'sh o'rinlar kutmoqda."
+            : "Ro'yxatdan o'tish bepul — bir daqiqada birinchi safaringizni toping."}
+        </p>
         <div className="flex gap-2.5 justify-center flex-wrap">
           <Link href="/trips" className="bg-primary-500 hover:bg-primary-600 text-white px-7 py-[15px] rounded-[11px] font-bold text-[15.5px] shadow-primary-glow transition-colors">
             Safar qidirish
