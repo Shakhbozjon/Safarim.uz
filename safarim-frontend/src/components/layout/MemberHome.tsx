@@ -8,19 +8,13 @@ import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import HeroSearchCard from "@/components/trips/HeroSearchCard";
-import RouteLink from "@/components/trips/RouteLink";
 import Badge from "@/components/ui/Badge";
+import Avatar from "@/components/ui/Avatar";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useMounted } from "@/hooks/useMounted";
-import type { BookingResponse } from "@/types";
-
-const QUICK = [
-  { from: "Toshkent", to: "Samarqand", fromSlug: "tashkent-city", toSlug: "samarqand" },
-  { from: "Toshkent", to: "Namangan",  fromSlug: "tashkent-city", toSlug: "namangan" },
-  { from: "Toshkent", to: "Buxoro",    fromSlug: "tashkent-city", toSlug: "bukhara" },
-  { from: "Samarqand", to: "Buxoro",   fromSlug: "samarqand",     toSlug: "bukhara" },
-];
+import type { BookingResponse, PopularRoute } from "@/types";
+import { isoOf } from "@/lib/date";
 
 const UZ_MON = ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
 
@@ -50,6 +44,24 @@ export default function MemberHome() {
   useEffect(() => {
     if (isDriver) router.replace("/driver");
   }, [isDriver, router]);
+
+  // Ommabop yo'nalishlar — qo'lda yozilgan ro'yxat emas, haqiqiy kelgusi
+  // safarlar bo'yicha. Safar bo'lmasa bo'lim umuman ko'rsatilmaydi.
+  const { data: popular = [] } = useQuery<PopularRoute[]>({
+    queryKey: ["popular-routes"],
+    queryFn: async () => (await api.get("/trips/popular-routes?limit=6")).data,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const routeHref = (r: PopularRoute) =>
+    `/trips?${new URLSearchParams({
+      from_id: String(r.from_region.id),
+      to_id: String(r.to_region.id),
+      from_name: r.from_region.name_uz,
+      to_name: r.to_region.name_uz,
+      date: isoOf(new Date()),
+      seats: "1",
+    })}`;
 
   const { data: bookings = [] } = useQuery<BookingResponse[]>({
     queryKey: ["bookings", "my"],
@@ -82,16 +94,40 @@ export default function MemberHome() {
     <div className="min-h-screen flex flex-col overflow-x-hidden bg-gray-50/60">
       <Navbar />
 
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-14">
-        <h1 className="text-[clamp(24px,4vw,32px)] font-extrabold tracking-tight text-gray-900 mb-1">
-          Salom{firstName && `, ${firstName}`}!
-        </h1>
-        <p className="text-[15px] text-gray-500 mb-7">Qayerga bormoqchisiz?</p>
+      {/* Navbar o'zi 64px joy egallaydi — bu yerda yana katta bo'shliq
+          qoldirilsa, qidiruv ekrandan pastga tushib ketadi */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-5 pb-14">
+        <div className="flex items-center gap-3 mb-4">
+          <Avatar src={user?.profile_photo ?? null} name={user?.full_name} size="md" />
+          <div className="min-w-0">
+            <p className="text-[17px] font-bold text-gray-900 truncate leading-tight">
+              Salom{firstName && `, ${firstName}`}
+            </p>
+            <p className="text-[13px] text-gray-500">Qayerga bormoqchisiz?</p>
+          </div>
+        </div>
 
         {/* Qidiruv — yo'lovchining asosiy amali */}
-        <div className="mb-8">
+        <div className="mb-4">
           <HeroSearchCard />
         </div>
+
+        {/* Eng ko'p safar bor yo'nalishlar — bir bosishda qidiruvga o'tadi */}
+        {popular.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
+            {popular.slice(0, 4).map((r) => (
+              <Link
+                key={`${r.from_region.id}-${r.to_region.id}`}
+                href={routeHref(r)}
+                className="shrink-0 inline-flex items-center gap-1.5 bg-white border border-gray-100 rounded-full px-3.5 py-2 text-[13px] font-medium text-gray-700 hover:border-primary-200 transition"
+              >
+                <span>{r.from_region.name_uz}</span>
+                <ArrowRight size={12} className="text-gray-300" />
+                <span>{r.to_region.name_uz}</span>
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Yaqin safar */}
         {upcoming?.trip && (
@@ -127,25 +163,29 @@ export default function MemberHome() {
           </section>
         )}
 
-        {/* Ommabop yo'nalishlar */}
-        <section>
-          <h2 className="text-[17px] font-bold text-gray-900 mb-3">Ommabop yo'nalishlar</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {QUICK.map((r) => (
-              <RouteLink
-                key={`${r.from}-${r.to}`}
-                fromSlug={r.fromSlug}
-                toSlug={r.toSlug}
-                className="flex items-center gap-2.5 bg-white border border-gray-100 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-gray-800 hover:border-primary-200 hover:shadow-card-hover transition"
-              >
-                <MapPin size={15} className="text-primary-500 shrink-0" />
-                <span className="truncate">{r.from}</span>
-                <ArrowRight size={14} className="text-gray-300 shrink-0" />
-                <span className="truncate">{r.to}</span>
-              </RouteLink>
-            ))}
-          </div>
-        </section>
+        {/* Ommabop yo'nalishlar — safar bor yo'nalishlargina ko'rsatiladi */}
+        {popular.length > 0 && (
+          <section>
+            <h2 className="text-[17px] font-bold text-gray-900 mb-3">Ommabop yo'nalishlar</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {popular.map((r) => (
+                <Link
+                  key={`${r.from_region.id}-${r.to_region.id}`}
+                  href={routeHref(r)}
+                  className="flex items-center gap-2.5 bg-white border border-gray-100 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-gray-800 hover:border-primary-200 hover:shadow-card-hover transition"
+                >
+                  <MapPin size={15} className="text-primary-500 shrink-0" />
+                  <span className="truncate">{r.from_region.name_uz}</span>
+                  <ArrowRight size={14} className="text-gray-300 shrink-0" />
+                  <span className="truncate">{r.to_region.name_uz}</span>
+                  <span className="ml-auto shrink-0 text-xs font-medium text-gray-400 tabular-nums">
+                    {r.trip_count} ta safar
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       <Footer />

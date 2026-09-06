@@ -5,7 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.user import User
 from app.models.enums import PaymentType
-from app.schemas.trip import TripCreate, TripResponse, TripSearchParams, CancelTripRequest, DuplicateTripRequest
+from app.schemas.trip import (
+    TripCreate, TripResponse, TripSearchParams, CancelTripRequest,
+    DuplicateTripRequest, PopularRoute,
+)
 from app.services import trip_service
 from app.core.dependencies import get_current_user, get_current_driver
 
@@ -84,6 +87,18 @@ async def get_my_trips(
 ):
     trips = await trip_service.get_my_trips(db, current_user)
     return [trip_service.serialize_trip(t) for t in trips]
+
+
+@router.get(
+    "/popular-routes",
+    response_model=list[PopularRoute],
+    summary="Ommabop yo'nalishlar (kelgusi safarlar bo'yicha)",
+)
+async def popular_routes(
+    limit: int = Query(6, ge=1, le=12),
+    db: AsyncSession = Depends(get_db),
+):
+    return await trip_service.popular_routes(db, limit)
 
 
 @router.get(

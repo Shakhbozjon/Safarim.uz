@@ -278,6 +278,52 @@ async def create_trip(db: AsyncSession, user: User, data: TripCreate) -> Trip:
     return trip
 
 
+async def popular_routes(db: AsyncSession, limit: int = 6) -> list[dict]:
+    """Eng ko'p kelgusi safari bor yo'nalishlar.
+
+    Bosh sahifadagi chiplar shu ro'yxatdan chiziladi — qo'lda yozilgan
+    ro'yxat bosilganda "safar topilmadi" chiqishi mumkin edi, bu esa
+    yo'lovchini aldash. Safar bo'lmasa ro'yxat bo'sh qaytadi.
+    """
+    today = now_tashkent_naive().date()
+    result = await db.execute(
+        select(
+            Trip.from_region_id,
+            Trip.to_region_id,
+            func.count().label("trip_count"),
+        )
+        .where(
+            Trip.status == TripStatus.active,
+            Trip.departure_date >= today,
+            Trip.from_region_id != Trip.to_region_id,
+        )
+        .group_by(Trip.from_region_id, Trip.to_region_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    )
+    rows = result.all()
+    if not rows:
+        return []
+
+    region_ids = {rid for row in rows for rid in (row.from_region_id, row.to_region_id)}
+    regions = await db.execute(select(Region).where(Region.id.in_(region_ids)))
+    by_id = {r.id: r for r in regions.scalars().all()}
+
+    def brief(rid: int):
+        r = by_id[rid]
+        return LocationBrief(id=r.id, name_uz=r.name_uz, name_ru=r.name_ru)
+
+    return [
+        {
+            "from_region": brief(row.from_region_id),
+            "to_region": brief(row.to_region_id),
+            "trip_count": row.trip_count,
+        }
+        for row in rows
+        if row.from_region_id in by_id and row.to_region_id in by_id
+    ]
+
+
 def _route_condition(from_region_id: int, to_region_id: int):
     """Yo'nalishga mos safarlar: to'g'ridan-to'g'ri yoki oraliq to'xtash orqali."""
     direct = and_(

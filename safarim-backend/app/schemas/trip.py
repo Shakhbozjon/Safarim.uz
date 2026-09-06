@@ -105,6 +105,13 @@ class TripCreate(BaseModel):
         return v
 
 
+class PopularRoute(BaseModel):
+    """Bosh sahifadagi yo'nalish chipi — haqiqiy, kelgusi safarlar asosida."""
+    from_region: LocationBrief
+    to_region: LocationBrief
+    trip_count: int
+
+
 class TripResponse(BaseModel):
     id: uuid.UUID
     driver: TripDriverInfo

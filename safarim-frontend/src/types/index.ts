@@ -74,6 +74,12 @@ export interface WaypointResponse {
   arrival_time: string | null;
 }
 
+export interface PopularRoute {
+  from_region: LocationBrief;
+  to_region: LocationBrief;
+  trip_count: number;
+}
+
 export interface DriverRouteResponse {
   id: string;
   from_region: LocationBrief;
