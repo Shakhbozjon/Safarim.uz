@@ -54,3 +54,9 @@ async def limit_register(request: Request) -> None:
     # OTP'siz ro'yxat — bitta qurilma/IP'dan massa soxta hisob ochishni cheklaydi.
     ip = _client_ip(request)
     await _hit(f"register:ip:{ip}", settings.REGISTER_RATELIMIT_IP_PER_HOUR, 3600)
+
+
+async def limit_support(request: Request) -> None:
+    """Saytdan adminga xabar — bitta IP soatiga 5 marta."""
+    ip = _client_ip(request)
+    await _hit(f"support:ip:{ip}", 5, 3600)

@@ -10,6 +10,7 @@ const links = {
   company: [
     { href: "/about", label: "Biz haqimizda" },
     { href: "/safety", label: "Xavfsizlik" },
+    { href: "/support", label: "Bog'lanish" },
     { href: "/blog", label: "Blog" },
   ],
   legal: [
@@ -48,9 +49,10 @@ export default function Footer() {
               O'zbekiston bo'ylab qulay va arzon safar. Haydovchi va yo'lovchilarni birlashtiruvchi platforma.
             </p>
             <div className="text-sm text-gray-500 leading-8">
-              <div>+998 71 234 56 78</div>
-              <div>info@uzsafar.uz</div>
               <div>Toshkent, O'zbekiston</div>
+              <Link href="/support" className="text-primary-600 hover:text-primary-700 font-semibold">
+                Bog'lanish →
+              </Link>
             </div>
           </div>
 

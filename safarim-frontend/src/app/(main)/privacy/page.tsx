@@ -50,7 +50,7 @@ export default function PrivacyPage() {
           items={[
             "O'z ma'lumotlaringizni ko'rish va tahrirlash.",
             "Hisobingizni o'chirishни so'rash.",
-            "Ma'lumotdan foydalanish bo'yicha savol berish: info@uzsafar.uz.",
+            "Ma'lumotdan foydalanish bo'yicha savolni bog'lanish sahifasi orqali yuborish (/support).",
           ]}
         />
       </DocSection>

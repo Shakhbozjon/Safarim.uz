@@ -34,7 +34,7 @@ export default function CookiesPage() {
       </DocSection>
 
       <DocSection heading="4. Savollar">
-        <p>Cookie siyosati bo'yicha savollar uchun: info@uzsafar.uz.</p>
+        <p>Cookie siyosati bo'yicha savollaringizni <a href="/support" className="text-primary-600 font-semibold hover:underline">bog'lanish sahifasi</a> orqali yuboring.</p>
       </DocSection>
     </DocPage>
   );

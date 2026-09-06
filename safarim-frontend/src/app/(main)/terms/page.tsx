@@ -83,7 +83,7 @@ export default function TermsPage() {
       <DocSection heading="9. O'zgartirishlar">
         <p>
           Ushbu shartlar vaqti-vaqti bilan yangilanishi mumkin. Muhim o'zgarishlar haqida
-          foydalanuvchilar xabardor qilinadi. Savollar bo'lsa: info@uzsafar.uz.
+          foydalanuvchilar xabardor qilinadi. Savollar bo'lsa bog'lanish sahifasi orqali yozing.
         </p>
       </DocSection>
     </DocPage>
