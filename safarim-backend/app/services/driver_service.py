@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
@@ -20,38 +21,68 @@ async def apply_driver(
     data: DriverApplyRequest,
     license_key: str,
 ) -> DriverProfile:
-    # Allaqachon ariza topshirganmi?
-    if user.is_driver:
-        result = await db.execute(
-            select(DriverProfile).where(DriverProfile.user_id == user.id)
-        )
-        existing = result.scalar_one_or_none()
-        if existing and existing.status == DriverStatus.pending:
-            raise HTTPException(status_code=400, detail="Arizangiz ko'rib chiqilmoqda")
-        if existing and existing.status == DriverStatus.approved:
-            raise HTTPException(status_code=400, detail="Siz allaqachon haydovchi sifatida tasdiqlangansiz")
+    # Shu foydalanuvchining mavjud yozuvi (bo'lsa)
+    existing = (await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == user.id)
+    )).scalar_one_or_none()
 
-    # Avtomobil raqami band emasligini tekshirish
+    if existing and existing.status == DriverStatus.pending:
+        raise HTTPException(status_code=400, detail="Arizangiz ko'rib chiqilmoqda")
+    if existing and existing.status == DriverStatus.approved:
+        raise HTTPException(status_code=400, detail="Siz allaqachon haydovchi sifatida tasdiqlangansiz")
+
+    # Avtomobil raqami BOSHQA odamda band emasligini tekshirish.
+    # ⚠️ Ilgari bu yerda o'z yozuvi ham hisobga olinardi: rad etilgan haydovchi
+    # o'z mashinasi bilan qaytib kelsa, "bu raqam allaqachon ro'yxatdan o'tgan"
+    # deb rad etilardi va boshqa hech qachon ariza bera olmasdi.
     result = await db.execute(
-        select(DriverProfile).where(DriverProfile.vehicle_plate == data.vehicle_plate)
+        select(DriverProfile).where(
+            DriverProfile.vehicle_plate == data.vehicle_plate,
+            DriverProfile.user_id != user.id,
+        )
     )
-    if result.scalar_one_or_none():
+    if result.scalars().first():
         raise HTTPException(status_code=400, detail="Bu avtomobil raqami allaqachon ro'yxatdan o'tgan")
 
-    driver = DriverProfile(
-        user_id=user.id,
-        license_image=license_key,
-        vehicle_make=data.vehicle_make,
-        vehicle_model=data.vehicle_model,
-        vehicle_year=data.vehicle_year,
-        vehicle_color=data.vehicle_color,
-        vehicle_plate=data.vehicle_plate,
-        vehicle_seats=data.vehicle_seats,
-        status=DriverStatus.pending,
-    )
-    db.add(driver)
+    if existing:
+        # Rad etilgan yozuv yangilanadi — yangisi yaratilmaydi.
+        # `driver_profiles.user_id` unikal, ya'ni yangi yozuv qo'shish baza
+        # cheklovini buzib, foydalanuvchiga 500 bo'lib ko'rinardi.
+        existing.license_image = license_key
+        existing.vehicle_make = data.vehicle_make
+        existing.vehicle_model = data.vehicle_model
+        existing.vehicle_year = data.vehicle_year
+        existing.vehicle_color = data.vehicle_color
+        existing.vehicle_plate = data.vehicle_plate
+        existing.vehicle_seats = data.vehicle_seats
+        existing.status = DriverStatus.pending
+        existing.rejection_reason = None
+        driver = existing
+    else:
+        driver = DriverProfile(
+            user_id=user.id,
+            license_image=license_key,
+            vehicle_make=data.vehicle_make,
+            vehicle_model=data.vehicle_model,
+            vehicle_year=data.vehicle_year,
+            vehicle_color=data.vehicle_color,
+            vehicle_plate=data.vehicle_plate,
+            vehicle_seats=data.vehicle_seats,
+            status=DriverStatus.pending,
+        )
+        db.add(driver)
+
     user.is_driver = True
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Ikki odam bir vaqtda bir xil raqamni yuborsa yuqoridagi tekshiruvdan
+        # ikkalasi ham o'tib ketishi mumkin — baza cheklovi ushlaydi, biz esa
+        # 500 o'rniga tushunarli javob beramiz.
+        await db.rollback()
+        raise HTTPException(
+            status_code=400, detail="Bu avtomobil raqami allaqachon ro'yxatdan o'tgan"
+        )
     await db.refresh(driver)
     return driver
 
