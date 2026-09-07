@@ -187,7 +187,11 @@ export default function HomePage() {
       />
 
       {/* ═══ SAFETY ═══ */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 w-full">
+      {/* Tepa padding yo'q: oraliqni yuqoridagi bo'lim beradi. Ikkalasida
+          ham bo'lsa — marshrutlar tasmasi chiqmagan kuni 128px bo'shliq
+          qolardi (pastdagi «Haydovchilar uchun» bloki ham shu sababdan
+          faqat `pb`). */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24 w-full">
         <div className="grid gap-10 lg:gap-14 md:grid-cols-2">
           <div>
             <div className="inline-flex items-center gap-2 bg-accent-50 text-accent-700 text-[12.5px] font-bold px-3.5 py-1.5 rounded-full mb-4">
