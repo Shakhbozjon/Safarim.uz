@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, MapPin } from "lucide-react";
@@ -46,6 +47,15 @@ interface Props {
   /** sarlavha yonidagi havola ("Barchasini ko'rish") */
   moreHref?: string;
   className?: string;
+  /**
+   * Bo'lim o'ramining klassi. Berilsa blok o'zi `<section>` ichida chiqadi —
+   * shunda ro'yxat bo'sh bo'lganda o'ram ham yo'qoladi. Sahifada qo'lda
+   * yozilgan `<section>` ichiga qo'yilsa, safar bo'lmagan kuni o'sha
+   * `<section>` bo'm-bo'sh tasma bo'lib qolardi.
+   */
+  sectionClassName?: string;
+  /** o'ram ichidagi konteyner (sahifadagi boshqa bo'limlar bilan bir xil kenglik) */
+  containerClassName?: string;
 }
 
 export default function PopularRoutes({
@@ -56,6 +66,8 @@ export default function PopularRoutes({
   headingClassName,
   moreHref,
   className,
+  sectionClassName,
+  containerClassName = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
 }: Props) {
   const { data: routes = [] } = usePopularRoutes(limit);
 
@@ -103,9 +115,18 @@ export default function PopularRoutes({
     </div>
   );
 
-  if (!heading) return grid;
+  const wrap = (content: ReactNode) =>
+    sectionClassName ? (
+      <section className={sectionClassName}>
+        <div className={containerClassName}>{content}</div>
+      </section>
+    ) : (
+      <>{content}</>
+    );
 
-  return (
+  if (!heading) return wrap(grid);
+
+  return wrap(
     <>
       <div className="flex items-end justify-between gap-5 flex-wrap mb-8 sm:mb-10">
         <h2 className={headingClassName ?? "text-[17px] font-bold text-gray-900"}>{heading}</h2>

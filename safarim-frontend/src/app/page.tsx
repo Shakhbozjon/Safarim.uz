@@ -175,17 +175,16 @@ export default function HomePage() {
       </section>
 
       {/* ═══ ROUTES ═══ */}
-      <section className="bg-gray-50 border-y border-gray-100 py-16 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <PopularRoutes
-            variant="cards"
-            limit={6}
-            heading="Mashhur marshrutlar"
-            headingClassName={H2}
-            moreHref="/trips"
-          />
-        </div>
-      </section>
+      {/* O'ram komponentning o'zida: safar bo'lmagan kuni butun bo'lim
+          yo'qoladi. Ilgari bu yerda bo'm-bo'sh kulrang tasma qolardi. */}
+      <PopularRoutes
+        variant="cards"
+        limit={6}
+        heading="Mashhur marshrutlar"
+        headingClassName={H2}
+        moreHref="/trips"
+        sectionClassName="bg-gray-50 border-y border-gray-100 py-16 sm:py-24 w-full"
+      />
 
       {/* ═══ SAFETY ═══ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 w-full">
