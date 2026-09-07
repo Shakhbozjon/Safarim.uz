@@ -92,6 +92,16 @@ async def get_user_by_phone(db: AsyncSession, phone: str) -> User | None:
     return (await db.execute(select(User).where(User.phone == phone))).scalar_one_or_none()
 
 
+async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
+    """ID bo'yicha (token yangilashda kerak). Xato formatdagi ID da None."""
+    import uuid as uuid_lib
+    try:
+        uid = uuid_lib.UUID(str(user_id))
+    except (ValueError, AttributeError, TypeError):
+        return None
+    return (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+
+
 async def reset_password(db: AsyncSession, phone: str, code: str, new_password: str) -> User:
     """Parolni OTP orqali tiklaydi (tizimga kirmasdan).
 
@@ -108,6 +118,10 @@ async def reset_password(db: AsyncSession, phone: str, code: str, new_password: 
     await verify_otp(db, phone, code, OtpPurpose.password_reset)
 
     user.password_hash = hash_password(new_password)
+    # Eski sessiyalarni uzamiz: hisobni kimdir egallab olgan bo'lsa, parolni
+    # tiklash uni ham chiqarib yuborishi kerak (aks holda uning 30 kunlik
+    # refresh tokeni ishlayverardi).
+    user.token_version += 1
     await db.commit()
     return user
 
@@ -122,8 +136,11 @@ async def verify_otp(db: AsyncSession, phone: str, code: str, purpose: OtpPurpos
             OtpCode.expires_at > datetime.utcnow(),
         )
         .order_by(OtpCode.created_at.desc())
+        .limit(1)
     )
-    otp = result.scalar_one_or_none()
+    # `.first()` — `.scalar_one_or_none()` emas: parallel so'rovlarda ikkita
+    # ishlatilmagan kod qolib ketsa, u 500 bilan qulardi.
+    otp = result.scalars().first()
 
     if not otp:
         raise HTTPException(

@@ -25,6 +25,13 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Foydalanuvchi topilmadi")
     if user.is_blocked:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Hisobingiz bloklangan")
+    # Parol o'zgargan bo'lsa eski tokenlar o'tmaydi (pastdagi izohga qarang:
+    # app/core/security.create_access_token)
+    if payload.get("ver", 0) != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sessiya muddati tugadi. Qaytadan kiring",
+        )
 
     return user
 

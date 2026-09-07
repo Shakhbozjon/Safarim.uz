@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -38,7 +38,7 @@ class UnreadCountOut(BaseModel):
     summary="Mening bildirishnomalarim",
 )
 async def get_notifications(
-    limit: int = 30,
+    limit: int = Query(30, ge=1, le=100),
     offset: int = 0,
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

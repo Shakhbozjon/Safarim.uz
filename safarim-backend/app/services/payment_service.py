@@ -1,5 +1,6 @@
 import hashlib
 import base64
+import secrets
 import uuid as uuid_lib
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -119,6 +120,16 @@ async def _complete_wallet_topup(db: AsyncSession, topup_id: str, transaction_id
     return True
 
 
+# ─── Provayder sozlanganmi ─────────────────────────────────────────────────────
+
+def click_configured() -> bool:
+    return bool(settings.CLICK_SECRET_KEY and settings.CLICK_SERVICE_ID)
+
+
+def payme_configured() -> bool:
+    return bool(settings.PAYME_KEY and settings.PAYME_ID)
+
+
 # ─── Click verifikatsiya ───────────────────────────────────────────────────────
 
 def verify_click_sign(
@@ -130,6 +141,10 @@ def verify_click_sign(
     sign_time: str,
     sign_string: str,
 ) -> bool:
+    # Kalit bo'sh bo'lsa imzo tekshiruvi ma'nosiz: hammasi ma'lum bo'lgani uchun
+    # istalgan odam md5 ni hisoblab, soxta "to'lov bo'ldi" so'rovini yuborardi.
+    if not click_configured():
+        return False
     raw = (
         f"{click_trans_id}"
         f"{service_id}"
@@ -146,13 +161,17 @@ def verify_click_sign(
 # ─── Payme verifikatsiya ───────────────────────────────────────────────────────
 
 def verify_payme_auth(authorization: str) -> bool:
+    # Kalit bo'sh bo'lsa "Paycom:" ni yuborgan istalgan odam o'tib ketardi.
+    if not payme_configured():
+        return False
     try:
         scheme, credentials = authorization.split(" ", 1)
         if scheme.lower() != "basic":
             return False
         decoded = base64.b64decode(credentials).decode()
         login, key = decoded.split(":", 1)
-        return login == "Paycom" and key == settings.PAYME_KEY
+        # Doimiy vaqtli solishtirish — kalitni belgima-belgi topib bo'lmasin
+        return login == "Paycom" and secrets.compare_digest(key, settings.PAYME_KEY)
     except Exception:
         return False
 
@@ -172,6 +191,13 @@ async def initiate_payment(
     booking = result.scalar_one_or_none()
     if not booking:
         raise HTTPException(status_code=404, detail="Band qilish topilmadi")
+    # Provayder sozlanmagan bo'lsa onlayn to'lovni boshlab bo'lmaydi (hozir naqd-only)
+    if (method == PaymentMethod.click and not click_configured()) or (
+        method == PaymentMethod.payme and not payme_configured()
+    ):
+        raise HTTPException(
+            status_code=503, detail="Onlayn to'lov hozircha ishlamaydi. Naqd to'lang."
+        )
     if booking.passenger_id != user.id:
         raise HTTPException(status_code=403, detail="Bu band qilish sizniki emas")
     if booking.status not in [BookingStatus.pending, BookingStatus.confirmed]:

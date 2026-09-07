@@ -1,7 +1,7 @@
 from __future__ import annotations
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, Enum, DateTime, Text
+from sqlalchemy import String, Boolean, Enum, DateTime, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.db.base import Base
@@ -30,6 +30,12 @@ class User(Base):
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     block_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     telegram_chat_id: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
+    # Sessiya "kaliti": har bir tokenning ichida shu raqam yuradi. Parol
+    # o'zgarganda yoki hisob o'chirilganda bittaga oshiriladi va shu paytgacha
+    # berilgan barcha tokenlar (30 kunlik refresh ham) darrov yaroqsiz bo'ladi.
+    token_version: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

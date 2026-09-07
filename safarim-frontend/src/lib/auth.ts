@@ -1,16 +1,9 @@
 import Cookies from "js-cookie";
 import api from "./api";
-import type { TokenResponse, User } from "@/types";
+import type { User } from "@/types";
 
-export function saveTokens(tokens: TokenResponse) {
-  Cookies.set("access_token", tokens.access_token, { expires: 1 });       // 1 kun
-  Cookies.set("refresh_token", tokens.refresh_token, { expires: 30 });    // 30 kun
-}
-
-export function clearTokens() {
-  Cookies.remove("access_token");
-  Cookies.remove("refresh_token");
-}
+// Token cookie'lari `tokens.ts` da — import halqasi bo'lmasin uchun
+export { saveTokens, clearTokens, getAccessToken } from "./tokens";
 
 export function isAuthenticated(): boolean {
   return !!Cookies.get("access_token");

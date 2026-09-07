@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid as uuid_lib
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -24,6 +24,10 @@ from app.core.config import settings
 class AdminTopupRequest(BaseModel):
     amount: int
     note: str = ""
+
+
+# Admin qo'lda qo'shadigan eng katta summa (bitta amalda)
+MAX_ADMIN_TOPUP = 5_000_000
 
 
 class ResolveDisputeRequest(BaseModel):
@@ -110,8 +114,8 @@ async def reject_driver(
     summary="Barcha foydalanuvchilar",
 )
 async def list_users(
-    page: int = 1,
-    limit: int = 20,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
     admin=Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -284,8 +288,17 @@ async def mark_commission_paid(
     if record.is_paid:
         raise HTTPException(status_code=400, detail="Allaqachon to'langan")
 
+    from app.models.admin import AdminAction
+    from app.models.enums import AdminActionType
+
     record.is_paid = True
     record.paid_at = datetime.utcnow()
+    db.add(AdminAction(
+        admin_id=admin.id,
+        action_type=AdminActionType.commission_paid,
+        target_user_id=record.driver_id,
+        reason=f"{record.total_commission:,} so'm komissiya to'landi deb belgilandi",
+    ))
     await db.commit()
 
     return {
@@ -334,7 +347,25 @@ async def admin_topup_wallet(
     if not user or not user.is_driver:
         raise HTTPException(status_code=404, detail="Haydovchi topilmadi")
 
+    # Yuqori chegara: bu yerda pul yo'qdan bor bo'ladi, shuning uchun bitta
+    # noto'g'ri nol ham hisobni buzmasin.
+    if data.amount > MAX_ADMIN_TOPUP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Bir martada eng ko'pi {MAX_ADMIN_TOPUP:,} so'm qo'shish mumkin",
+        )
+
+    from app.models.admin import AdminAction
+    from app.models.enums import AdminActionType
+
     wallet = await wallet_service.topup(db, uid, data.amount, check_min=False)
+    # Iz qoldiramiz: pulga tegadigan yagona admin harakati yozuvsiz edi
+    db.add(AdminAction(
+        admin_id=admin.id,
+        action_type=AdminActionType.wallet_topup,
+        target_user_id=user.id,
+        reason=f"Hamyonga {data.amount:,} so'm qo'shildi",
+    ))
     await db.commit()
     return {
         "message": f"{user.full_name} hamyoniga {data.amount:,} so'm qo'shildi",

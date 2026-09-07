@@ -91,7 +91,9 @@ async def chat_websocket(
         from app.models.user import User as UserModel
         result = await db.execute(select(UserModel).where(UserModel.id == user_id))
         user = result.scalar_one_or_none()
-        if not user or user.is_blocked:
+        # `ver` — parol o'zgargandan keyin eski token bilan chatga ham
+        # ulanib bo'lmasin (HTTP tomonda `get_current_user` shuni tekshiradi)
+        if not user or user.is_blocked or payload.get("ver", 0) != user.token_version:
             await websocket.close(code=4003, reason="Ruxsat yo'q")
             return
 

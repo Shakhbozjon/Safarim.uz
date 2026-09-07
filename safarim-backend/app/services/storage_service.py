@@ -1,8 +1,11 @@
+import io
 import uuid
+
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from fastapi import UploadFile, HTTPException
+from PIL import Image
 from app.core.config import settings
 
 
@@ -50,17 +53,34 @@ class StorageService:
         except ClientError:
             self.client.create_bucket(Bucket=bucket)
 
-    async def upload(self, file: UploadFile, bucket: str, folder: str = "") -> str:
-        allowed_types = {"image/jpeg", "image/png", "image/jpg", "image/webp"}
-        if file.content_type not in allowed_types:
-            raise HTTPException(status_code=400, detail="Faqat JPEG/PNG formatidagi rasm yuklang")
+    # Faqat shu formatlar; qiymat — (Content-Type, fayl kengaytmasi)
+    _FORMATS = {
+        "JPEG": ("image/jpeg", "jpg"),
+        "PNG": ("image/png", "png"),
+        "WEBP": ("image/webp", "webp"),
+    }
 
+    async def upload(self, file: UploadFile, bucket: str, folder: str = "") -> str:
         max_size = 5 * 1024 * 1024  # 5 MB
         content = await file.read()
         if len(content) > max_size:
             raise HTTPException(status_code=400, detail="Rasm hajmi 5 MB dan oshmasligi kerak")
 
-        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+        # Fayl turini MIJOZ aytganiga qarab emas, faylning O'ZIGA qarab
+        # aniqlaymiz: `content_type` ham, fayl nomi ham foydalanuvchi qo'lida —
+        # ilgari ikkalasiga ishonilardi va istalgan bayt "image/png" bo'lib
+        # saqlanardi. Kengaytma ham shu yerdan olinadi.
+        try:
+            with Image.open(io.BytesIO(content)) as probe:
+                fmt = (probe.format or "").upper()
+                probe.verify()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Bu fayl rasm emas yoki buzilgan")
+
+        if fmt not in self._FORMATS:
+            raise HTTPException(status_code=400, detail="Faqat JPEG, PNG yoki WEBP rasm yuklang")
+        content_type, ext = self._FORMATS[fmt]
+
         key = f"{folder}/{uuid.uuid4()}.{ext}".lstrip("/")
 
         try:
@@ -69,7 +89,7 @@ class StorageService:
                 Bucket=bucket,
                 Key=key,
                 Body=content,
-                ContentType=file.content_type,
+                ContentType=content_type,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Fayl yuklashda xato: {str(e)}")

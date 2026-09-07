@@ -47,6 +47,11 @@ async def get_payment_status(
     except ValueError:
         raise HTTPException(status_code=400, detail="Noto'g'ri ID")
 
+    # Egalik tekshiruvi: ilgari kirgan istalgan odam begona band qilishning
+    # to'lov ma'lumotini (summa, holat, tranzaksiya) o'qiy olardi.
+    from app.services import booking_service
+    await booking_service.get_booking(db, str(uid), current_user)
+
     result = await db.execute(select(Payment).where(Payment.booking_id == uid))
     payment = result.scalar_one_or_none()
     if not payment:

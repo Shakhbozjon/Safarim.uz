@@ -48,12 +48,21 @@ def process_confirmations() -> dict:
 
 async def _run_confirmations() -> dict:
     from app.db.session import AsyncSessionLocal
-    from app.services.booking_service import request_due_confirmations, resolve_due_confirmations
+    from app.services.booking_service import (
+        expire_stale_pending_bookings,
+        request_due_confirmations,
+        resolve_due_confirmations,
+    )
 
+    async with AsyncSessionLocal() as db:
+        stale = await expire_stale_pending_bookings(db)
     async with AsyncSessionLocal() as db:
         opened = await request_due_confirmations(db)
     async with AsyncSessionLocal() as db:
         resolved = await resolve_due_confirmations(db)
 
-    logger.info("process_confirmations: %s oyna ochildi, %s avtomatik hal qilindi", opened, resolved)
-    return {"opened": opened, "resolved": resolved}
+    logger.info(
+        "process_confirmations: %s javobsiz so'rov bekor, %s oyna ochildi, %s avtomatik hal qilindi",
+        stale, opened, resolved,
+    )
+    return {"stale_pending": stale, "opened": opened, "resolved": resolved}

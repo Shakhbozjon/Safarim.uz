@@ -32,6 +32,19 @@ from app.core.security import create_access_token, hash_password
 # Test foydalanuvchilari uchun umumiy parol hash'i (password_hash NOT NULL)
 _TEST_PASSWORD_HASH = hash_password("Test1234!")
 
+# To'lov provayderlari testda "sozlangan" holatda bo'ladi.
+# Prod'da bu kalitlar bo'sh (naqd-only) va o'shanda Click/Payme callback'lari
+# umuman qabul qilinmaydi — bo'sh kalit bilan imzoni istalgan odam yasab,
+# soxta "to'lov bo'ldi" so'rovini yuborishi mumkin edi. Callback oqimini
+# sinash uchun bu yerda kalitlar qo'yiladi.
+from app.core.config import settings as _settings  # noqa: E402
+
+_settings.CLICK_SERVICE_ID = _settings.CLICK_SERVICE_ID or "1"
+_settings.CLICK_MERCHANT_ID = _settings.CLICK_MERCHANT_ID or "1"
+_settings.CLICK_SECRET_KEY = _settings.CLICK_SECRET_KEY or "test-click-secret"
+_settings.PAYME_ID = _settings.PAYME_ID or "test-payme-id"
+_settings.PAYME_KEY = _settings.PAYME_KEY or "test-payme-key"
+
 # ─── Test DB ─────────────────────────────────────────────────────────────────
 
 TEST_DB_URL = "postgresql+asyncpg://safarim:safarim123@127.0.0.1:5433/safarim_test"

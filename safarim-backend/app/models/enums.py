@@ -148,3 +148,6 @@ class AdminActionType(str, enum.Enum):
     warn_driver = "warn_driver"
     cancel_trip = "cancel_trip"
     verify_phone = "verify_phone"
+    # Pul bilan bog'liq harakatlar ham izsiz qolmasin
+    wallet_topup = "wallet_topup"
+    commission_paid = "commission_paid"

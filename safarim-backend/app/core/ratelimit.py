@@ -14,10 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 def _client_ip(request: Request) -> str:
-    # Nginx orqasida bo'lsa X-Forwarded-For dagi birinchi IP
+    """Haqiqiy mijoz IP si.
+
+    ⚠️ X-Forwarded-For dagi BIRINCHI qiymat mijozning o'zi yozgan bo'lishi
+    mumkin — ilgari shundan olinardi va har so'rovga soxta sarlavha qo'shgan
+    odam barcha limitlardan (ro'yxat, login, OTP) bemalol o'tib ketardi.
+    Bizga eng oxirgi qiymat kerak: uni bizning nginx qo'shadi, mijoz unga
+    ta'sir qila olmaydi. (nginx tomonda ham sarlavha $remote_addr bilan
+    to'liq almashtiriladi — ikki qatlamli himoya.)
+    """
     fwd = request.headers.get("x-forwarded-for")
     if fwd:
-        return fwd.split(",")[0].strip()
+        parts = [p.strip() for p in fwd.split(",") if p.strip()]
+        if parts:
+            return parts[-1]
     return request.client.host if request.client else "unknown"
 
 
@@ -54,6 +64,19 @@ async def limit_register(request: Request) -> None:
     # OTP'siz ro'yxat — bitta qurilma/IP'dan massa soxta hisob ochishni cheklaydi.
     ip = _client_ip(request)
     await _hit(f"register:ip:{ip}", settings.REGISTER_RATELIMIT_IP_PER_HOUR, 3600)
+
+
+async def limit_phone_lookup(request: Request) -> None:
+    """Raqam ro'yxatdan o'tganini tekshiradigan endpointlar uchun.
+
+    Bunday endpoint (masalan parol tiklash havolasi) bilan raqamlarni bir-bir
+    sinab, kim ro'yxatda borligini aniqlash mumkin. Javob matnini "har doim
+    bir xil" qilib qo'yish oddiy foydalanuvchini adashtiradi (raqamini xato
+    yozganini bilmay qoladi), shuning uchun matn qoldirildi va o'rniga
+    tekshirishlar soni cheklandi: soatiga 10 ta raqam.
+    """
+    ip = _client_ip(request)
+    await _hit(f"lookup:ip:{ip}", 10, 3600)
 
 
 async def limit_support(request: Request) -> None:

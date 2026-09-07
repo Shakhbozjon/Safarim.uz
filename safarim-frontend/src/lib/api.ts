@@ -1,5 +1,5 @@
 import axios, { AxiosError } from "axios";
-import Cookies from "js-cookie";
+import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from "./tokens";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1",
@@ -8,7 +8,7 @@ const api = axios.create({
 
 // Har so'rovga token qo'shish
 api.interceptors.request.use((config) => {
-  const token = Cookies.get("access_token");
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -22,20 +22,24 @@ api.interceptors.response.use(
     const original = error.config as any;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
-      const refresh = Cookies.get("refresh_token");
+      const refresh = getRefreshToken();
       if (refresh) {
         try {
           const { data } = await axios.post(
             `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
             { refresh_token: refresh }
           );
-          Cookies.set("access_token", data.access_token, { expires: 1 });
+          // Backend refresh'da yangi refresh token ham beradi (eskisi bekor
+          // qilinishi mumkin) — ikkalasini ham saqlaymiz
+          saveTokens(data);
           original.headers.Authorization = `Bearer ${data.access_token}`;
           return api(original);
         } catch {
-          Cookies.remove("access_token");
-          Cookies.remove("refresh_token");
-          window.location.href = "/auth/login";
+          clearTokens();
+          // ⚠️ Ilgari bu yerda "/auth/login" turardi — bunday sahifa yo'q
+          // (Next'ning (auth) guruhi manzilga chiqmaydi), ya'ni sessiyasi
+          // tugagan odam inglizcha 404 sahifasiga tushardi.
+          window.location.href = "/login";
         }
       }
     }

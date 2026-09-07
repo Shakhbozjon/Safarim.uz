@@ -108,6 +108,10 @@ class Settings(BaseSettings):
     REVIEW_DEADLINE_HOURS: int = 72
 
     # ── Ikki tomonlama safar tasdiqi ────────────────────────────────────────
+    # Haydovchi javob bermagan so'rov jo'nashga shuncha soat qolganda bekor
+    # bo'ladi (yo'lovchida boshqa safar topishga vaqt qolsin)
+    PENDING_BOOKING_EXPIRE_HOURS: int = 3
+
     CONFIRMATION_GRACE_HOURS: int = 3       # jo'nashdan keyin shu soatdan so'ng tasdiq so'raladi
     CONFIRMATION_WINDOW_HOURS: int = 48     # tasdiq so'rovidan keyin avtomatik hal qilinguncha
     # Soxta belgilash jarimasi
@@ -144,6 +148,15 @@ def validate_production_security() -> None:
         problems.append("JWT_SECRET_KEY")
     if "*" in settings.cors_origins_list:
         problems.append("CORS_ORIGINS (\"*\" prod uchun xavfli)")
+    # MinIO default kalitlari — ishga tushirishni to'xtatmaymiz (jonli sayt
+    # shu sababdan qulab qolmasin), lekin jimgina ham qoldirmaymiz.
+    if settings.MINIO_ACCESS_KEY == "minioadmin" or settings.MINIO_SECRET_KEY == "minioadmin123":
+        import logging
+        logging.getLogger(__name__).warning(
+            "MinIO default kalitlari ishlatilyapti — .env da MINIO_ACCESS_KEY/"
+            "MINIO_SECRET_KEY ni almashtiring."
+        )
+
     if problems:
         raise RuntimeError(
             "Xavfsiz bo'lmagan konfiguratsiya bilan prod'da ishga tushib bo'lmaydi: "

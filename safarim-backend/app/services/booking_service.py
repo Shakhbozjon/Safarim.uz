@@ -805,6 +805,74 @@ async def report_no_show(db: AsyncSession, booking_id: str, driver: User) -> Boo
 
 # ─── Celery uchun ommaviy hal qilish ────────────────────────────────────────
 
+async def expire_stale_pending_bookings(db: AsyncSession) -> int:
+    """Haydovchi javob bermagan so'rovlarni jo'nashdan oldin bekor qiladi.
+
+    Ilgari javobsiz so'rov safar kuni tugagunicha "kutilmoqda" bo'lib turardi:
+    yo'lovchi javob kutib boshqa safarni qidirmasdi va oxirida yo'lda qolardi.
+    Endi jo'nashga `PENDING_BOOKING_EXPIRE_HOURS` soatdan kam qolganda so'rov
+    avtomatik bekor bo'ladi va ikkala tomon ham xabar oladi — yo'lovchida
+    boshqa safar topishga vaqt qoladi.
+    """
+    now = now_tashkent_naive()
+    cutoff = now + timedelta(hours=settings.PENDING_BOOKING_EXPIRE_HOURS)
+
+    rows = (await db.execute(
+        select(Booking)
+        .options(selectinload(Booking.trip))
+        .where(Booking.status == BookingStatus.pending)
+    )).scalars().all()
+
+    expired = 0
+    for booking in rows:
+        trip = booking.trip
+        if trip is None or trip.status in (TripStatus.cancelled, TripStatus.expired):
+            continue
+        departure_dt = datetime.combine(trip.departure_date, trip.departure_time)
+        if departure_dt > cutoff:
+            continue  # hali vaqt bor
+
+        booking.status = BookingStatus.cancelled
+        booking.cancelled_by = CancelledBy.driver
+        booking.cancellation_reason = "Haydovchi vaqtida javob bermadi"
+        booking.cancelled_at = now
+
+        online_paid = (
+            booking.payment_method != PaymentMethod.cash
+            and booking.payment_status == BookingPaymentStatus.paid
+        )
+        refund = booking.total_price if online_paid else 0
+        booking.refund_amount = refund
+        await flag_refund_due(db, booking, refund)
+
+        # O'rin qaytadan bo'shaydi
+        trip.available_seats += booking.seats_count
+        if trip.status == TripStatus.full and trip.available_seats > 0:
+            trip.status = TripStatus.active
+
+        await notification_service.create(
+            db,
+            user_id=booking.passenger_id,
+            title="So'rovingiz bekor qilindi",
+            body="Haydovchi vaqtida javob bermadi. Shu yo'nalishda boshqa safarlarni ko'ring.",
+            ref_type=NotificationRefType.booking,
+            ref_id=booking.id,
+        )
+        await notification_service.create(
+            db,
+            user_id=trip.driver_id,
+            title="Javobsiz so'rov bekor bo'ldi",
+            body="Yo'lovchi so'roviga javob berilmadi va u avtomatik bekor qilindi.",
+            ref_type=NotificationRefType.booking,
+            ref_id=booking.id,
+        )
+        expired += 1
+
+    if expired:
+        await db.commit()
+    return expired
+
+
 async def request_due_confirmations(db: AsyncSession) -> int:
     """Jo'nash + grace o'tgan tasdiqlangan band qilishlar uchun tasdiq oynasini ochadi."""
     now_local = now_tashkent_naive()

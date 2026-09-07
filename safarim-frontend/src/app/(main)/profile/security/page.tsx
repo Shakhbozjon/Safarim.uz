@@ -8,7 +8,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
-import { getApiError } from "@/lib/auth";
+import { clearTokens, getApiError, saveTokens } from "@/lib/auth";
 
 /**
  * Parolni o'zgartirish — joriy parol bilan.
@@ -32,6 +32,27 @@ export default function SecurityPage() {
   const [errors, setErrors]   = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
 
+  // Hisobni o'chirish
+  const [deleteOpen, setDeleteOpen]         = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError]       = useState("");
+  const [deleting, setDeleting]             = useState(false);
+
+  const handleDelete = async () => {
+    if (!deletePassword) { setDeleteError("Parolingizni kiriting"); return; }
+    setDeleting(true);
+    try {
+      // DELETE so'rovida tana axios'da `data` orqali yuboriladi
+      await api.delete("/users/me", { data: { password: deletePassword } });
+      clearTokens();
+      window.location.href = "/";
+    } catch (err: any) {
+      setDeleteError(getApiError(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     const errs: Record<string, string> = {};
     if (!current) errs.current = "Joriy parolni kiriting";
@@ -42,10 +63,14 @@ export default function SecurityPage() {
     setErrors({});
     setSaving(true);
     try {
-      await api.post("/users/me/change-password", {
+      const { data } = await api.post("/users/me/change-password", {
         current_password: current,
         new_password: newPassword,
       });
+      // Parol o'zgargach eski tokenlar bekor bo'ladi (boshqa qurilmalardagi
+      // sessiyalar uziladi) — shu qurilma uchun yangi token darrov saqlanadi,
+      // aks holda odam o'z parolini almashtirib tizimdan chiqib qolardi.
+      if (data?.access_token) saveTokens(data);
       setSuccess(true);
       setTimeout(() => router.push("/profile"), 1800);
     } catch (err: any) {
@@ -151,6 +176,55 @@ export default function SecurityPage() {
               Telegram orqali tiklang
             </Link>
           </p>
+
+          {/* ── Hisobni o'chirish ── */}
+          <div className="bg-white rounded-2xl border border-red-100 p-4 mt-8">
+            <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-1">
+              Hisobni o&apos;chirish
+            </p>
+            <p className="text-sm text-gray-500 mb-3">
+              Ism, telefon, rasm va Telegram ulanishi o&apos;chiriladi, hisobga kirish
+              yopiladi. Safar tarixi boshqa odamlarda ham borligi uchun butunlay
+              o&apos;chirilmaydi, lekin sizning ma&apos;lumotingiz qolmaydi.
+            </p>
+
+            {!deleteOpen ? (
+              <button
+                onClick={() => setDeleteOpen(true)}
+                className="text-sm font-semibold text-red-600 hover:text-red-700"
+              >
+                Hisobimni o&apos;chirish
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <Input
+                  type="password"
+                  placeholder="Tasdiqlash uchun parolingiz"
+                  prefix={<Lock size={15} />}
+                  value={deletePassword}
+                  onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(""); }}
+                  error={deleteError}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    onClick={() => { setDeleteOpen(false); setDeletePassword(""); setDeleteError(""); }}
+                  >
+                    Bekor qilish
+                  </Button>
+                  <Button
+                    fullWidth
+                    loading={deleting}
+                    className="!bg-red-600 hover:!bg-red-700"
+                    onClick={handleDelete}
+                  >
+                    Ha, o&apos;chirilsin
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

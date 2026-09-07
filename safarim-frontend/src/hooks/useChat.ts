@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import Cookies from "js-cookie";
+import { getAccessToken } from "@/lib/tokens";
 import type { MessageResponse, WsEvent } from "@/types";
 
 export type ChatStatus = "connecting" | "open" | "closed" | "error";
@@ -27,7 +27,7 @@ export function useChat({ bookingId, onMessage, onOnlineChange }: UseChatOptions
   const connect = useCallback(() => {
     if (!isMounted.current) return;
 
-    const token = Cookies.get("access_token");
+    const token = getAccessToken();
     if (!token) {
       setStatus("error");
       return;

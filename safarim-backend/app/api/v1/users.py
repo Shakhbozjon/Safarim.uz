@@ -1,3 +1,5 @@
+import uuid as uuid_lib
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -8,7 +10,12 @@ from app.models.user import User
 from app.models.enums import TalkLevel, Gender
 from app.schemas.user import UserResponse, UserPublicResponse
 from app.core.dependencies import get_current_user
-from app.core.security import hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 from app.services.storage_service import storage_service
 from app.core.config import settings
 
@@ -116,8 +123,94 @@ async def change_password(
         )
 
     current_user.password_hash = hash_password(data.new_password)
+    # Parol o'zgardi — barcha eski tokenlar yaroqsiz bo'ladi (o'g'irlangan
+    # sessiya ham). Shu qurilmadagi odam esa qaytadan kirmasin: unga darrov
+    # yangi token beramiz.
+    current_user.token_version += 1
     await db.commit()
-    return {"message": "Parol muvaffaqiyatli o'zgartirildi"}
+    await db.refresh(current_user)
+    return {
+        "message": "Parol muvaffaqiyatli o'zgartirildi",
+        "access_token": create_access_token(str(current_user.id), current_user.token_version),
+        "refresh_token": create_refresh_token(str(current_user.id), current_user.token_version),
+    }
+
+
+class DeleteAccountRequest(BaseModel):
+    """Hisobni o'chirish — joriy parol bilan tasdiqlanadi."""
+    password: str
+
+
+@router.delete(
+    "/me",
+    summary="Hisobni o'chirish",
+)
+async def delete_my_account(
+    data: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Hisobni o'chiradi (anonimlashtirish yo'li bilan).
+
+    Yozuvni butunlay o'chirib bo'lmaydi: safarlar, band qilishlar va baholar
+    unga bog'langan — o'chirilsa boshqa odamlarning safar tarixi ham buziladi.
+    Shuning uchun shaxsiy ma'lumot (ism, telefon, email, rasm, Telegram)
+    tozalanadi va hisobga kirish yopiladi.
+    """
+    if not verify_password(data.password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Parol noto'g'ri")
+
+    if current_user.is_admin:
+        raise HTTPException(
+            status_code=400, detail="Admin hisobini bu yerdan o'chirib bo'lmaydi"
+        )
+
+    # Ochiq ishlar borligini tekshiramiz — kimdir yo'lda qolib ketmasin
+    from app.models.booking import Booking
+    from app.models.trip import Trip
+    from app.models.enums import BookingStatus, TripStatus
+
+    active_booking = (await db.execute(
+        select(Booking).where(
+            Booking.passenger_id == current_user.id,
+            Booking.status.in_([BookingStatus.pending, BookingStatus.confirmed]),
+        ).limit(1)
+    )).scalar_one_or_none()
+    if active_booking:
+        raise HTTPException(
+            status_code=400,
+            detail="Avval faol band qilishlaringizni bekor qiling yoki yakunlang",
+        )
+
+    active_trip = (await db.execute(
+        select(Trip).where(
+            Trip.driver_id == current_user.id,
+            Trip.status.in_([TripStatus.active, TripStatus.full, TripStatus.started]),
+        ).limit(1)
+    )).scalar_one_or_none()
+    if active_trip:
+        raise HTTPException(
+            status_code=400,
+            detail="Avval e'lon qilgan safarlaringizni yakunlang yoki bekor qiling",
+        )
+
+    # Anonimlashtirish. Telefon unikal bo'lgani uchun o'rniga qaytarib
+    # bo'lmaydigan qiymat qo'yiladi — shu raqam bilan qaytadan ro'yxatdan
+    # o'tish mumkin bo'lsin.
+    # phone ustuni 13 belgi — shunga sig'adigan belgi qo'yamiz
+    current_user.phone = f"del_{uuid_lib.uuid4().hex[:9]}"
+    current_user.full_name = "O'chirilgan foydalanuvchi"
+    current_user.email = None
+    current_user.profile_photo = None
+    current_user.telegram_chat_id = None
+    current_user.is_phone_verified = False
+    current_user.is_active = False
+    current_user.is_blocked = True
+    current_user.block_reason = "Foydalanuvchi hisobni o'chirdi"
+    current_user.password_hash = hash_password(uuid_lib.uuid4().hex)
+    current_user.token_version += 1  # barcha qurilmalardagi sessiyalar uziladi
+    await db.commit()
+    return {"message": "Hisobingiz o'chirildi"}
 
 
 @router.get(

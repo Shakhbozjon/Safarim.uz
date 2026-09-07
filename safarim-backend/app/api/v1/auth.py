@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.core.ratelimit import limit_send_otp, limit_login, limit_register
+from app.core.ratelimit import (
+    limit_login,
+    limit_phone_lookup,
+    limit_register,
+    limit_send_otp,
+)
 from app.schemas.auth import (
     SendOtpRequest, SendOtpResponse,
     RegisterRequest, LoginRequest, ResetPasswordRequest, TelegramResetLinkRequest,
@@ -54,8 +59,8 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
     await limit_register(request)  # bitta IP/qurilmadan massa soxta hisobni cheklaydi
     user = await auth_service.register_user(db, data.phone, data.full_name, data.password)
     return TokenResponse(
-        access_token=create_access_token(str(user.id)),
-        refresh_token=create_refresh_token(str(user.id)),
+        access_token=create_access_token(str(user.id), user.token_version),
+        refresh_token=create_refresh_token(str(user.id), user.token_version),
     )
 
 
@@ -68,8 +73,8 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
     await limit_login(request)
     user = await auth_service.login_user(db, data.phone, data.password)
     return TokenResponse(
-        access_token=create_access_token(str(user.id)),
-        refresh_token=create_refresh_token(str(user.id)),
+        access_token=create_access_token(str(user.id), user.token_version),
+        refresh_token=create_refresh_token(str(user.id), user.token_version),
     )
 
 
@@ -88,6 +93,7 @@ async def telegram_reset_link(
     kontaktini ulashgandagina yuboriladi.
     """
     await limit_send_otp(request, data.phone)
+    await limit_phone_lookup(request)
 
     if not telegram_service.is_configured():
         raise HTTPException(
@@ -122,8 +128,8 @@ async def reset_password(
     )
     # Tiklangach darrov kiritamiz — foydalanuvchi yana parol terib o'tirmasin
     return TokenResponse(
-        access_token=create_access_token(str(user.id)),
-        refresh_token=create_refresh_token(str(user.id)),
+        access_token=create_access_token(str(user.id), user.token_version),
+        refresh_token=create_refresh_token(str(user.id), user.token_version),
     )
 
 
@@ -132,17 +138,24 @@ async def reset_password(
     response_model=TokenResponse,
     summary="Access tokenni yangilash",
 )
-async def refresh_token(data: RefreshRequest):
+async def refresh_token(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
     payload = decode_token(data.refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token yaroqsiz yoki muddati o'tgan",
         )
-    user_id = payload["sub"]
+    # Ilgari bu yerda bazaga umuman murojaat qilinmasdi: bloklangan yoki
+    # parolini almashtirgan hisob ham 30 kun davomida yangi token olaverardi.
+    user = await auth_service.get_user_by_id(db, payload["sub"])
+    if user is None or user.is_blocked or payload.get("ver", 0) != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sessiya muddati tugadi. Qaytadan kiring",
+        )
     return TokenResponse(
-        access_token=create_access_token(user_id),
-        refresh_token=create_refresh_token(user_id),
+        access_token=create_access_token(str(user.id), user.token_version),
+        refresh_token=create_refresh_token(str(user.id), user.token_version),
     )
 
 
