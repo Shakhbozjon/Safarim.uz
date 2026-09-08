@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 
 const links = {
@@ -48,12 +49,19 @@ export default function Footer() {
             <p className="text-sm text-gray-500 leading-relaxed max-w-[280px] mb-4">
               O'zbekiston bo'ylab qulay va arzon safar. Haydovchi va yo'lovchilarni birlashtiruvchi platforma.
             </p>
-            <div className="text-sm text-gray-500 leading-8">
-              <div>Toshkent, O'zbekiston</div>
-              <Link href="/support" className="text-primary-600 hover:text-primary-700 font-semibold">
-                Bog'lanish →
-              </Link>
-            </div>
+            {/* Manzil yozilmaydi: ofis yo'q, "Toshkent, O'zbekiston" esa hech
+                narsa aytmaydi — sayt allaqachon butun mamlakat bo'ylab ishlaydi.
+                O'rnida — nima uchun yozish kerakligi va bosiladigan tugma. */}
+            <p className="text-[13px] text-gray-400 mb-2.5">
+              Savol, taklif yoki muammo bo&apos;lsa — yozing, o&apos;zimiz javob beramiz.
+            </p>
+            <Link
+              href="/support"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-100 hover:text-primary-700"
+            >
+              <MessageCircle size={15} />
+              Bog&apos;lanish
+            </Link>
           </div>
 
           <Column title="Platforma" items={links.platform} />
