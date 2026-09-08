@@ -6,22 +6,17 @@
 (har 20 daqiqada). Eslatma: dashboard ham `get_my_trips` orqali lazy expiry
 qiladi, shuning uchun Celery ishlamasa ham haydovchi paneli o'zini tozalaydi.
 """
-import asyncio
 import logging
 
 from app.tasks.celery_app import celery_app
+from app.tasks.runner import run_task
 
 logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="app.tasks.trip_tasks.expire_old_trips")
 def expire_old_trips() -> dict:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_run())
-    finally:
-        loop.close()
+    return run_task(_run)
 
 
 async def _run() -> dict:
@@ -38,12 +33,7 @@ async def _run() -> dict:
 @celery_app.task(name="app.tasks.trip_tasks.process_confirmations")
 def process_confirmations() -> dict:
     """Safar tasdiqi oqimi: oyna ochish + 48 soat o'tganlarni avtomatik hal qilish."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_run_confirmations())
-    finally:
-        loop.close()
+    return run_task(_run_confirmations)
 
 
 async def _run_confirmations() -> dict:

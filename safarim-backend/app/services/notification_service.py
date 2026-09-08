@@ -2,6 +2,7 @@
 Notification service — in-app bildirishnomalar yaratish va o'qish.
 """
 from __future__ import annotations
+import asyncio
 import logging
 import uuid
 from datetime import datetime
@@ -84,6 +85,25 @@ def _queue_telegram(notification_id: uuid.UUID, buttons: list[list[dict]] | None
 
 # asyncio faqat kuchsiz havola saqlaydi: vazifa tugamasdan yig'ilib ketmasin
 _PENDING_SENDS: set = set()
+
+
+async def flush_pending(timeout: float = 20.0) -> int:
+    """Yuborilayotgan Telegram xabarlari tugashini kutadi.
+
+    Celery vazifasi ichida kerak: vazifa tugab event loop yopilsa, hali
+    yuborilmagan xabarlar shundoq uzilib qolardi (ular `asyncio.create_task`
+    bilan fon rejimida ketadi). Qaytaradi: kutilgan vazifalar soni.
+    """
+    pending = {t for t in _PENDING_SENDS if not t.done()}
+    if not pending:
+        return 0
+    done, still_running = await asyncio.wait(pending, timeout=timeout)
+    for task in still_running:
+        # Loop yopilgach "Task was destroyed but it is pending" bo'lmasin
+        task.cancel()
+    if still_running:
+        logger.warning("%s ta Telegram xabari %ss ichida yuborilmadi", len(still_running), timeout)
+    return len(done)
 
 
 # ─── O'qish ───────────────────────────────────────────────────────────────────

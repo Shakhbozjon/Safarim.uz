@@ -1,13 +1,13 @@
-import asyncio
 from app.tasks.celery_app import celery_app
+from app.tasks.runner import run_task
 
 
 @celery_app.task(name="app.tasks.notification_tasks.send_sms")
 def send_sms(phone: str, message: str) -> dict:
     from app.services.sms_service import sms_service
-    return asyncio.get_event_loop().run_until_complete(
-        sms_service.send(phone, message)
-    )
+
+    # `get_event_loop()` ishlatilmaydi: worker ipida loop bo'lmasligi mumkin
+    return run_task(lambda: sms_service.send(phone, message))
 
 
 @celery_app.task(name="app.tasks.notification_tasks.send_telegram")
@@ -38,13 +38,7 @@ def check_review_deadlines() -> dict:
             count = await reveal_expired_reviews(db)
             return count
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        count = loop.run_until_complete(_run())
-        return {"revealed": count}
-    finally:
-        loop.close()
+    return {"revealed": run_task(_run)}
 
 
 @celery_app.task(name="app.tasks.notification_tasks.notify_booking_created")
