@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Ban, CheckCircle, Loader2, Users, Shield, Banknote, ShieldCheck } from "lucide-react";
 import api from "@/lib/api";
@@ -18,15 +18,49 @@ interface UsersResponse {
   users: User[];
 }
 
-async function fetchUsers(page: number): Promise<UsersResponse> {
-  const { data } = await api.get("/admin/users", { params: { page, limit: 20 } });
+type RoleFilter = "all" | "driver" | "passenger" | "admin";
+type StatusFilter = "all" | "blocked" | "unverified";
+
+async function fetchUsers(
+  page: number, q: string, role: RoleFilter, status: StatusFilter,
+): Promise<UsersResponse> {
+  const { data } = await api.get("/admin/users", {
+    params: { page, limit: 20, q: q || undefined, role, status },
+  });
   return data;
 }
+
+const ROLE_TABS: { key: RoleFilter; label: string }[] = [
+  { key: "all", label: "Hammasi" },
+  { key: "driver", label: "Haydovchilar" },
+  { key: "passenger", label: "Yo'lovchilar" },
+  { key: "admin", label: "Adminlar" },
+];
+
+const STATUS_TABS: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "Barcha holat" },
+  { key: "blocked", label: "Bloklangan" },
+  { key: "unverified", label: "Raqami tasdiqlanmagan" },
+];
 
 export default function AdminUsersPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  // Qidiruv BAZADA bajariladi. Har harfda so'rov yubormaslik uchun 350ms kutamiz.
+  const [debounced, setDebounced] = useState("");
+  const [role, setRole] = useState<RoleFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Filtr o'zgarsa birinchi sahifaga qaytamiz — aks holda bo'sh sahifa ko'rinardi
+  useEffect(() => {
+    setPage(1);
+  }, [debounced, role, status]);
   const [blockTarget, setBlockTarget] = useState<User | null>(null);
   const [blockReason, setBlockReason] = useState("");
 
@@ -36,9 +70,10 @@ export default function AdminUsersPage() {
   const [topupNote, setTopupNote] = useState("");
   const [topupDone, setTopupDone] = useState(false);
 
-  const { data, isLoading } = useQuery<UsersResponse>({
-    queryKey: ["admin", "users", page],
-    queryFn: () => fetchUsers(page),
+  const { data, isLoading, isFetching } = useQuery<UsersResponse>({
+    queryKey: ["admin", "users", page, debounced, role, status],
+    queryFn: () => fetchUsers(page, debounced, role, status),
+    placeholderData: (prev) => prev,
   });
 
   const topupMut = useMutation({
@@ -72,14 +107,8 @@ export default function AdminUsersPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
   });
 
-  const filtered = (data?.users ?? []).filter((u) =>
-    search
-      ? u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-        u.phone.includes(search)
-      : true
-  );
-
-  const totalPages = data ? Math.ceil(data.total / 20) : 1;
+  const filtered = data?.users ?? [];
+  const totalPages = data ? Math.max(Math.ceil(data.total / 20), 1) : 1;
 
   return (
     <div className="p-5 sm:p-8">
@@ -90,16 +119,46 @@ export default function AdminUsersPage() {
         </p>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-5 max-w-sm">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Ism yoki telefon..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-        />
+      {/* Qidiruv + filtrlar */}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <div className="relative w-full max-w-xs">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Ism yoki telefon (butun baza)..."
+            className="w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          {isFetching && (
+            <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-300" />
+          )}
+        </div>
+
+        <div className="flex rounded-xl border border-gray-200 bg-white p-1">
+          {ROLE_TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setRole(t.key)}
+              className={
+                "rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors " +
+                (role === t.key ? "bg-primary-500 text-white" : "text-gray-500 hover:text-gray-800")
+              }
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value as StatusFilter)}
+          className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13px] font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          {STATUS_TABS.map((t) => (
+            <option key={t.key} value={t.key}>{t.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Table */}

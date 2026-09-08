@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
@@ -154,12 +154,45 @@ async def get_monthly_earnings(db: AsyncSession, user: User) -> list[DriverMonth
 # ─── Admin funksiyalari ────────────────────────────────────────────────────────
 
 async def get_pending_drivers(db: AsyncSession) -> list[DriverProfile]:
-    result = await db.execute(
+    return await list_drivers(db, status=DriverStatus.pending)
+
+
+async def list_drivers(
+    db: AsyncSession,
+    status: DriverStatus | None = None,
+    q: str | None = None,
+    limit: int = 100,
+) -> list[DriverProfile]:
+    """Admin uchun haydovchilar ro'yxati.
+
+    Ilgari faqat `pending` ro'yxati bor edi — tasdiqlangan haydovchini
+    topishning, mashinasini yoki raqamini ko'rishning yo'li yo'q edi.
+    """
+    conditions = []
+    if status is not None:
+        conditions.append(DriverProfile.status == status)
+    if q:
+        needle = f"%{q.strip().lower()}%"
+        conditions.append(
+            func.lower(DriverProfile.vehicle_plate).like(needle)
+            | func.lower(User.full_name).like(needle)
+            | User.phone.like(needle)
+        )
+
+    query = (
         select(DriverProfile)
+        .join(User, DriverProfile.user_id == User.id)
         .options(selectinload(DriverProfile.user))
-        .where(DriverProfile.status == DriverStatus.pending)
-        .order_by(DriverProfile.created_at.asc())
+        .where(*conditions)
+        .limit(limit)
     )
+    # Kutayotganlar eng eskisidan (navbat), qolganlar eng yangisidan
+    query = query.order_by(
+        DriverProfile.created_at.asc()
+        if status == DriverStatus.pending
+        else DriverProfile.created_at.desc()
+    )
+    result = await db.execute(query)
     return result.scalars().all()
 
 

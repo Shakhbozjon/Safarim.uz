@@ -15,7 +15,7 @@ from app.models.payment import DriverMonthlyCommission
 from app.models.enums import DriverStatus, BookingStatus
 from app.schemas.driver import AdminDriverListResponse, RejectDriverRequest, DriverProfileResponse
 from app.schemas.user import UserResponse
-from app.services import driver_service, wallet_service
+from app.services import admin_stats_service, driver_service, wallet_service
 from app.services.storage_service import storage_service
 from app.core.dependencies import get_current_admin, get_current_super_admin
 from app.core.config import settings
@@ -48,6 +48,30 @@ async def get_pending_drivers(
     db: AsyncSession = Depends(get_db),
 ):
     return await driver_service.get_pending_drivers(db)
+
+
+@router.get(
+    "/drivers",
+    response_model=list[AdminDriverListResponse],
+    summary="Haydovchilar ro'yxati (holat bo'yicha + qidiruv)",
+)
+async def list_drivers(
+    status: str = Query("pending", pattern="^(pending|approved|rejected|all)$"),
+    q: str | None = Query(None, description="Ism, telefon yoki avtomobil raqami"),
+    admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Tasdiqlangan haydovchini ham topib bo'lsin.
+
+    Ilgari faqat `/drivers/pending` bor edi: ariza ko'rib chiqilgach haydovchi
+    admin panelidan butunlay yo'qolardi — mashinasini yoki raqamini keyin
+    tekshirishning yo'li qolmasdi.
+    """
+    return await driver_service.list_drivers(
+        db,
+        status=None if status == "all" else DriverStatus(status),
+        q=q,
+    )
 
 
 @router.get(
@@ -116,16 +140,42 @@ async def reject_driver(
 async def list_users(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    q: str | None = Query(None, description="Ism yoki telefon bo'yicha qidiruv"),
+    role: str = Query("all", pattern="^(all|driver|passenger|admin)$"),
+    status_filter: str = Query("all", alias="status", pattern="^(all|blocked|unverified)$"),
     admin=Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    """Ro'yxat + qidiruv + filtrlar.
+
+    ⚠️ Qidiruv BAZADA bajariladi. Ilgari frontend faqat ochilgan sahifadagi
+    20 ta qatorni filtrlardi — 5-sahifadagi odamni qidirib topib bo'lmasdi.
+    """
+    conditions = []
+    if q:
+        needle = f"%{q.strip().lower()}%"
+        conditions.append(
+            func.lower(User.full_name).like(needle) | User.phone.like(needle)
+        )
+    if role == "driver":
+        conditions.append(User.is_driver.is_(True))
+    elif role == "passenger":
+        conditions.append(User.is_driver.is_(False))
+    elif role == "admin":
+        conditions.append(User.is_admin.is_(True))
+
+    if status_filter == "blocked":
+        conditions.append(User.is_blocked.is_(True))
+    elif status_filter == "unverified":
+        conditions.append(User.is_phone_verified.is_(False))
+
     offset = (page - 1) * limit
     result = await db.execute(
-        select(User).order_by(User.created_at.desc()).offset(offset).limit(limit)
+        select(User).where(*conditions).order_by(User.created_at.desc()).offset(offset).limit(limit)
     )
     users = result.scalars().all()
-    total = await db.scalar(select(func.count(User.id)))
-    return {"total": total, "page": page, "users": users}
+    total = await db.scalar(select(func.count(User.id)).where(*conditions))
+    return {"total": total, "page": page, "limit": limit, "users": users}
 
 
 @router.post(
@@ -378,38 +428,18 @@ async def admin_topup_wallet(
 
 @router.get(
     "/stats",
-    summary="Umumiy statistika",
+    summary="Dashboard statistikasi (davr bo'yicha)",
 )
 async def get_stats(
+    days: int = Query(30, ge=1, le=180, description="Necha kunlik davr"),
     admin=Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    total_users = await db.scalar(select(func.count(User.id)))
-    total_drivers = await db.scalar(
-        select(func.count(DriverProfile.id)).where(DriverProfile.status == DriverStatus.approved)
-    )
-    pending_drivers = await db.scalar(
-        select(func.count(DriverProfile.id)).where(DriverProfile.status == DriverStatus.pending)
-    )
-    total_trips = await db.scalar(select(func.count(Trip.id)))
-    total_bookings = await db.scalar(select(func.count(Booking.id)))
-    completed_bookings = await db.scalar(
-        select(func.count(Booking.id)).where(Booking.status == BookingStatus.completed)
-    )
+    """Davr ko'rsatkichlari, sifat foizlari, ish navbati, kunlik qatorlar.
 
-    disputed_bookings = await db.scalar(
-        select(func.count(Booking.id)).where(Booking.status == BookingStatus.disputed)
-    )
-
-    return {
-        "total_users": total_users,
-        "total_drivers": total_drivers,
-        "pending_drivers": pending_drivers,
-        "total_trips": total_trips,
-        "total_bookings": total_bookings,
-        "completed_bookings": completed_bookings,
-        "disputed_bookings": disputed_bookings,
-    }
+    Hisob-kitob `admin_stats_service` da — bu yerda faqat ulagich.
+    """
+    return await admin_stats_service.dashboard(db, days=days)
 
 
 # ─── Nizoli band qilishlar (safar tasdiqi) ──────────────────────────────────────────

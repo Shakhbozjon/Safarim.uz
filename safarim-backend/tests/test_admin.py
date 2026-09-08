@@ -73,12 +73,16 @@ async def test_stats_returns_fields(client: AsyncClient, admin_user: User):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert "total_users" in data
-    assert "total_drivers" in data
-    assert "pending_drivers" in data
-    assert "total_trips" in data
-    assert "total_bookings" in data
-    assert "completed_bookings" in data
+    # Yangi tuzilma: davr ko'rsatkichlari + sifat + ish navbati + kunlik qatorlar
+    assert set(data["kpi"]) == {
+        "users", "drivers", "trips", "bookings", "completed", "gmv", "commission",
+    }
+    assert set(data["kpi"]["users"]) == {"total", "period", "prev", "delta_pct"}
+    assert "completion_rate" in data["quality"]
+    assert "pending_drivers" in data["alerts"]
+    assert data["period_days"] == 30
+    assert len(data["series"]) == 30
+    assert set(data["series"][0]) == {"date", "users", "trips", "bookings"}
 
 
 @pytest.mark.asyncio
@@ -92,7 +96,24 @@ async def test_stats_counts_correctly(
         "/api/v1/admin/stats", headers=auth_headers(admin_user)
     )
     data = resp.json()
-    assert data["pending_drivers"] >= 1
+    assert data["alerts"]["pending_drivers"] >= 1
+    # Yangi ro'yxatdan o'tgan admin ham davrga tushadi
+    assert data["kpi"]["users"]["period"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_stats_period_is_bounded(client: AsyncClient, admin_user: User):
+    """`days` chegaralangan — 1000 kunlik so'rov bilan bazani cho'ktirib bo'lmaydi."""
+    resp = await client.get(
+        "/api/v1/admin/stats?days=1000", headers=auth_headers(admin_user)
+    )
+    assert resp.status_code == 422
+
+    ok = await client.get(
+        "/api/v1/admin/stats?days=7", headers=auth_headers(admin_user)
+    )
+    assert ok.status_code == 200
+    assert len(ok.json()["series"]) == 7
 
 
 # ─── Pending drivers ─────────────────────────────────────────────────────────

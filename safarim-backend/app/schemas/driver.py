@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel, field_validator
 from app.models.enums import DriverStatus, LuggageSize
+from app.schemas.media import PhotoUrl
 from app.schemas.user import UserPublicResponse
 from app.core.validators import validate_uz_plate
 
@@ -103,6 +104,24 @@ class EarningsResponse(BaseModel):
     is_paid: bool
 
 
+class AdminUserBrief(BaseModel):
+    """Admin ro'yxati uchun foydalanuvchi — telefon bilan.
+
+    ⚠️ `UserPublicResponse` da telefon yo'q (ataylab: u ochiq profil uchun),
+    shuning uchun admin panelidagi haydovchi qatorida telefon bo'sh chiqardi —
+    admin haydovchiga qo'ng'iroq qila olmasdi.
+    """
+    id: uuid.UUID
+    full_name: str
+    phone: str
+    profile_photo: PhotoUrl = None
+    is_blocked: bool = False
+    is_phone_verified: bool = False
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class AdminDriverListResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
@@ -111,7 +130,7 @@ class AdminDriverListResponse(BaseModel):
     vehicle_model: str
     status: DriverStatus
     created_at: datetime
-    user: UserPublicResponse
+    user: AdminUserBrief
 
     model_config = {"from_attributes": True}
 

@@ -294,14 +294,66 @@ export interface AdminDriverDocuments {
   };
 }
 
+/** Bitta ko'rsatkich: jami, davr ichida, oldingi davr va o'sish foizi */
+export interface AdminMetric {
+  total: number;
+  period: number;
+  prev: number;
+  delta_pct: number | null;
+}
+
+export interface AdminSeriesPoint {
+  date: string;
+  users: number;
+  trips: number;
+  bookings: number;
+}
+
+export interface AdminTopRoute {
+  from: string;
+  to: string;
+  trips: number;
+  bookings: number;
+}
+
+export interface AdminAction {
+  at: string;
+  admin: string;
+  action: string;
+  target: string | null;
+  reason: string;
+}
+
 export interface AdminStats {
-  total_users: number;
-  total_drivers: number;
-  pending_drivers: number;
-  total_trips: number;
-  total_bookings: number;
-  completed_bookings: number;
-  disputed_bookings: number;
+  period_days: number;
+  range: { from: string; to: string };
+  kpi: {
+    users: AdminMetric;
+    drivers: AdminMetric;
+    trips: AdminMetric;
+    bookings: AdminMetric;
+    completed: AdminMetric;
+    gmv: AdminMetric;
+    commission: AdminMetric;
+  };
+  quality: {
+    completion_rate: number | null;
+    cancellation_rate: number | null;
+    seat_fill_rate: number | null;
+    avg_price: number | null;
+    finished_bookings: number;
+  };
+  alerts: {
+    pending_drivers: number;
+    open_disputes: number;
+    awaiting_confirmation: number;
+    unpaid_commission: number;
+    blocked_wallets: number;
+    active_trips: number;
+  };
+  series: AdminSeriesPoint[];
+  top_routes: AdminTopRoute[];
+  recent_actions: AdminAction[];
 }
 
 export interface AdminUsersResponse {
