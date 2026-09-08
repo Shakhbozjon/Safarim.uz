@@ -1,5 +1,12 @@
 from celery import Celery
+
 from app.core.config import settings
+from app.core.observability import init_sentry
+
+# Fon vazifalaridagi xatolar ham ko'rinsin: 2026-09-08 da `expire_old_trips`
+# har 20 daqiqada xato bilan tugardi va buni hech kim bilmadi — Sentry faqat
+# API jarayonida yoqilgan edi.
+init_sentry("worker")
 
 celery_app = Celery(
     "safarim",

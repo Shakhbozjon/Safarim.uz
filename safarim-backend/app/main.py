@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings, validate_production_security
+from app.core.observability import init_sentry
 from app.api.v1.router import api_router
 
 logger = logging.getLogger(__name__)
@@ -11,14 +12,9 @@ logger = logging.getLogger(__name__)
 # Prod'da xavfsiz bo'lmagan default qiymatlar bilan ishga tushishni bloklaydi
 validate_production_security()
 
-# Sentry — xato kuzatuvi (DSN berilgan bo'lsa)
-if settings.SENTRY_DSN:
-    import sentry_sdk
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
-        environment="production" if not settings.DEBUG else "development",
-    )
+# Xato kuzatuvi — sozlamalari `app/core/observability.py` da (worker ham
+# xuddi shuni chaqiradi, aks holda fon vazifalaridagi xatolar ko'rinmaydi)
+init_sentry("api")
 
 # Prod'da API hujjatlari yopiladi: ochiq Swagger butun endpoint xaritasini,
 # sxemalarni va maydon nomlarini begonaga tayyor holda beradi.
