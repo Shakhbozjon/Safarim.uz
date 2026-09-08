@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Ban, CheckCircle, Loader2, Users, Shield, Banknote, ShieldCheck } from "lucide-react";
 import api from "@/lib/api";
@@ -45,10 +46,12 @@ const STATUS_TABS: { key: StatusFilter; label: string }[] = [
 
 export default function AdminUsersPage() {
   const qc = useQueryClient();
+  // Haydovchilar sahifasidan "?q=..." bilan kelish mumkin
+  const params = useSearchParams();
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(params.get("q") ?? "");
   // Qidiruv BAZADA bajariladi. Har harfda so'rov yubormaslik uchun 350ms kutamiz.
-  const [debounced, setDebounced] = useState("");
+  const [debounced, setDebounced] = useState(params.get("q") ?? "");
   const [role, setRole] = useState<RoleFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
 

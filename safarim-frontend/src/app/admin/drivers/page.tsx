@@ -126,11 +126,27 @@ export default function AdminDriversPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
           <Car size={40} className="mx-auto text-gray-200 mb-3" />
           <p className="font-medium text-gray-500">
-            {debounced ? "Hech narsa topilmadi" : "Bu bo'limda haydovchi yo'q"}
+            {debounced ? `«${debounced}» bo'yicha haydovchi topilmadi` : "Bu bo'limda haydovchi yo'q"}
           </p>
-          <p className="mt-1 text-sm text-gray-400">
-            {debounced ? "Boshqa so'z bilan qidirib ko'ring" : "Barcha arizalar ko'rib chiqilgan"}
-          </p>
+          {debounced ? (
+            <>
+              {/* Eng ko'p uchraydigan sabab: qidirilayotgan odam umuman
+                  haydovchi emas. Bu sahifa faqat haydovchilarni ko'rsatadi,
+                  shuning uchun to'g'ri joyga havola beramiz. */}
+              <p className="mx-auto mt-1 max-w-sm text-sm text-gray-400">
+                Bu odam haydovchi bo&apos;lmasligi mumkin — barcha foydalanuvchilar
+                orasidan qidirib ko&apos;ring.
+              </p>
+              <Link
+                href={`/admin/users?q=${encodeURIComponent(debounced)}`}
+                className="mt-3 inline-block rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-600 hover:bg-primary-100"
+              >
+                Foydalanuvchilar orasidan qidirish →
+              </Link>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-gray-400">Barcha arizalar ko&apos;rib chiqilgan</p>
+          )}
         </div>
       )}
 
