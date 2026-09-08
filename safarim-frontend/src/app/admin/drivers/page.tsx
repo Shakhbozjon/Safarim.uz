@@ -49,9 +49,14 @@ export default function AdminDriversPage() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Qidiruv paytida bo'lim e'tiborga olinmaydi: "Kutayotgan" bo'limida turib
+  // tasdiqlangan haydovchini yozgan odam "topilmadi" degan javob olardi va
+  // buning sababi ko'rinmasdi. Yozilgan zahoti butun baza bo'ylab qidiriladi.
+  const effectiveTab: StatusKey = debounced ? "all" : tab;
+
   const { data: drivers, isLoading, isFetching } = useQuery<AdminDriverListItem[]>({
-    queryKey: ["admin", "drivers", tab, debounced],
-    queryFn: () => fetchDrivers(tab, debounced),
+    queryKey: ["admin", "drivers", effectiveTab, debounced],
+    queryFn: () => fetchDrivers(effectiveTab, debounced),
     refetchInterval: 60_000,
     placeholderData: (prev) => prev,
   });
@@ -61,7 +66,11 @@ export default function AdminDriversPage() {
       <div className="mb-5">
         <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Haydovchilar</h1>
         <p className="mt-1 text-sm text-gray-500">
-          {drivers ? `${drivers.length} ta ko'rsatilmoqda` : "Yuklanmoqda..."}
+          {!drivers
+            ? "Yuklanmoqda..."
+            : debounced
+              ? `«${debounced}» bo'yicha ${drivers.length} ta topildi (barcha holatlar)`
+              : `${drivers.length} ta ko'rsatilmoqda`}
         </p>
       </div>
 
@@ -71,10 +80,11 @@ export default function AdminDriversPage() {
           {TABS.map((t) => (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => { setTab(t.key); setSearch(""); }}
               className={clsx(
                 "rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors",
-                tab === t.key ? "bg-primary-500 text-white" : "text-gray-500 hover:text-gray-800"
+                effectiveTab === t.key ? "bg-primary-500 text-white" : "text-gray-500 hover:text-gray-800",
+                debounced && t.key !== "all" && "opacity-50"
               )}
             >
               {t.label}

@@ -169,8 +169,27 @@ export default function AdminUsersPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <Users size={36} className="mx-auto text-gray-200 mb-3" />
-            <p className="text-gray-400 text-sm">Foydalanuvchi topilmadi</p>
+            <Users size={36} className="mx-auto mb-3 text-gray-200" />
+            <p className="text-sm text-gray-400">
+              {debounced ? `«${debounced}» bo'yicha hech kim topilmadi` : "Foydalanuvchi topilmadi"}
+            </p>
+            {/* Filtr yoqilgan bo'lsa buni aytamiz: aks holda "topilmadi" degan
+                javob chalg'itadi — odam bazada bor, shunchaki filtrdan tashqarida */}
+            {(role !== "all" || status !== "all") && (
+              <>
+                <p className="mt-1 text-xs text-gray-400">
+                  Qidiruv filtr bilan cheklangan
+                  {role !== "all" && `: ${ROLE_TABS.find((t) => t.key === role)?.label}`}
+                  {status !== "all" && `, ${STATUS_TABS.find((t) => t.key === status)?.label}`}
+                </p>
+                <button
+                  onClick={() => { setRole("all"); setStatus("all"); }}
+                  className="mt-3 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-600 hover:bg-primary-100"
+                >
+                  Filtrlarni tozalash
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <table className="w-full">
