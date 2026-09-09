@@ -87,6 +87,10 @@ services:
         NEXT_PUBLIC_API_URL: /api/v1
     image: safarim-frontend:latest
     restart: always
+    environment:
+      # SSR uchun ichki manzil: NEXT_PUBLIC_API_URL nisbiy ("/api/v1") va uni
+      # server komponentidan chaqirib bo'lmaydi.
+      INTERNAL_API_URL: http://api:8000
     depends_on:
       - api
 

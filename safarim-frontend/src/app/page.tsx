@@ -5,12 +5,17 @@ import Footer from "@/components/layout/Footer";
 import MemberStrip from "@/components/layout/MemberStrip";
 import HeroSearchCard from "@/components/trips/HeroSearchCard";
 import PopularRoutes from "@/components/trips/PopularRoutes";
+import { getPublicConfig } from "@/lib/serverConfig";
 
 // Halol faktlar (yolg'on vanity-raqamlar emas) — yangi platforma uchun rost qiymatlar.
-const STATS = [
+// Komissiya raqami serverdagi bayroqdan keladi: bepul davr tugaganda sahifa
+// o'zi 2–5% ga qaytadi, hech kim qo'lda tuzatishni eslab qolishi shart emas.
+const stats = (commissionFree: boolean) => [
   { value: "14", label: "Viloyat qamrovi" },
   { value: "0%", label: "Ro'yxatdan o'tish to'lovi" },
-  { value: "2–5%", label: "Past komissiya" },
+  commissionFree
+    ? { value: "0%", label: "Hozircha komissiya yo'q" }
+    : { value: "2–5%", label: "Past komissiya" },
   { value: "Tasdiqlangan", label: "Haydovchilar" },
 ];
 
@@ -26,20 +31,26 @@ const SAFETY = [
   { title: "Raqam himoyasi", desc: "Telefon raqamlar faqat band qilish tasdiqlangandan keyin ko'rinadi." },
 ];
 
-const EARNINGS = [
+const earnings = (commissionFree: boolean) => [
   { value: "0%", label: "Ro'yxatdan o'tish to'lovi" },
-  { value: "2–5%", label: "Faqat muvaffaqiyatli band qilishdan" },
+  commissionFree
+    ? { value: "0%", label: "Ishga tushirish davri — komissiya yo'q" }
+    : { value: "2–5%", label: "Faqat muvaffaqiyatli band qilishdan" },
   { value: "1–2 kun", label: "Ariza tasdiqlash muddati" },
 ];
 
 const H2 = "text-[clamp(26px,4vw,38px)] font-extrabold tracking-tight text-gray-900";
 const EYEBROW = "text-[12.5px] font-bold uppercase tracking-[0.08em] text-primary-600 mb-3";
 
-export default function HomePage() {
+export default async function HomePage() {
   // Sahifa hamma uchun bir xil. Tokenni serverda o'qiymiz: kirgan
   // foydalanuvchiga mehmonga atalgan chaqiriqlar ko'rsatilmaydi va tepada
   // shaxsiy qator (salomlashuv + yaqin safar) chiqadi.
   const signedIn = !!cookies().get("access_token");
+
+  const { commissionFree } = await getPublicConfig();
+  const STATS = stats(commissionFree);
+  const EARNINGS = earnings(commissionFree);
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
@@ -245,6 +256,14 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+          {commissionFree && (
+            // Kelajakdagi komissiyani oldindan aytib qo'yamiz — bepul davr
+            // tugaganda haydovchi uchun kutilmagan bo'lmasin.
+            <p className="text-[12.5px] opacity-70 mt-3.5">
+              Bepul davr tugagach komissiya 2–5% bo'ladi: 200 000 so&apos;mgacha
+              band qilishdan 2%, undan yuqorisidan 5%.
+            </p>
+          )}
         </div>
       </section>
 
