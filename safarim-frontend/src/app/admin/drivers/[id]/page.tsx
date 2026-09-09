@@ -167,37 +167,27 @@ export default function DriverDetailPage() {
         )}
       </div>
 
-      {/* License image */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
-        <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
-          <ImageIcon size={16} className="text-gray-400" />
-          Haydovchilik guvohnomasi
-        </h3>
-        {docsLoading ? (
-          <div className="w-full h-48 bg-gray-50 animate-pulse rounded-xl" />
-        ) : docs?.license_url ? (
-          <div className="space-y-3">
-            <img
-              src={docs.license_url}
-              alt="Guvohnoma"
-              className="w-full max-h-64 object-contain rounded-xl border border-gray-100 bg-gray-50"
-            />
-            <a
-              href={docs.license_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline"
-            >
-              <ExternalLink size={13} />
-              Katta o'lchamda ochish
-            </a>
-          </div>
-        ) : (
-          <div className="w-full h-48 bg-gray-50 rounded-xl flex items-center justify-center">
-            <p className="text-sm text-gray-400">Rasm yuklanmagan</p>
-          </div>
-        )}
-      </div>
+      {/* Hujjatlar */}
+      <DocPanel
+        title="Haydovchilik guvohnomasi"
+        url={docs?.license_url}
+        loading={docsLoading}
+        emptyText="Rasm yuklanmagan"
+      />
+
+      <DocPanel
+        title="Texpasport"
+        note={
+          <>
+            Hujjatdagi davlat raqami yuqorida yozilgan{" "}
+            <b className="font-semibold text-gray-700">{docs?.vehicle.plate}</b> bilan
+            mos kelishini tekshiring
+          </>
+        }
+        url={docs?.tech_passport_url}
+        loading={docsLoading}
+        emptyText="Texpasport yuklanmagan — bu ariza talab kiritilgunga qadar topshirilgan"
+      />
 
       {/* Action buttons */}
       <div className="flex gap-3">
@@ -264,6 +254,57 @@ export default function DriverDetailPage() {
           </Button>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+/** Bitta hujjat rasmi. Guvohnoma va texpasport bir xil ko'rinishda chiqadi. */
+function DocPanel({
+  title,
+  note,
+  url,
+  loading,
+  emptyText,
+}: {
+  title: string;
+  note?: React.ReactNode;
+  url?: string | null;
+  loading: boolean;
+  emptyText: string;
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+      <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-1">
+        <ImageIcon size={16} className="text-gray-400" />
+        {title}
+      </h3>
+      {note && <p className="text-xs text-gray-500 mb-4">{note}</p>}
+      {!note && <div className="mb-4" />}
+
+      {loading ? (
+        <div className="w-full h-48 bg-gray-50 animate-pulse rounded-xl" />
+      ) : url ? (
+        <div className="space-y-3">
+          <img
+            src={url}
+            alt={title}
+            className="w-full max-h-64 object-contain rounded-xl border border-gray-100 bg-gray-50"
+          />
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline"
+          >
+            <ExternalLink size={13} />
+            Katta o&apos;lchamda ochish
+          </a>
+        </div>
+      ) : (
+        <div className="w-full min-h-[8rem] bg-gray-50 rounded-xl flex items-center justify-center p-6">
+          <p className="text-sm text-gray-400 text-center">{emptyText}</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -284,6 +284,8 @@ export interface AdminDriverListItem {
 
 export interface AdminDriverDocuments {
   license_url: string;
+  /** Texpasport talabi kiritilgunga qadar tasdiqlangan haydovchilarda yo'q */
+  tech_passport_url: string | null;
   vehicle: {
     make: string;
     model: string;

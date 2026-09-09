@@ -93,6 +93,12 @@ async def get_driver_documents(
 
     return {
         "license_url": storage_service.get_url(driver.license_image, settings.MINIO_BUCKET_DOCUMENTS),
+        # Texpasport talabi kiritilgunga qadar tasdiqlangan haydovchilarda yo'q
+        "tech_passport_url": (
+            storage_service.get_url(driver.tech_passport_image, settings.MINIO_BUCKET_DOCUMENTS)
+            if driver.tech_passport_image
+            else None
+        ),
         "vehicle": {
             "make": driver.vehicle_make,
             "model": driver.vehicle_model,

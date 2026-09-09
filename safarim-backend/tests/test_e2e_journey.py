@@ -128,19 +128,33 @@ async def test_full_journey_registration_to_completion(client, db, admin_user, m
     driver = (await db.execute(select(User).where(User.phone == "+998901000003"))).scalar_one()
     assert driver.is_driver is False  # hali oddiy foydalanuvchi
 
-    # ── 2. Haydovchi ariza (mashina + guvohnoma rasmi) ───────────────────────
+    # ── 2. Haydovchi ariza (mashina + guvohnoma va texpasport rasmi) ─────────
     r = await client.post(
         f"{API}/drivers/apply",
         data={
             "vehicle_make": "Chevrolet", "vehicle_model": "Cobalt", "vehicle_year": "2022",
             "vehicle_color": "Oq", "vehicle_plate": "01A123BC", "vehicle_seats": "4",
         },
-        files={"license_image": ("license.jpg", _jpeg_bytes(), "image/jpeg")},
+        files={
+            "license_image": ("license.jpg", _jpeg_bytes(), "image/jpeg"),
+            "tech_passport_image": ("techpassport.jpg", _jpeg_bytes(), "image/jpeg"),
+        },
         headers=_auth(token_d),
     )
     assert r.status_code == 200, r.text
     profile_id = r.json()["id"]
     assert r.json()["status"] == "pending"
+
+    # Admin ikkala hujjatni ham ko'radi — yozilgan raqamni texpasport bilan
+    # solishtirish uchun. Texpasport URL'i yo'q bo'lsa tekshiruvning ma'nosi yo'q.
+    r = await client.get(
+        f"{API}/admin/drivers/{profile_id}/documents", headers=auth_headers(admin_user)
+    )
+    assert r.status_code == 200, r.text
+    docs = r.json()
+    assert docs["license_url"], "guvohnoma URL'i bo'sh"
+    assert docs["tech_passport_url"], "texpasport URL'i bo'sh"
+    assert docs["vehicle"]["plate"] == "01A123BC"
 
     # ── 3. Admin tasdiqlaydi ─────────────────────────────────────────────────
     r = await client.post(f"{API}/admin/drivers/{profile_id}/approve", headers=auth_headers(admin_user))

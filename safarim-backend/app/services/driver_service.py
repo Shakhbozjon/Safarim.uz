@@ -20,6 +20,7 @@ async def apply_driver(
     user: User,
     data: DriverApplyRequest,
     license_key: str,
+    tech_passport_key: str | None = None,
 ) -> DriverProfile:
     # Shu foydalanuvchining mavjud yozuvi (bo'lsa)
     existing = (await db.execute(
@@ -49,6 +50,7 @@ async def apply_driver(
         # `driver_profiles.user_id` unikal, ya'ni yangi yozuv qo'shish baza
         # cheklovini buzib, foydalanuvchiga 500 bo'lib ko'rinardi.
         existing.license_image = license_key
+        existing.tech_passport_image = tech_passport_key
         existing.vehicle_make = data.vehicle_make
         existing.vehicle_model = data.vehicle_model
         existing.vehicle_year = data.vehicle_year
@@ -62,6 +64,7 @@ async def apply_driver(
         driver = DriverProfile(
             user_id=user.id,
             license_image=license_key,
+            tech_passport_image=tech_passport_key,
             vehicle_make=data.vehicle_make,
             vehicle_model=data.vehicle_model,
             vehicle_year=data.vehicle_year,

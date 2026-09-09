@@ -68,6 +68,7 @@ async def apply_driver(
     vehicle_plate: str = Form(...),
     vehicle_seats: int = Form(...),
     license_image: UploadFile = File(..., description="Haydovchilik guvohnomasi (JPEG/PNG, maks 5MB)"),
+    tech_passport_image: UploadFile = File(..., description="Texpasport (JPEG/PNG, maks 5MB)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -87,14 +88,22 @@ async def apply_driver(
         msg = e.errors()[0]["msg"].replace("Value error, ", "")
         raise HTTPException(status_code=400, detail=msg)
 
-    # Guvohnoma rasmini tekshirish — haqiqiy hujjat suratimi (har xil rasm emas)
+    # Hujjat rasmlarini tekshirish — haqiqiy hujjat suratimi (har xil rasm emas).
+    # Ikkalasi ham yuklashdan OLDIN tekshiriladi: birinchisi yuklanib, ikkinchisi
+    # rad etilsa, MinIO'da hech kimga tegishli bo'lmagan fayl qolib ketardi.
     await image_validation.validate_license_image(license_image)
+    await image_validation.validate_tech_passport_image(tech_passport_image)
 
     license_key = await storage_service.upload(
         license_image, settings.MINIO_BUCKET_DOCUMENTS, folder="licenses"
     )
+    tech_passport_key = await storage_service.upload(
+        tech_passport_image, settings.MINIO_BUCKET_DOCUMENTS, folder="tech-passports"
+    )
 
-    driver = await driver_service.apply_driver(db, current_user, data, license_key)
+    driver = await driver_service.apply_driver(
+        db, current_user, data, license_key, tech_passport_key
+    )
     return driver
 
 
