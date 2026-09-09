@@ -1,29 +1,25 @@
 "use client";
 
 /**
- * LocationPicker — viloyat + tuman/shahar tanlash komponenti.
+ * LocationPicker — joyni yozib qidirib tanlash.
  *
- * UX oqimi:
- *  1. Bosish → viloyatlar ro'yxati ochiladi
- *  2. Viloyat bosish → tumanlar ko'rinadi
- *  3. "Barcha tumanlar" → faqat viloyat (tuman yo'q)
- *  4. Tuman bosish → tanlash yakunlanadi, yopiladi
- *  5. Tashqariga bosish (backdrop) → yopiladi
+ * ⚠️ Ilgari bu ikki bosqichli ro'yxat edi: avval viloyat, keyin tuman.
+ * Maydonda esa «Viloyat, shahar, tuman» deb yozilgani uchun odam «Quva» deb
+ * yozmoqchi bo'lardi va hech narsa topa olmasdi — qaysi viloyatda ekanini
+ * bilishi shart edi. Endi bitta ro'yxat: yozilgan zahoti viloyat ham, tuman
+ * ham qidiriladi; hech narsa yozilmasa viloyatlar ro'yxati turadi va har
+ * birini ochib tumanlarini ko'rish mumkin.
  */
 
-import { useState } from "react";
-import { MapPin, ChevronLeft, ChevronRight, Check, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Loader2, MapPin, Search } from "lucide-react";
 import { clsx } from "clsx";
-import { useRegions } from "@/hooks/useRegions";
-import { useDistricts } from "@/hooks/useDistricts";
-import type { Region, District } from "@/types";
-
-// ─── Turlari ─────────────────────────────────────────────────────────────────
+import { normalize, useAllLocations } from "@/hooks/useLocations";
 
 export interface LocationValue {
-  regionId:     number | null;
-  regionName:   string;
-  districtId:   number | null;
+  regionId: number | null;
+  regionName: string;
+  districtId: number | null;
   districtName: string;
 }
 
@@ -33,256 +29,319 @@ export const EMPTY_LOCATION: LocationValue = {
 };
 
 interface LocationPickerProps {
-  value:        LocationValue;
-  onChange:     (val: LocationValue) => void;
+  value: LocationValue;
+  onChange: (val: LocationValue) => void;
   placeholder?: string;
-  compact?:     boolean;
-  className?:   string;
-  error?:       string;
+  compact?: boolean;
+  className?: string;
+  error?: string;
 }
 
-// ─── Komponent ───────────────────────────────────────────────────────────────
+/** Ro'yxatdagi bitta variant */
+interface Option {
+  key: string;
+  label: string;
+  /** Tuman uchun — qaysi viloyat ekani (viloyatning o'zida bo'sh) */
+  sub?: string;
+  isRegion: boolean;
+  value: LocationValue;
+  needle: string;
+}
+
+const MAX_RESULTS = 40;
 
 export default function LocationPicker({
   value,
   onChange,
-  placeholder = "Viloyat tanlang",
+  placeholder = "Viloyat, shahar, tuman",
   compact = false,
   className,
   error,
 }: LocationPickerProps) {
-  const { data: regions = [] } = useRegions();
+  const { data: regions = [], isLoading } = useAllLocations();
 
-  const [open, setOpen]     = useState(false);
-  const [step, setStep]     = useState<"region" | "district">("region");
-  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [cursor, setCursor] = useState(0);
 
-  const { data: districts = [], isLoading: distLoading } = useDistricts(pendingId);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
 
-  // ── Yopish ────────────────────────────────────────────────────────────────
-  function close() {
-    setOpen(false);
-  }
+  // Tashqariga bosilsa yopiladi
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
 
-  // ── Ochish ────────────────────────────────────────────────────────────────
-  function open_() {
-    setPendingId(value.regionId);
-    setStep("region");
-    setOpen(true);
-  }
+  // Barcha joylar bitta ro'yxatda — qidiruv shu bo'yicha ketadi
+  const all = useMemo<Option[]>(() => {
+    const out: Option[] = [];
+    for (const r of regions) {
+      out.push({
+        key: `r${r.id}`,
+        label: r.name_uz,
+        isRegion: true,
+        value: { regionId: r.id, regionName: r.name_uz, districtId: null, districtName: "" },
+        needle: normalize(r.name_uz),
+      });
+      for (const d of r.districts ?? []) {
+        out.push({
+          key: `d${d.id}`,
+          label: d.name_uz,
+          isRegion: false,
+          sub: r.name_uz,
+          value: { regionId: r.id, regionName: r.name_uz, districtId: d.id, districtName: d.name_uz },
+          needle: `${normalize(d.name_uz)} ${normalize(r.name_uz)}`,
+        });
+      }
+    }
+    return out;
+  }, [regions]);
 
-  // ── Viloyat tanlash ───────────────────────────────────────────────────────
-  function pickRegion(r: Region) {
-    setPendingId(r.id);
-    setStep("district");
-  }
+  const q = normalize(query);
+  const results = useMemo(() => {
+    if (!q) return [];
+    // Tartib: nomi yozilgan so'zdan boshlanganlar tepada, viloyat o'z
+    // tumanlaridan oldin ("Farg'ona" deb yozgan odam avval viloyatning
+    // o'zini ko'rsin, keyin uning tumanlarini)
+    const scored = all
+      .filter((o) => o.needle.includes(q))
+      .map((o) => ({
+        o,
+        score: (o.needle.startsWith(q) ? 0 : 2) + (o.isRegion ? 0 : 1),
+      }));
+    scored.sort((a, b) => a.score - b.score || a.o.label.localeCompare(b.o.label));
+    return scored.slice(0, MAX_RESULTS).map((s) => s.o);
+  }, [all, q]);
 
-  // ── Faqat viloyat (tuman yo'q) ────────────────────────────────────────────
-  function pickOnlyRegion() {
-    const r = regions.find((x) => x.id === pendingId);
-    if (!r) return;
-    onChange({ regionId: r.id, regionName: r.name_uz, districtId: null, districtName: "" });
-    close();
-  }
+  useEffect(() => setCursor(0), [query]);
 
-  // ── Viloyat + tuman ───────────────────────────────────────────────────────
-  function pickDistrict(d: District) {
-    const r = regions.find((x) => x.id === pendingId);
-    if (!r) return;
-    onChange({ regionId: r.id, regionName: r.name_uz, districtId: d.id, districtName: d.name_uz });
-    close();
-  }
-
-  // ── Tozalash ──────────────────────────────────────────────────────────────
-  function clearValue(e: React.MouseEvent) {
-    e.stopPropagation();
-    onChange(EMPTY_LOCATION);
-  }
-
-  // ── Ko'rsatiladigan matn ──────────────────────────────────────────────────
   const display = value.regionName
     ? value.districtName
-      ? `${value.regionName}, ${value.districtName}`
+      ? `${value.districtName}, ${value.regionName}`
       : value.regionName
     : "";
 
-  const pendingRegionName = regions.find((r) => r.id === pendingId)?.name_uz ?? "";
+  function choose(opt: Option) {
+    onChange(opt.value);
+    setQuery("");
+    setOpen(false);
+  }
+
+  function openList() {
+    setOpen(true);
+    setQuery("");
+    setExpanded(value.regionId);
+    // Fokus inputga — odam darrov yozishni boshlasin
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (!open) return;
+    if (e.key === "Escape") { setOpen(false); return; }
+    if (!results.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const next = e.key === "ArrowDown"
+        ? Math.min(cursor + 1, results.length - 1)
+        : Math.max(cursor - 1, 0);
+      setCursor(next);
+      listRef.current?.children[next]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      choose(results[cursor]);
+    }
+  }
 
   return (
-    <>
-      {/* Backdrop — tashqariga bosish yopadi */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={close}
-        />
-      )}
-
-      <div className={clsx("relative", className)}>
-        {/* ── Trigger ── */}
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={open_}
-          onKeyDown={(e) => e.key === "Enter" && open_()}
-          className={clsx(
-            "flex items-center gap-2 cursor-pointer w-full outline-none",
-            compact ? "py-2.5" : "py-3"
-          )}
-        >
+    <div ref={boxRef} className={clsx("relative", className)}>
+      {/* ── Maydon ── */}
+      <div
+        onClick={() => (open ? inputRef.current?.focus() : openList())}
+        className={clsx(
+          "flex w-full cursor-text items-center gap-2",
+          compact ? "py-2.5" : "py-3"
+        )}
+      >
+        {open ? (
+          <Search size={compact ? 15 : 17} className="shrink-0 text-primary-500" />
+        ) : (
           <MapPin
             size={compact ? 15 : 17}
             className={clsx("shrink-0", error ? "text-red-400" : "text-primary-500")}
           />
+        )}
+
+        {open ? (
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={display || placeholder}
+            className={clsx(
+              "min-w-0 flex-1 bg-transparent outline-none placeholder:text-gray-400",
+              compact ? "text-sm" : "text-base"
+            )}
+            aria-label="Joy qidirish"
+            autoComplete="off"
+          />
+        ) : (
           <span
             className={clsx(
-              "flex-1 min-w-0 truncate select-none",
+              "min-w-0 flex-1 select-none truncate",
               compact ? "text-sm" : "text-base",
-              display ? "text-gray-900 font-semibold" : "text-gray-500"
+              display ? "font-semibold text-gray-900" : "text-gray-500"
             )}
           >
             {display || placeholder}
           </span>
-          {display && (
-            <span
-              role="button"
-              tabIndex={-1}
-              onClick={clearValue}
-              className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-gray-300 hover:bg-gray-100 hover:text-gray-500 transition-colors cursor-pointer text-base leading-none"
-            >
-              ×
-            </span>
-          )}
-        </div>
+        )}
 
-        {error && <p className="text-xs text-red-500 mt-1 -mt-1">{error}</p>}
-
-        {/* ── Dropdown paneli ── */}
-        {open && (
-          <div
-            className={clsx(
-              "absolute left-0 top-full mt-1 bg-white rounded-2xl border border-gray-100",
-              "shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-50 overflow-hidden",
-              compact ? "w-72" : "w-80"
-            )}
+        {display && !open && (
+          <span
+            role="button"
+            tabIndex={-1}
+            onClick={(e) => { e.stopPropagation(); onChange(EMPTY_LOCATION); }}
+            className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-base leading-none text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-500"
+            aria-label="Tozalash"
           >
-            {/* Header */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50">
-              {step === "district" && (
-                <button
-                  type="button"
-                  onClick={() => setStep("region")}
-                  className="p-1 rounded-lg hover:bg-gray-200 text-gray-500 transition-colors"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-              )}
-              <span className="text-sm font-semibold text-gray-900 flex-1">
-                {step === "region" ? "Viloyat tanlang" : pendingRegionName}
-              </span>
-              {step === "district" && (
-                <span className="text-xs text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">
-                  ixtiyoriy
-                </span>
-              )}
-            </div>
-
-            {/* ── Viloyatlar ── */}
-            {step === "region" && (
-              <ul className="max-h-72 overflow-y-auto py-1">
-                {regions.length === 0 ? (
-                  <li className="py-6 text-center text-sm text-gray-400">
-                    <Loader2 size={18} className="animate-spin mx-auto mb-1" />
-                    Yuklanmoqda...
-                  </li>
-                ) : (
-                  regions.map((r) => {
-                    const active = value.regionId === r.id && !value.districtName;
-                    return (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          onClick={() => pickRegion(r)}
-                          className={clsx(
-                            "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors",
-                            active
-                              ? "bg-primary-50 text-primary-700 font-medium"
-                              : "text-gray-700 hover:bg-gray-50"
-                          )}
-                        >
-                          <MapPin size={13} className="text-gray-300 shrink-0" />
-                          <span className="flex-1">{r.name_uz}</span>
-                          {active
-                            ? <Check size={13} className="text-primary-500 shrink-0" />
-                            : <ChevronRight size={13} className="text-gray-300 shrink-0" />
-                          }
-                        </button>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            )}
-
-            {/* ── Tumanlar ── */}
-            {step === "district" && (
-              <ul className="max-h-72 overflow-y-auto py-1">
-                {/* Barcha tumanlar — faqat viloyat */}
-                <li>
-                  <button
-                    type="button"
-                    onClick={pickOnlyRegion}
-                    className={clsx(
-                      "w-full flex items-center gap-3 px-4 py-3 text-sm text-left border-b border-gray-100 transition-colors",
-                      !value.districtId && value.regionId === pendingId
-                        ? "bg-primary-50 text-primary-700 font-medium"
-                        : "text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
-                    <MapPin size={13} className="text-gray-400 shrink-0" />
-                    <span className="flex-1">Barcha tumanlar</span>
-                    {!value.districtId && value.regionId === pendingId && (
-                      <Check size={13} className="text-primary-500 shrink-0" />
-                    )}
-                  </button>
-                </li>
-
-                {distLoading ? (
-                  <li className="py-6 flex justify-center">
-                    <Loader2 size={20} className="animate-spin text-primary-400" />
-                  </li>
-                ) : districts.length === 0 ? (
-                  <li className="px-4 py-5 text-sm text-gray-400 text-center">
-                    Tumanlar topilmadi
-                  </li>
-                ) : (
-                  districts.map((d) => {
-                    const active = value.districtId === d.id && value.regionId === pendingId;
-                    return (
-                      <li key={d.id}>
-                        <button
-                          type="button"
-                          onClick={() => pickDistrict(d)}
-                          className={clsx(
-                            "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors",
-                            active
-                              ? "bg-primary-50 text-primary-700 font-medium"
-                              : "text-gray-700 hover:bg-gray-50"
-                          )}
-                        >
-                          <span className="w-3 shrink-0" />
-                          <span className="flex-1">{d.name_uz}</span>
-                          {active && <Check size={13} className="text-primary-500 shrink-0" />}
-                        </button>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            )}
-          </div>
+            ×
+          </span>
         )}
       </div>
-    </>
+
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+
+      {/* ── Ro'yxat ── */}
+      {open && (
+        <div
+          className={clsx(
+            "absolute left-0 top-full z-50 mt-1 overflow-hidden rounded-2xl border border-gray-100 bg-white",
+            "shadow-[0_8px_32px_rgba(0,0,0,0.12)]",
+            compact ? "w-72" : "w-80",
+            "max-w-[calc(100vw-2rem)]"
+          )}
+        >
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 size={20} className="animate-spin text-primary-400" />
+            </div>
+          ) : q ? (
+            // ── Qidiruv natijalari (viloyat ham, tuman ham) ──
+            results.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">
+                «{query}» topilmadi
+              </p>
+            ) : (
+              <ul ref={listRef} className="max-h-72 overflow-y-auto py-1">
+                {results.map((o, i) => (
+                  <li key={o.key}>
+                    <button
+                      type="button"
+                      onMouseEnter={() => setCursor(i)}
+                      onClick={() => choose(o)}
+                      className={clsx(
+                        "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors",
+                        i === cursor ? "bg-primary-50" : "hover:bg-gray-50"
+                      )}
+                    >
+                      <MapPin size={13} className="shrink-0 text-gray-300" />
+                      <span className="min-w-0 flex-1">
+                        <span className="text-gray-900">{o.label}</span>
+                        {o.sub && <span className="ml-1.5 text-xs text-gray-400">{o.sub}</span>}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : (
+            // ── Bo'sh holat: viloyatlar, har biri ochiladi ──
+            <ul className="max-h-72 overflow-y-auto py-1">
+              {regions.map((r) => {
+                const isOpen = expanded === r.id;
+                const chosen = value.regionId === r.id && !value.districtId;
+                return (
+                  <li key={r.id}>
+                    <div className="flex items-stretch">
+                      <button
+                        type="button"
+                        onClick={() => choose({
+                          key: `r${r.id}`, label: r.name_uz, needle: "", isRegion: true,
+                          value: { regionId: r.id, regionName: r.name_uz, districtId: null, districtName: "" },
+                        })}
+                        className={clsx(
+                          "flex min-w-0 flex-1 items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors",
+                          chosen ? "bg-primary-50 font-medium text-primary-700" : "text-gray-700 hover:bg-gray-50"
+                        )}
+                      >
+                        <MapPin size={13} className="shrink-0 text-gray-300" />
+                        <span className="flex-1 truncate">{r.name_uz}</span>
+                        {chosen && <Check size={13} className="shrink-0 text-primary-500" />}
+                      </button>
+                      {(r.districts?.length ?? 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setExpanded(isOpen ? null : r.id)}
+                          aria-label={`${r.name_uz} tumanlari`}
+                          className="px-3 text-gray-300 transition-colors hover:bg-gray-50 hover:text-gray-500"
+                        >
+                          <ChevronDown
+                            size={15}
+                            className={clsx("transition-transform", isOpen && "rotate-180")}
+                          />
+                        </button>
+                      )}
+                    </div>
+
+                    {isOpen && (
+                      <ul className="bg-gray-50/60 py-1">
+                        {(r.districts ?? []).map((d) => {
+                          const active = value.districtId === d.id;
+                          return (
+                            <li key={d.id}>
+                              <button
+                                type="button"
+                                onClick={() => choose({
+                                  key: `d${d.id}`, label: d.name_uz, needle: "", isRegion: false,
+                                  value: {
+                                    regionId: r.id, regionName: r.name_uz,
+                                    districtId: d.id, districtName: d.name_uz,
+                                  },
+                                })}
+                                className={clsx(
+                                  "flex w-full items-center gap-3 py-2 pl-11 pr-4 text-left text-[13px] transition-colors",
+                                  active ? "font-medium text-primary-700" : "text-gray-600 hover:text-gray-900"
+                                )}
+                              >
+                                <span className="flex-1 truncate">{d.name_uz}</span>
+                                {active && <Check size={12} className="shrink-0 text-primary-500" />}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {!q && !isLoading && (
+            <p className="border-t border-gray-100 px-4 py-2 text-[11.5px] text-gray-400">
+              Tuman nomini to&apos;g&apos;ridan-to&apos;g&apos;ri yozsangiz ham topiladi
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
