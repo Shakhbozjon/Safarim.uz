@@ -178,11 +178,10 @@ export default function SecurityPage() {
           </p>
 
           {/* ── Hisobni o'chirish ── */}
+          {/* Sarlavha yo'q: "Hisobni o'chirish" va "Hisobimni o'chirish" degan
+              ikki matn yonma-yon turib, bir narsani ikki marta aytardi.
+              Tugmaning o'zi ham nomi, ham amali bo'lib qoladi. */}
           <div className="bg-white rounded-2xl border border-red-100 p-4 mt-8">
-            <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-1">
-              Hisobni o&apos;chirish
-            </p>
-
             {/* Tushuntirish faqat tugma bosilgandan keyin: bu kamdan-kam
                 kerak bo'ladigan amal, uning matni xavfsizlik sahifasining
                 asosiy ishini (parol o'zgartirish) bosib turmasin */}
@@ -197,7 +196,7 @@ export default function SecurityPage() {
             {!deleteOpen ? (
               <button
                 onClick={() => setDeleteOpen(true)}
-                className="mt-1 text-sm font-semibold text-red-600 hover:text-red-700"
+                className="text-sm font-semibold text-red-600 hover:text-red-700"
               >
                 Hisobimni o&apos;chirish
               </button>
