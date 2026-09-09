@@ -10,8 +10,9 @@
  *  2. Ro'yxat tepasida qidiruv maydoni turadi — yozmoqchi bo'lgan odam
  *     unga tegadi va klaviatura o'shanda chiqadi. U avtomatik fokus
  *     OLMAYDI (aynan shu narsa 1-qoidani buzardi).
- *  3. Viloyat qatorini bosish → uning tumanlari ochiladi. Butun viloyatni
- *     tanlash uchun ichidagi «Butun viloyat» qatori bosiladi — ilgari
+ *  3. Viloyat qatorini bosish → uning tumanlari ochiladi. Viloyatning
+ *     hammasi bo'yicha qidirish uchun ichidagi «Barcha tumanlar» qatori
+ *     bosiladi — ilgari
  *     qator bosilganda viloyat tanlanib ro'yxat yopilardi, tumanlarni esa
  *     faqat yondagi kichkina belgi orqali ochish mumkin edi va buni
  *     ko'pchilik topmasdi.
@@ -319,7 +320,7 @@ export default function LocationPicker({
 
                     {isOpen && (
                       <ul className="bg-gray-50/70 py-1">
-                        {/* Butun viloyat — tumansiz tanlash */}
+                        {/* Barcha tumanlar — viloyat bo'yicha, tumansiz qidirish */}
                         <li>
                           <button
                             type="button"
@@ -334,7 +335,7 @@ export default function LocationPicker({
                                 : "font-medium text-primary-600 hover:text-primary-700"
                             )}
                           >
-                            <span className="flex-1">Butun viloyat</span>
+                            <span className="flex-1">Barcha tumanlar</span>
                             {chosen && !value.districtId && (
                               <Check size={12} className="shrink-0 text-primary-500" />
                             )}
