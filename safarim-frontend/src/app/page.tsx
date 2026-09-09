@@ -69,18 +69,29 @@ export default async function HomePage() {
         >
           {/* Left */}
           <div className="min-w-0">
-            <h1 className="text-[clamp(30px,5.6vw,54px)] leading-[1.08] font-extrabold tracking-[-0.035em] text-gray-900 mb-3.5 text-balance">
-              Haydovchini<br />o&apos;zingiz tanlaysiz
-            </h1>
-            {/* Yo'nalish nomi ataylab yozilmagan: sayt 14 viloyatni qamraydi va
-                boshqa yo'nalishdan kirgan odam o'zini chetda his qilmasin */}
-            <p className="text-[clamp(15.5px,1.6vw,18px)] leading-relaxed text-gray-500 mb-7 max-w-[460px]">
-              Qayerdan qayerga — o&apos;zingiz belgilaysiz. Har bir e&apos;londa{" "}
-              <b className="font-semibold text-gray-700">
-                haydovchining ismi, reytingi, mashinasi va narxi
-              </b>{" "}
-              ko&apos;rinadi, yoqqanini tanlab joy band qilasiz. Jo&apos;nash vaqti oldindan aniq.
-            </p>
+            {/* Kirgan foydalanuvchiga sayt nima ekanini tushuntirish keraksiz —
+                u allaqachon ro'yxatdan o'tgan. Unga faqat qidiruvga kirishish
+                kerak, shuning uchun sarlavha vazifaga aylanadi. */}
+            {signedIn ? (
+              <h1 className="text-[clamp(30px,5.6vw,54px)] leading-[1.08] font-extrabold tracking-[-0.035em] text-gray-900 mb-6 text-balance">
+                Qayerga borasiz?
+              </h1>
+            ) : (
+              <>
+                <h1 className="text-[clamp(30px,5.6vw,54px)] leading-[1.08] font-extrabold tracking-[-0.035em] text-gray-900 mb-3.5 text-balance">
+                  Haydovchini<br />o&apos;zingiz tanlaysiz
+                </h1>
+                {/* Yo'nalish nomi ataylab yozilmagan: sayt 14 viloyatni qamraydi va
+                    boshqa yo'nalishdan kirgan odam o'zini chetda his qilmasin */}
+                <p className="text-[clamp(15.5px,1.6vw,18px)] leading-relaxed text-gray-500 mb-7 max-w-[460px]">
+                  Qayerdan qayerga — o&apos;zingiz belgilaysiz. Har bir e&apos;londa{" "}
+                  <b className="font-semibold text-gray-700">
+                    haydovchining ismi, reytingi, mashinasi va narxi
+                  </b>{" "}
+                  ko&apos;rinadi, yoqqanini tanlab joy band qilasiz. Jo&apos;nash vaqti oldindan aniq.
+                </p>
+              </>
+            )}
 
             <HeroSearchCard />
 
