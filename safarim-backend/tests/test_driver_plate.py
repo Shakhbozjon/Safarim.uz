@@ -21,7 +21,7 @@ from app.services import driver_service
 
 def _apply(plate: str) -> DriverApplyRequest:
     return DriverApplyRequest(
-        vehicle_make="Chevrolet", vehicle_model="Cobalt", vehicle_year=2020,
+        vehicle_make="Chevrolet", vehicle_model="Cobalt",
         vehicle_color="Oq", vehicle_plate=plate, vehicle_seats=4,
     )
 

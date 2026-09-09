@@ -16,7 +16,6 @@ interface DriverStatus {
 interface DriverProfile {
   vehicle_make: string;
   vehicle_model: string;
-  vehicle_year: number;
   vehicle_color: string;
   vehicle_plate: string;
   vehicle_seats: number;
@@ -167,7 +166,7 @@ export default function DriverStatusPage() {
               {profile.vehicle_make} {profile.vehicle_model}
             </p>
             <p className="text-sm text-gray-500">
-              {profile.vehicle_year} · {profile.vehicle_color}
+              {profile.vehicle_color}
             </p>
           </div>
         </div>

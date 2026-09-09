@@ -55,6 +55,12 @@ export default function TripCard({ trip, className }: TripCardProps) {
                 count={driver.rating_count}
                 className="mt-0.5"
               />
+              {driver.vehicle_make && (
+                <p className="text-xs text-gray-500 truncate mt-0.5">
+                  {driver.vehicle_make} {driver.vehicle_model}
+                  {driver.vehicle_color && ` · ${driver.vehicle_color.toLowerCase()}`}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

@@ -63,7 +63,6 @@ router = APIRouter()
 async def apply_driver(
     vehicle_make: str = Form(...),
     vehicle_model: str = Form(...),
-    vehicle_year: int = Form(...),
     vehicle_color: str = Form(...),
     vehicle_plate: str = Form(...),
     vehicle_seats: int = Form(...),
@@ -79,7 +78,6 @@ async def apply_driver(
         data = DriverApplyRequest(
             vehicle_make=vehicle_make,
             vehicle_model=vehicle_model,
-            vehicle_year=vehicle_year,
             vehicle_color=vehicle_color,
             vehicle_plate=vehicle_plate,
             vehicle_seats=vehicle_seats,

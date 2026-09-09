@@ -62,6 +62,10 @@ export interface TripDriverInfo {
   rating_avg: number;
   rating_count: number;
   total_trips: number;
+  /** Band qilishdan oldin ko'rinadi; davlat raqami esa tasdiqdan keyin */
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+  vehicle_color: string | null;
 }
 
 export interface WaypointResponse {
@@ -134,7 +138,6 @@ export interface DriverProfileResponse {
   user_id: string;
   vehicle_make: string;
   vehicle_model: string;
-  vehicle_year: number;
   vehicle_color: string;
   vehicle_plate: string;
   vehicle_seats: number;
@@ -289,7 +292,6 @@ export interface AdminDriverDocuments {
   vehicle: {
     make: string;
     model: string;
-    year: number;
     color: string;
     plate: string;
     seats: number;

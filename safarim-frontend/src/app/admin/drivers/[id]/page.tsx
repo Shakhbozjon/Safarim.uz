@@ -157,7 +157,6 @@ export default function DriverDetailPage() {
           <>
             <InfoRow label="Marka" value={docs.vehicle.make} />
             <InfoRow label="Model" value={docs.vehicle.model} />
-            <InfoRow label="Yil" value={docs.vehicle.year} />
             <InfoRow label="Rang" value={docs.vehicle.color} />
             <InfoRow label="Davlat raqami" value={docs.vehicle.plate} />
             <InfoRow label="O'rindiqlar soni" value={`${docs.vehicle.seats} ta`} />

@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Users, Luggage, MapPin, CheckCircle,
   ChevronRight, Shield, MessageCircle, Phone, CalendarClock,
-  CigaretteOff, PawPrint, Wallet,
+  CigaretteOff, PawPrint, Wallet, Car,
 } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import Stars from "@/components/ui/Stars";
@@ -319,6 +319,19 @@ export default function TripDetailPage() {
           </div>
 
           <div className="mt-5 space-y-3.5">
+            {trip.driver.vehicle_make && (
+              <div className="flex items-start gap-3 text-sm text-gray-600">
+                <Car size={19} className="text-gray-400 shrink-0" />
+                <span>
+                  {trip.driver.vehicle_make} {trip.driver.vehicle_model}
+                  {trip.driver.vehicle_color && ` · ${trip.driver.vehicle_color.toLowerCase()}`}
+                  {" — "}
+                  <span className="text-gray-400">
+                    davlat raqami band qilgandan keyin ochiladi
+                  </span>
+                </span>
+              </div>
+            )}
             <div className="flex items-start gap-3 text-sm text-gray-600">
               <Shield size={19} className="text-green-500 shrink-0" />
               <span>Tasdiqlangan profil — {trip.driver.total_trips} ta safar</span>

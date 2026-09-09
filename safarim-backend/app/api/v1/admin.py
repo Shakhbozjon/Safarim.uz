@@ -102,7 +102,6 @@ async def get_driver_documents(
         "vehicle": {
             "make": driver.vehicle_make,
             "model": driver.vehicle_model,
-            "year": driver.vehicle_year,
             "color": driver.vehicle_color,
             "plate": driver.vehicle_plate,
             "seats": driver.vehicle_seats,

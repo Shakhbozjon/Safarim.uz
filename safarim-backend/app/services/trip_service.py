@@ -44,6 +44,9 @@ def serialize_trip(trip: Trip) -> TripResponse:
         rating_avg=dp.rating_avg if dp else 0.0,
         rating_count=dp.rating_count if dp else 0,
         total_trips=dp.total_trips if dp else 0,
+        vehicle_make=dp.vehicle_make if dp else None,
+        vehicle_model=dp.vehicle_model if dp else None,
+        vehicle_color=dp.vehicle_color if dp else None,
     )
 
     waypoints = [

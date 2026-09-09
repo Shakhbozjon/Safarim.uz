@@ -40,6 +40,12 @@ class TripDriverInfo(BaseModel):
     rating_avg: float
     rating_count: int
     total_trips: int
+    # Mashina band qilishdan OLDIN ko'rinadi — yo'lovchi kimning mashinasida
+    # ketishini shu yerdan biladi. Davlat raqami ataylab yo'q: u telefon bilan
+    # birga, band qilish tasdig'ida ochiladi.
+    vehicle_make: str | None = None
+    vehicle_model: str | None = None
+    vehicle_color: str | None = None
 
 
 class TripCreate(BaseModel):

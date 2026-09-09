@@ -120,7 +120,6 @@ function StepIndicator({ step }: { step: number }) {
 interface Step1Data {
   vehicle_make: string;
   vehicle_model: string;
-  vehicle_year: string;
   vehicle_color: string;
   vehicle_plate: string;
   vehicle_seats: string;
@@ -136,7 +135,6 @@ function Step1Form({
   onNext: () => void;
 }) {
   const models = data.vehicle_make ? (MODELS_BY_MAKE[data.vehicle_make] ?? []) : [];
-  const currentYear = new Date().getFullYear();
 
   // Ro'yxatda modeli yo'q haydovchi o'zi yozishi mumkin.
   // "Boshqa" brend yoki bo'sh ro'yxat — doim qo'lda kiritish.
@@ -152,9 +150,6 @@ function Step1Form({
   const canNext =
     data.vehicle_make &&
     data.vehicle_model &&
-    data.vehicle_year &&
-    Number(data.vehicle_year) >= 1990 &&
-    Number(data.vehicle_year) <= currentYear + 1 &&
     data.vehicle_color &&
     plateValid &&
     Number(data.vehicle_seats) >= 1;
@@ -218,21 +213,6 @@ function Step1Form({
               <option value={MODEL_CUSTOM}>Boshqa (o'zim kiritaman)…</option>
             </select>
           )}
-        </div>
-
-        {/* Year */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Yil</label>
-          <select
-            value={data.vehicle_year}
-            onChange={(e) => onChange("vehicle_year", e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white appearance-none outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-          >
-            <option value="">Yil tanlang</option>
-            {Array.from({ length: currentYear - 1990 + 2 }, (_, i) => currentYear + 1 - i).map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
         </div>
 
         {/* Color */}
@@ -310,7 +290,7 @@ function Step1Form({
           </div>
           <div>
             <p className="text-sm font-semibold text-primary-900">
-              {data.vehicle_make} {data.vehicle_model} {data.vehicle_year && `(${data.vehicle_year})`}
+              {data.vehicle_make} {data.vehicle_model}
             </p>
             <p className="text-xs text-primary-600">
               {data.vehicle_color && `${data.vehicle_color} · `}
@@ -597,7 +577,6 @@ function Step2Form({
 const EMPTY: Step1Data = {
   vehicle_make: "",
   vehicle_model: "",
-  vehicle_year: "",
   vehicle_color: "",
   vehicle_plate: "",
   vehicle_seats: "",
@@ -640,7 +619,6 @@ export default function DriverApplyPage() {
     const fd = new FormData();
     fd.append("vehicle_make",   form.vehicle_make);
     fd.append("vehicle_model",  form.vehicle_model);
-    fd.append("vehicle_year",   form.vehicle_year);
     fd.append("vehicle_color",  form.vehicle_color);
     fd.append("vehicle_plate",  form.vehicle_plate);
     fd.append("vehicle_seats",  form.vehicle_seats);

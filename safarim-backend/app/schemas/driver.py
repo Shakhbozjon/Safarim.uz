@@ -10,17 +10,9 @@ from app.core.validators import validate_uz_plate
 class DriverApplyRequest(BaseModel):
     vehicle_make: str
     vehicle_model: str
-    vehicle_year: int
     vehicle_color: str
     vehicle_plate: str
     vehicle_seats: int
-
-    @field_validator("vehicle_year")
-    @classmethod
-    def validate_year(cls, v: int) -> int:
-        if v < 1990 or v > datetime.now().year + 1:
-            raise ValueError("Avtomobil yili noto'g'ri")
-        return v
 
     @field_validator("vehicle_seats")
     @classmethod
@@ -49,7 +41,6 @@ class DriverProfileResponse(BaseModel):
     user_id: uuid.UUID
     vehicle_make: str
     vehicle_model: str
-    vehicle_year: int
     vehicle_color: str
     vehicle_plate: str
     vehicle_seats: int

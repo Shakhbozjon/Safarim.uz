@@ -53,7 +53,6 @@ async def apply_driver(
         existing.tech_passport_image = tech_passport_key
         existing.vehicle_make = data.vehicle_make
         existing.vehicle_model = data.vehicle_model
-        existing.vehicle_year = data.vehicle_year
         existing.vehicle_color = data.vehicle_color
         existing.vehicle_plate = data.vehicle_plate
         existing.vehicle_seats = data.vehicle_seats
@@ -67,7 +66,6 @@ async def apply_driver(
             tech_passport_image=tech_passport_key,
             vehicle_make=data.vehicle_make,
             vehicle_model=data.vehicle_model,
-            vehicle_year=data.vehicle_year,
             vehicle_color=data.vehicle_color,
             vehicle_plate=data.vehicle_plate,
             vehicle_seats=data.vehicle_seats,

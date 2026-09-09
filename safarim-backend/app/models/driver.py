@@ -24,7 +24,9 @@ class DriverProfile(Base):
     # Avtomobil (1 ta)
     vehicle_make: Mapped[str] = mapped_column(String(50), nullable=False)
     vehicle_model: Mapped[str] = mapped_column(String(50), nullable=False)
-    vehicle_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Yil endi so'ralmaydi — hech qayerda ko'rsatilmasdi. Ustun eski
+    # yozuvlar uchun qoldirildi, kerak bo'lsa qaytarish oson.
+    vehicle_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     vehicle_color: Mapped[str] = mapped_column(String(30), nullable=False)
     vehicle_plate: Mapped[str] = mapped_column(String(15), unique=True, nullable=False)
     vehicle_seats: Mapped[int] = mapped_column(Integer, nullable=False)

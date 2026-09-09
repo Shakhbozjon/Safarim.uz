@@ -132,7 +132,7 @@ async def test_full_journey_registration_to_completion(client, db, admin_user, m
     r = await client.post(
         f"{API}/drivers/apply",
         data={
-            "vehicle_make": "Chevrolet", "vehicle_model": "Cobalt", "vehicle_year": "2022",
+            "vehicle_make": "Chevrolet", "vehicle_model": "Cobalt",
             "vehicle_color": "Oq", "vehicle_plate": "01A123BC", "vehicle_seats": "4",
         },
         files={
