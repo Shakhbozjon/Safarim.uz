@@ -46,7 +46,12 @@ export default async function HomePage() {
   // Sahifa hamma uchun bir xil. Tokenni serverda o'qiymiz: kirgan
   // foydalanuvchiga mehmonga atalgan chaqiriqlar ko'rsatilmaydi va tepada
   // shaxsiy qator (salomlashuv + yaqin safar) chiqadi.
-  const signedIn = !!cookies().get("access_token");
+  // `uz_session` — sirsiz bayroq (`lax`). Token cookie'lari `strict` bo'lgani
+  // uchun Telegramdagi havoladan kelgan birinchi so'rovda ular yuborilmaydi va
+  // kirgan odam mehmon ko'rinishini olardi. `access_token` zaxira bo'lib
+  // qoladi: bayroq paydo bo'lgunga qadar ochilgan eski sessiyalar uchun.
+  const jar = cookies();
+  const signedIn = !!jar.get("uz_session") || !!jar.get("access_token");
 
   const { commissionFree } = await getPublicConfig();
   const STATS = stats(commissionFree);
