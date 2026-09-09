@@ -135,11 +135,10 @@ export default function LocationPicker({
   }
 
   function openList() {
+    if (open) return;
     setOpen(true);
     setQuery("");
     setExpanded(value.regionId);
-    // Fokus inputga — odam darrov yozishni boshlasin
-    setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -161,9 +160,13 @@ export default function LocationPicker({
 
   return (
     <div ref={boxRef} className={clsx("relative", className)}>
-      {/* ── Maydon ── */}
+      {/* ── Maydon ──
+          ⚠️ Input DOIM shu yerda turadi va faqat ochilganda paydo bo'lmaydi.
+          Ilgari ro'yxat ochilgach input yaratilib, unga kechikish bilan fokus
+          berilardi — iPhone'da bunday fokus klaviaturani ochmaydi (Safari
+          faqat bevosita tegishga javob beradi), shuning uchun odam ikkinchi
+          marta bosishga majbur bo'lardi. Endi bir tegish yetadi. */}
       <div
-        onClick={() => (open ? inputRef.current?.focus() : openList())}
         className={clsx(
           "flex w-full cursor-text items-center gap-2",
           compact ? "py-2.5" : "py-3"
@@ -178,31 +181,24 @@ export default function LocationPicker({
           />
         )}
 
-        {open ? (
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={display || placeholder}
-            className={clsx(
-              "min-w-0 flex-1 bg-transparent outline-none placeholder:text-gray-400",
-              compact ? "text-sm" : "text-base"
-            )}
-            aria-label="Joy qidirish"
-            autoComplete="off"
-          />
-        ) : (
-          <span
-            className={clsx(
-              "min-w-0 flex-1 select-none truncate",
-              compact ? "text-sm" : "text-base",
-              display ? "font-semibold text-gray-900" : "text-gray-500"
-            )}
-          >
-            {display || placeholder}
-          </span>
-        )}
+        <input
+          ref={inputRef}
+          value={open ? query : display}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={openList}
+          onKeyDown={onKeyDown}
+          placeholder={open && display ? display : placeholder}
+          className={clsx(
+            "min-w-0 flex-1 cursor-text bg-transparent outline-none placeholder:font-normal placeholder:text-gray-400",
+            compact ? "text-sm" : "text-base",
+            !open && display ? "font-semibold text-gray-900" : "text-gray-900"
+          )}
+          aria-label="Viloyat, shahar yoki tuman qidirish"
+          aria-expanded={open}
+          role="combobox"
+          aria-controls="location-list"
+          autoComplete="off"
+        />
 
         {display && !open && (
           <span
@@ -229,6 +225,15 @@ export default function LocationPicker({
             "max-w-[calc(100vw-2rem)]"
           )}
         >
+          {/* Yo'riqnoma ro'yxatdan OLDIN: odam viloyatlar ro'yxatini ko'rib,
+              yozish mumkinligini bilmay qolmasin */}
+          {!q && !isLoading && (
+            <p className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50 px-4 py-2.5 text-[11.5px] text-gray-500">
+              <Search size={12} className="shrink-0 text-gray-400" />
+              Yozib qidiring: viloyat, shahar yoki tuman nomi
+            </p>
+          )}
+
           {isLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 size={20} className="animate-spin text-primary-400" />
@@ -240,7 +245,7 @@ export default function LocationPicker({
                 «{query}» topilmadi
               </p>
             ) : (
-              <ul ref={listRef} className="max-h-72 overflow-y-auto py-1">
+              <ul id="location-list" ref={listRef} className="max-h-72 overflow-y-auto py-1">
                 {results.map((o, i) => (
                   <li key={o.key}>
                     <button
@@ -335,11 +340,7 @@ export default function LocationPicker({
             </ul>
           )}
 
-          {!q && !isLoading && (
-            <p className="border-t border-gray-100 px-4 py-2 text-[11.5px] text-gray-400">
-              Tuman nomini to&apos;g&apos;ridan-to&apos;g&apos;ri yozsangiz ham topiladi
-            </p>
-          )}
+
         </div>
       )}
     </div>
