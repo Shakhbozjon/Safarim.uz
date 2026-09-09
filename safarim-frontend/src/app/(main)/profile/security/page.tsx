@@ -182,16 +182,22 @@ export default function SecurityPage() {
             <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-1">
               Hisobni o&apos;chirish
             </p>
-            <p className="text-sm text-gray-500 mb-3">
-              Ism, telefon, rasm va Telegram ulanishi o&apos;chiriladi, hisobga kirish
-              yopiladi. Safar tarixi boshqa odamlarda ham borligi uchun butunlay
-              o&apos;chirilmaydi, lekin sizning ma&apos;lumotingiz qolmaydi.
-            </p>
+
+            {/* Tushuntirish faqat tugma bosilgandan keyin: bu kamdan-kam
+                kerak bo'ladigan amal, uning matni xavfsizlik sahifasining
+                asosiy ishini (parol o'zgartirish) bosib turmasin */}
+            {deleteOpen && (
+              <p className="mb-3 text-sm text-gray-500">
+                Ism, telefon, rasm va Telegram ulanishi o&apos;chiriladi, hisobga kirish
+                yopiladi. Safar tarixi boshqa odamlarda ham borligi uchun butunlay
+                o&apos;chirilmaydi, lekin sizning ma&apos;lumotingiz qolmaydi.
+              </p>
+            )}
 
             {!deleteOpen ? (
               <button
                 onClick={() => setDeleteOpen(true)}
-                className="text-sm font-semibold text-red-600 hover:text-red-700"
+                className="mt-1 text-sm font-semibold text-red-600 hover:text-red-700"
               >
                 Hisobimni o&apos;chirish
               </button>
