@@ -7,7 +7,7 @@ import base64
 import uuid
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token
@@ -207,3 +207,62 @@ async def test_delete_account_blocked_while_booking_active(client, db, user, dri
     )
     assert r.status_code == 400
     assert "band qilish" in r.json()["detail"].lower()
+
+# ─── Hisob o'chirilgach mashina raqami bo'shashi ─────────────────────────────
+
+@pytest.mark.asyncio
+async def test_deleted_account_frees_the_car_plate(client, db, user, driver_user):
+    """Hisobni o'chirgan haydovchi o'z mashinasi bilan qaytib kela olsin.
+
+    Ilgari `driver_profiles` yozuvi qolib ketardi va avtomobil raqami band
+    bo'lib turaverardi: odam qaytadan ro'yxatdan o'tsa ham "bu raqam
+    allaqachon ro'yxatdan o'tgan" degan boshi berk ko'chaga kirardi.
+    """
+    from app.models.driver import DriverProfile
+    from app.schemas.driver import DriverApplyRequest
+    from app.services import driver_service
+
+    driver, profile = driver_user
+    plate = profile.vehicle_plate
+
+    r = await client.request(
+        "DELETE", f"{API}/users/me",
+        json={"password": PASSWORD}, headers=auth_headers(driver),
+    )
+    assert r.status_code == 200, r.text
+
+    # Profil butunlay o'chdi (guvohnoma surati ham qolmaydi)
+    assert await db.scalar(
+        select(func.count(DriverProfile.id)).where(DriverProfile.user_id == driver.id)
+    ) == 0
+    refreshed = (await db.execute(select(User).where(User.id == driver.id))).scalar_one()
+    await db.refresh(refreshed)
+    assert refreshed.is_driver is False
+
+    # Endi o'sha raqam bilan boshqa (yoki qaytib kelgan) odam haydovchi bo'la oladi
+    again = await driver_service.apply_driver(
+        db, user,
+        DriverApplyRequest(
+            vehicle_make="Chevrolet", vehicle_model="Cobalt", vehicle_year=2020,
+            vehicle_color="Oq", vehicle_plate=plate, vehicle_seats=4,
+        ),
+        "documents/yangi.jpg",
+    )
+    assert again.vehicle_plate == plate
+
+
+@pytest.mark.asyncio
+async def test_cannot_delete_account_with_wallet_debt(client, db, driver_user):
+    """Qarzni yig'ib, hisobni o'chirib qutulish yo'li yopiq."""
+    from app.models.wallet import DriverWallet
+
+    driver, _ = driver_user
+    db.add(DriverWallet(id=uuid.uuid4(), driver_id=driver.id, balance=-45_000))
+    await db.commit()
+
+    r = await client.request(
+        "DELETE", f"{API}/users/me",
+        json={"password": PASSWORD}, headers=auth_headers(driver),
+    )
+    assert r.status_code == 400
+    assert "qarz" in r.json()["detail"].lower()

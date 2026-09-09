@@ -167,6 +167,7 @@ async def delete_my_account(
 
     # Ochiq ishlar borligini tekshiramiz — kimdir yo'lda qolib ketmasin
     from app.models.booking import Booking
+    from app.models.driver import DriverProfile
     from app.models.trip import Trip
     from app.models.enums import BookingStatus, TripStatus
 
@@ -193,6 +194,37 @@ async def delete_my_account(
             status_code=400,
             detail="Avval e'lon qilgan safarlaringizni yakunlang yoki bekor qiling",
         )
+
+    # Hamyonda qarz bo'lsa o'chirib bo'lmaydi: aks holda komissiya qaytarilgan
+    # kunlarda "qarzni yig'ib, hisobni o'chirib, qayta ro'yxatdan o'tish" degan
+    # yo'l ochilardi.
+    from app.models.wallet import DriverWallet
+
+    wallet = (await db.execute(
+        select(DriverWallet).where(DriverWallet.driver_id == current_user.id)
+    )).scalar_one_or_none()
+    if wallet and wallet.balance < 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Hamyoningizda {abs(wallet.balance):,} so'm qarz bor. Avval uni yoping",
+        )
+
+    # Haydovchi profili butunlay o'chiriladi. Ikki sabab:
+    #  1. Avtomobil raqami unikal — profil qolsa, o'sha odam qaytadan
+    #     ro'yxatdan o'tib O'Z MASHINASI bilan haydovchi bo'la olmasdi
+    #     ("bu raqam allaqachon ro'yxatdan o'tgan" degan boshi berk ko'cha);
+    #  2. Guvohnoma surati — shaxsiy hujjat, "hisobni o'chirdim" degan odamda
+    #     u saqlanib qolmasligi kerak.
+    driver_profile = (await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if driver_profile:
+        if driver_profile.license_image:
+            storage_service.delete_file(
+                driver_profile.license_image, settings.MINIO_BUCKET_DOCUMENTS
+            )
+        await db.delete(driver_profile)
+        current_user.is_driver = False
 
     # Anonimlashtirish. Telefon unikal bo'lgani uchun o'rniga qaytarib
     # bo'lmaydigan qiymat qo'yiladi — shu raqam bilan qaytadan ro'yxatdan

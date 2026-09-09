@@ -1,4 +1,5 @@
 import io
+import logging
 import uuid
 
 import boto3
@@ -7,6 +8,8 @@ from botocore.exceptions import ClientError
 from fastapi import UploadFile, HTTPException
 from PIL import Image
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class StorageService:
@@ -95,6 +98,19 @@ class StorageService:
             raise HTTPException(status_code=500, detail=f"Fayl yuklashda xato: {str(e)}")
 
         return key
+
+    def delete_file(self, key: str, bucket: str) -> bool:
+        """Faylni o'chiradi. Xato bo'lsa jarayon to'xtamaydi — chaqiruvchi
+        amal (masalan hisobni o'chirish) fayl tufayli uzilib qolmasligi kerak.
+        """
+        if not key:
+            return False
+        try:
+            self.client.delete_object(Bucket=bucket, Key=key)
+            return True
+        except Exception as exc:
+            logger.warning("Fayl o'chirilmadi (%s/%s): %s", bucket, key, exc)
+            return False
 
     def get_url(self, key: str, bucket: str, expires_in: int = 3600) -> str:
         # Presigned URL public klient (brauzer ko'radigan host) bilan imzolanadi
