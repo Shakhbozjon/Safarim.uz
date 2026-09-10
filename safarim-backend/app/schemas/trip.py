@@ -147,7 +147,12 @@ class TripResponse(BaseModel):
 
 class TripSearchParams(BaseModel):
     from_region_id: int
+    # Tuman ixtiyoriy. Berilmasa — «barcha tumanlar», ya'ni viloyat bo'ylab
+    # qidiriladi. E'londa tuman ko'rsatilmagan bo'lsa, u ham «viloyat bo'ylab»
+    # deb qaraladi va istalgan tuman so'roviga mos keladi.
+    from_district_id: int | None = None
     to_region_id: int
+    to_district_id: int | None = None
     departure_date: date
     seats: int = 1
     payment_type: PaymentType | None = None

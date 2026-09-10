@@ -38,6 +38,8 @@ async def create_trip(
 async def search_trips(
     from_region_id: int = Query(..., description="Qayerdan (viloyat ID)"),
     to_region_id: int = Query(..., description="Qayerga (viloyat ID)"),
+    from_district_id: int | None = Query(None, description="Qayerdan (tuman ID) — berilmasa barcha tumanlar"),
+    to_district_id: int | None = Query(None, description="Qayerga (tuman ID) — berilmasa barcha tumanlar"),
     departure_date: date = Query(..., description="Sana (YYYY-MM-DD)"),
     seats: int = Query(1, ge=1, le=4, description="O'rinlar soni"),
     payment_type: PaymentType | None = Query(None, description="To'lov turi"),
@@ -49,6 +51,8 @@ async def search_trips(
     params = TripSearchParams(
         from_region_id=from_region_id,
         to_region_id=to_region_id,
+        from_district_id=from_district_id,
+        to_district_id=to_district_id,
         departure_date=departure_date,
         seats=seats,
         payment_type=payment_type,
@@ -67,12 +71,16 @@ async def search_trips(
 async def nearest_dates(
     from_region_id: int = Query(..., description="Qayerdan (viloyat ID)"),
     to_region_id: int = Query(..., description="Qayerga (viloyat ID)"),
+    from_district_id: int | None = Query(None, description="Qayerdan (tuman ID)"),
+    to_district_id: int | None = Query(None, description="Qayerga (tuman ID)"),
     after: date = Query(..., description="Shu sanadan keyingi kunlar"),
     seats: int = Query(1, ge=1, le=4),
     db: AsyncSession = Depends(get_db),
 ):
     return await trip_service.nearest_dates(
-        db, from_region_id, to_region_id, after, seats
+        db, from_region_id, to_region_id, after, seats,
+        from_district_id=from_district_id,
+        to_district_id=to_district_id,
     )
 
 

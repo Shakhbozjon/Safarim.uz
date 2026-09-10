@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, true
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
@@ -327,18 +327,43 @@ async def popular_routes(db: AsyncSession, limit: int = 6) -> list[dict]:
     ]
 
 
-def _route_condition(from_region_id: int, to_region_id: int):
+def _district_match(column, district_id: int | None):
+    """Tuman bo'yicha moslik.
+
+    Ikkala tomonda ham «tuman ko'rsatilmagan» = «barcha tumanlar»:
+      - so'rovda tuman yo'q  → viloyatdagi hamma safar mos keladi;
+      - e'londa tuman yo'q   → haydovchi viloyat bo'ylab ishlaydi, ya'ni
+        istalgan tuman so'roviga mos keladi (masalan Toshkent shahri bo'ylab
+        yig'ib ketadigan haydovchi).
+    Eski e'lonlarda tuman NULL — shu qoida tufayli ular yo'qolib qolmaydi.
+    """
+    if district_id is None:
+        return true()
+    return or_(column.is_(None), column == district_id)
+
+
+def _route_condition(
+    from_region_id: int,
+    to_region_id: int,
+    from_district_id: int | None = None,
+    to_district_id: int | None = None,
+):
     """Yo'nalishga mos safarlar: to'g'ridan-to'g'ri yoki oraliq to'xtash orqali."""
     direct = and_(
         Trip.from_region_id == from_region_id,
         Trip.to_region_id == to_region_id,
+        _district_match(Trip.from_district_id, from_district_id),
+        _district_match(Trip.to_district_id, to_district_id),
     )
 
+    # To'xtash nuqtasi orqali kelganda tuman o'sha nuqtaniki bilan solishtiriladi
     from_wp = select(TripWaypoint.trip_id).where(
-        TripWaypoint.region_id == from_region_id
+        TripWaypoint.region_id == from_region_id,
+        _district_match(TripWaypoint.district_id, from_district_id),
     ).scalar_subquery()
     to_wp = select(TripWaypoint.trip_id).where(
-        TripWaypoint.region_id == to_region_id
+        TripWaypoint.region_id == to_region_id,
+        _district_match(TripWaypoint.district_id, to_district_id),
     ).scalar_subquery()
 
     via_waypoint = and_(
@@ -363,6 +388,8 @@ async def nearest_dates(
     after: date,
     seats: int = 1,
     limit: int = 3,
+    from_district_id: int | None = None,
+    to_district_id: int | None = None,
 ) -> list[dict]:
     """Shu yo'nalishda `after` dan keyingi safarli sanalar va har birida nechtaligi.
 
@@ -377,7 +404,9 @@ async def nearest_dates(
             Trip.departure_date >= date.today(),
             Trip.available_seats >= seats,
             Trip.driver_id.notin_(_paused_driver_ids()),
-            _route_condition(from_region_id, to_region_id),
+            _route_condition(
+                from_region_id, to_region_id, from_district_id, to_district_id
+            ),
         )
         .group_by(Trip.departure_date)
         .order_by(Trip.departure_date.asc())
@@ -396,7 +425,12 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
             Trip.departure_date >= date.today(),   # o'tib ketgan safar chiqmasin
             Trip.available_seats >= params.seats,
             Trip.driver_id.notin_(_paused_driver_ids()),
-            _route_condition(params.from_region_id, params.to_region_id),
+            _route_condition(
+                params.from_region_id,
+                params.to_region_id,
+                params.from_district_id,
+                params.to_district_id,
+            ),
         )
     )
 

@@ -51,7 +51,60 @@ function TripsContent() {
     // Backend faqat women_only va max_price ni qo'llab-quvvatlaydi — o'shalar
     // so'rovga qo'shiladi va queryKey ga kiradi. Vaqt, reyting va yuk esa
     // kelgan ro'yxat ustida pastda filtrlanadi (backendda bunday parametr yo'q).
-    queryKey: ["trips", fromId, toId, date, seats, filters.womenOnly, filters.maxPrice],
+    queryKey: [
+      "trips", fromId, toId, fromDistrictId, toDistrictId,
+      date, seats, filters.womenOnly, filters.maxPrice,
+    ],
+    queryFn: async () => {
+      const { data } = await api.get("/trips/search", {
+        params: {
+          from_region_id:  fromId,
+          to_region_id:    toId,
+          departure_date:  date,
+          seats,
+          // Tuman berilmasa backend viloyat bo'ylab qidiradi
+          ...(fromDistrictId ? { from_district_id: fromDistrictId } : {}),
+          ...(toDistrictId   ? { to_district_id:   toDistrictId }   : {}),
+          ...(filters.womenOnly ? { women_only: true } : {}),
+          ...(filters.maxPrice < MAX_PRICE ? { max_price: filters.maxPrice } : {}),
+        },
+      });
+      return data;
+    },
+    enabled: !!isReady,
+  });
+
+  // Tuman tanlangan bo'lsa, bo'sh natijada odamni boshi berk ko'chada
+  // qoldirmaymiz: viloyat bo'ylab nechta safar borligini oldindan bilib,
+  // "kengaytirish" tugmasini raqami bilan ko'rsatamiz.
+  const districtNarrowed = Boolean(fromDistrictId || toDistrictId);
+
+  // Natija bo'sh bo'lsa: shu yo'nalishda yaqin kunlarda safar bormi?
+  // "Boshqa sanani sinab ko'ring" degan maslahat o'rniga tayyor sanalar.
+  const { data: nearest = [] } = useQuery<{ date: string; count: number }[]>({
+    queryKey: ["nearest-dates", fromId, toId, fromDistrictId, toDistrictId, date, seats],
+    queryFn: async () => {
+      const { data } = await api.get("/trips/nearest-dates", {
+        params: {
+          from_region_id: fromId,
+          to_region_id: toId,
+          after: date,
+          seats,
+          ...(fromDistrictId ? { from_district_id: fromDistrictId } : {}),
+          ...(toDistrictId   ? { to_district_id:   toDistrictId }   : {}),
+        },
+      });
+      return data;
+    },
+    enabled: !!isReady && !isLoading && trips.length === 0,
+  });
+
+  // Xuddi shu so'rov, faqat tumansiz — "butun viloyat bo'yicha" tugmasi uchun
+  const { data: regionWide = [] } = useQuery<TripResponse[]>({
+    queryKey: [
+      "trips-region-wide", fromId, toId, date, seats,
+      filters.womenOnly, filters.maxPrice,
+    ],
     queryFn: async () => {
       const { data } = await api.get("/trips/search", {
         params: {
@@ -65,20 +118,7 @@ function TripsContent() {
       });
       return data;
     },
-    enabled: !!isReady,
-  });
-
-  // Natija bo'sh bo'lsa: shu yo'nalishda yaqin kunlarda safar bormi?
-  // "Boshqa sanani sinab ko'ring" degan maslahat o'rniga tayyor sanalar.
-  const { data: nearest = [] } = useQuery<{ date: string; count: number }[]>({
-    queryKey: ["nearest-dates", fromId, toId, date, seats],
-    queryFn: async () => {
-      const { data } = await api.get("/trips/nearest-dates", {
-        params: { from_region_id: fromId, to_region_id: toId, after: date, seats },
-      });
-      return data;
-    },
-    enabled: !!isReady && !isLoading && trips.length === 0,
+    enabled: !!isReady && !isLoading && trips.length === 0 && districtNarrowed,
   });
 
   const visibleTrips = trips.filter((t) => {
@@ -91,6 +131,17 @@ function TripsContent() {
 
   // Ro'yxat bo'sh: filtr sababmi yoki bu yo'nalishda umuman safar yo'qmi
   const hiddenByFilters = trips.length > 0 && visibleTrips.length === 0;
+
+  /** Shu qidiruv, faqat tuman filtrisiz */
+  function hrefWithoutDistricts() {
+    const next = new URLSearchParams(Object.fromEntries(params));
+    for (const k of ["from_district_id", "to_district_id", "from_district_name", "to_district_name"]) {
+      next.delete(k);
+    }
+    return `?${next.toString()}`;
+  }
+
+  const narrowedNames = [fromDistrictName, toDistrictName].filter(Boolean).join(" va ");
 
   /** "2026-08-18" → "Sesh, 18-avgust" */
   function formatDate(d: string) {
@@ -193,11 +244,33 @@ function TripsContent() {
                 <p className="text-sm text-gray-500">
                   {hiddenByFilters
                     ? "Filtrlarga mos safar yo'q — ularni yumshatib ko'ring"
-                    : nearest.length > 0
-                      ? "Quyidagi kunlarda bor — yoki boshqa yo'nalishni sinang"
-                      : "Boshqa sana yoki yo'nalishni sinab ko'ring"}
+                    : regionWide.length > 0
+                      ? `${narrowedNames || "Tanlangan tuman"} bo'yicha safar yo'q`
+                      : nearest.length > 0
+                        ? "Quyidagi kunlarda bor — yoki boshqa yo'nalishni sinang"
+                        : "Boshqa sana yoki yo'nalishni sinab ko'ring"}
                 </p>
               </div>
+
+              {/* Tuman bo'yicha bo'sh, lekin viloyat bo'ylab safar bor —
+                  eng foydali qadam shu, shuning uchun eng tepada turadi */}
+              {!hiddenByFilters && regionWide.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-1">
+                    Butun viloyat bo&apos;ylab {regionWide.length} ta safar bor
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Tuman filtrini olib tashlasangiz shular chiqadi
+                  </p>
+                  <Link
+                    href={hrefWithoutDistricts()}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-bold text-sm px-4 py-2.5 transition-colors"
+                  >
+                    <Search size={15} />
+                    Butun viloyat bo&apos;yicha qidirish
+                  </Link>
+                </div>
+              )}
 
               {!hiddenByFilters && nearest.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-100 p-5">
