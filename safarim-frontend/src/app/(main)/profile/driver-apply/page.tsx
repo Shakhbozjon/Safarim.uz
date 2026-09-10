@@ -649,7 +649,7 @@ export default function DriverApplyPage() {
         </button>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Haydovchi bo'lish</h1>
-          <p className="text-sm text-gray-500">Ariza 1-3 ish kunida ko'rib chiqiladi</p>
+          <p className="text-sm text-gray-500">Ariza 1–2 ish kunida ko'rib chiqiladi</p>
         </div>
       </div>
 

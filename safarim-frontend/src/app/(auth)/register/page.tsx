@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, User, Lock, Eye, EyeOff } from "lucide-react";
+import { Phone, User, Lock, Eye, EyeOff, Car } from "lucide-react";
+import { clsx } from "clsx";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,9 +39,22 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+type Role = "passenger" | "driver";
+
+/** Kim bo'lib ro'yxatdan o'tyapti. Yo'lovchi oldindan tanlangan — ko'pchilik shu.
+ *
+ *  Tanlov formaning TEPASIDA: haydovchi saytga aynan shu niyat bilan keladi
+ *  (reklama unga qaratilgan), shuning uchun buni formani to'ldirib bo'lgandan
+ *  keyin emas, boshida ko'rishi kerak. */
+const ROLES: { value: Role; label: string; icon: typeof User }[] = [
+  { value: "passenger", label: "Yo'lovchiman", icon: User },
+  { value: "driver",    label: "Haydovchiman", icon: Car },
+];
+
 export default function RegisterPage() {
   const router = useRouter();
 
+  const [role, setRole] = useState<Role>("passenger");
   const [apiError, setApiError] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -57,8 +71,10 @@ export default function RegisterPage() {
       });
       saveTokens(tokens);
       // Haydovchi bo'lishni tanlagan bo'lsa — to'g'ridan-to'g'ri ariza formasiga
-      // (mashina + guvohnoma → tekshiruv). Aks holda yo'lovchi dashboardiga.
-      router.push("/my-trips");
+      // (mashina + hujjatlar → tekshiruv). Aks holda yo'lovchi dashboardiga.
+      // Ilgari hamma /my-trips ga tushardi va haydovchi o'zi qidirib topishi
+      // kerak edi — funnel aynan shu joyda uzilardi.
+      router.push(role === "driver" ? "/profile/driver-apply" : "/my-trips");
     } catch (err: any) {
       setApiError(getApiError(err));
     }
@@ -74,6 +90,38 @@ export default function RegisterPage() {
           Kirish
         </Link>
       </p>
+
+      {/* ── Kim bo'lib ro'yxatdan o'tyapti ── */}
+      <div className="flex gap-1.5 bg-gray-100 rounded-2xl p-1.5 mb-4">
+        {ROLES.map(({ value, label, icon: Icon }) => {
+          const active = role === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setRole(value)}
+              aria-pressed={active}
+              className={clsx(
+                "flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors",
+                "inline-flex items-center justify-center gap-1.5",
+                active
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              )}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {role === "driver" && (
+        <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+          Hisob yaratilgach mashina ma&apos;lumotlari, guvohnoma va texpasportni
+          yuklaysiz — 1–2 ish kuni ichida tekshiramiz.
+        </p>
+      )}
 
       {/* ── Ro'yxat formasi ── */}
       <>
@@ -163,14 +211,9 @@ export default function RegisterPage() {
               size="lg"
               loading={form.formState.isSubmitting}
             >
-              Ro'yxatdan o'tish
+              {role === "driver" ? "Davom etish — hujjatlar" : "Ro'yxatdan o'tish"}
             </Button>
           </form>
-
-          <p className="text-xs text-gray-400 text-center mt-5 leading-relaxed">
-            Haydovchi bo&apos;lmoqchimisiz? Avval hisob yarating — so&apos;ng mashina
-            ma&apos;lumotlari va guvohnomangizni yuklaysiz (1–3 ish kuni tekshiruv).
-          </p>
       </>
     </>
   );
