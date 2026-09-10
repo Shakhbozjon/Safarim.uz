@@ -29,6 +29,21 @@ function fmtDate(d: string) {
   return `${day}-${UZ_MON[m - 1] ?? ""}`;
 }
 
+/**
+ * Viloyat nomi yonidagi tuman.
+ *
+ * Qidiruv viloyat darajasida ishlaydi, ya'ni bitta ro'yxatda butun
+ * viloyatdan chiqadigan safarlar aralash turadi. Tumansiz yo'lovchi qaysi
+ * safar o'ziga yaqin ekanini ro'yxatdan ajrata olmaydi — buning uchun safar
+ * sahifasiga kirib chiqishga majbur bo'lardi.
+ */
+function Sub({ name }: { name?: string }) {
+  if (!name) return null;
+  return (
+    <span className="text-[12.5px] font-semibold text-gray-500 ml-1.5">· {name}</span>
+  );
+}
+
 export default function TripCard({ trip, className }: TripCardProps) {
   const { driver } = trip;
   const waypoints = trip.waypoints ?? [];
@@ -79,11 +94,17 @@ export default function TripCard({ trip, className }: TripCardProps) {
           </div>
           <div className="flex-1 min-w-0 flex flex-col justify-between gap-3.5">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[17px] font-bold text-gray-900 truncate">{trip.from_region.name_uz}</p>
+              <p className="text-[17px] font-bold text-gray-900 truncate">
+                {trip.from_region.name_uz}
+                <Sub name={trip.from_district?.name_uz} />
+              </p>
               <p className="text-sm font-semibold text-gray-600 shrink-0 tabular-nums">{fmtTime(trip.departure_time)}</p>
             </div>
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[17px] font-bold text-gray-900 truncate">{trip.to_region.name_uz}</p>
+              <p className="text-[17px] font-bold text-gray-900 truncate">
+                {trip.to_region.name_uz}
+                <Sub name={trip.to_district?.name_uz} />
+              </p>
               <p className="text-sm text-gray-400 shrink-0">{fmtDate(trip.departure_date)}</p>
             </div>
           </div>
