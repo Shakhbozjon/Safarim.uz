@@ -66,6 +66,8 @@ export interface TripDriverInfo {
   vehicle_make: string | null;
   vehicle_model: string | null;
   vehicle_color: string | null;
+  /** Guvohnomasini yuklagan haydovchi — profilda alohida belgi turadi */
+  documents_verified: boolean;
 }
 
 export interface WaypointResponse {

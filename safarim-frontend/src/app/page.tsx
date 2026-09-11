@@ -26,7 +26,7 @@ const STEPS = [
 ];
 
 const SAFETY = [
-  { title: "Tasdiqlangan haydovchilar", desc: "Barcha haydovchilar hujjat tekshiruvi va reyting tizimidan o'tadi." },
+  { title: "Tasdiqlangan haydovchilar", desc: "Har bir haydovchi admin tasdig'idan o'tadi; hujjatini yuklaganlarda profilda alohida belgi turadi." },
   { title: "Reyting va sharhlar", desc: "Har safardan keyin yo'lovchi va haydovchi bir-birini baholaydi." },
   { title: "Raqam himoyasi", desc: "Telefon raqamlar faqat band qilish tasdiqlangandan keyin ko'rinadi." },
 ];
@@ -103,7 +103,7 @@ export default async function HomePage() {
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3.5 text-[12.5px] font-semibold text-gray-500">
               <span className="inline-flex items-center gap-1.5">
                 <i className="w-[5px] h-[5px] rounded-full bg-green-500" />
-                Hujjatlari tekshirilgan haydovchilar
+                Har bir haydovchi tasdiqdan o'tadi
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <i className="w-[5px] h-[5px] rounded-full bg-green-500" />

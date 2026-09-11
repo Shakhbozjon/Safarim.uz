@@ -47,6 +47,9 @@ def serialize_trip(trip: Trip) -> TripResponse:
         vehicle_make=dp.vehicle_make if dp else None,
         vehicle_model=dp.vehicle_model if dp else None,
         vehicle_color=dp.vehicle_color if dp else None,
+        # Guvohnoma — shaxsni tasdiqlaydigan hujjat; texpasport mashinaga
+        # tegishli va belgiga ta'sir qilmaydi.
+        documents_verified=bool(dp and dp.license_image),
     )
 
     waypoints = [

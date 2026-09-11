@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Luggage, MapPin, Users, CigaretteOff, PawPrint } from "lucide-react";
+import { Luggage, MapPin, Users, CigaretteOff, PawPrint, BadgeCheck } from "lucide-react";
 import { clsx } from "clsx";
 import Avatar from "@/components/ui/Avatar";
 import Stars from "@/components/ui/Stars";
@@ -62,7 +62,16 @@ export default function TripCard({ trip, className }: TripCardProps) {
           <div className="flex items-center gap-3 min-w-0">
             <Avatar src={driver.profile_photo} name={driver.full_name} size="md" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 leading-tight truncate">{driver.full_name}</p>
+              <p className="text-sm font-semibold text-gray-900 leading-tight truncate flex items-center gap-1">
+                <span className="truncate">{driver.full_name}</span>
+                {driver.documents_verified && (
+                  <BadgeCheck
+                    size={14}
+                    className="text-green-600 shrink-0"
+                    aria-label="Hujjati tekshirilgan"
+                  />
+                )}
+              </p>
               <Stars
                 rating={driver.rating_avg}
                 size={12}

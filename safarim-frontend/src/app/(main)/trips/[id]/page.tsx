@@ -315,7 +315,13 @@ export default function TripDetailPage() {
                 className="mt-1"
               />
             </div>
-            <Badge variant="success" dot>Tasdiqlangan</Badge>
+            {/* Ikki xil holat, ikki xil gap: hamma haydovchi admin
+                tasdig'idan o'tadi, hujjat esa hammada yuklanmagan. */}
+            {trip.driver.documents_verified ? (
+              <Badge variant="success" dot>Hujjati tekshirilgan</Badge>
+            ) : (
+              <Badge variant="default" dot>Tasdiqlangan</Badge>
+            )}
           </div>
 
           <div className="mt-5 space-y-3.5">

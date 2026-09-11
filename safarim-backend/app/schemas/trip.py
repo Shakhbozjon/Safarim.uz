@@ -46,6 +46,11 @@ class TripDriverInfo(BaseModel):
     vehicle_make: str | None = None
     vehicle_model: str | None = None
     vehicle_color: str | None = None
+    # Guvohnomasi yuklangan haydovchida profilda belgi turadi. Ishga tushirish
+    # davrida hujjat yuklash majburiy emas, shuning uchun "tasdiqlangan" bilan
+    # "hujjati tekshirilgan" ikki xil narsa: birinchisi hammada bor (admin
+    # qo'lda tasdiqlaydi), ikkinchisi faqat hujjat yuklaganda.
+    documents_verified: bool = False
 
 
 class TripCreate(BaseModel):

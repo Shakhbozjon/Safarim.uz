@@ -522,9 +522,10 @@ function Step2Form({
           Hujjatlarni hozir yuklash shart emas
         </p>
         <p className="text-[13px] text-blue-700 leading-relaxed">
-          Yuklasangiz arizangiz tezroq ko&apos;riladi. Yuklamasangiz ham
-          topshirishingiz mumkin — uchrashganimizda guvohnoma va texpasportni
-          ko&apos;rsatasiz, biz o&apos;sha yerda tasdiqlaymiz.
+          Guvohnomangizni yuklasangiz profilingizda <b>«Hujjati tekshirilgan»</b>{" "}
+          belgisi turadi — yo&apos;lovchi safar tanlayotganda shuni ko&apos;radi.
+          Yuklamasangiz ham ariza topshirishingiz mumkin; kerak bo&apos;lsa
+          tekshirish uchun siz bilan bog&apos;lanamiz.
         </p>
       </div>
 

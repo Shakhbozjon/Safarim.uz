@@ -201,3 +201,23 @@ async def test_yaqin_sanalar_tumanga_bogliq(db, driver_user):
         db, FARGONA, TOSHKENT, date.today(), 1, from_district_id=BUVAYDA
     )
     assert dates_buvayda == []
+
+
+# ─── «Hujjati tekshirilgan» belgisi ──────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_belgi_faqat_guvohnoma_yuklaganda(db, driver_user):
+    """Hujjat yuklash ixtiyoriy — shuning uchun «tasdiqlangan» va «hujjati
+    tekshirilgan» ikki xil narsa. Belgi faqat ikkinchisida."""
+    driver, dp = driver_user
+    await _locations(db)
+    trip = await _trip(db, driver, from_district=BUVAYDA)
+
+    found = await trip_service.search_trips(db, _params())
+    assert trip_service.serialize_trip(found[0]).driver.documents_verified is True
+
+    dp.license_image = None
+    await db.commit()
+
+    found = await trip_service.search_trips(db, _params())
+    assert trip_service.serialize_trip(found[0]).driver.documents_verified is False
