@@ -219,10 +219,9 @@ async def delete_my_account(
         select(DriverProfile).where(DriverProfile.user_id == current_user.id)
     )).scalar_one_or_none()
     if driver_profile:
-        if driver_profile.license_image:
-            storage_service.delete_file(
-                driver_profile.license_image, settings.MINIO_BUCKET_DOCUMENTS
-            )
+        for key in (driver_profile.license_image, driver_profile.tech_passport_image):
+            if key:
+                storage_service.delete_file(key, settings.MINIO_BUCKET_DOCUMENTS)
         await db.delete(driver_profile)
         current_user.is_driver = False
 

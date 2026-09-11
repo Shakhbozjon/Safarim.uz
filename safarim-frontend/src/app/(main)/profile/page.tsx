@@ -212,7 +212,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-yellow-800">Ko'rib chiqilmoqda</p>
-                  <p className="text-sm text-yellow-600">1-3 ish kuni ichida javob beriladi</p>
+                  <p className="text-sm text-yellow-600">1–2 ish kuni ichida javob beriladi</p>
                 </div>
               </div>
               <Link href="/profile/driver-status">
@@ -260,7 +260,7 @@ export default function ProfilePage() {
                 {[
                   "Haydovchilik guvohnomangiz",
                   "Avtomobil ma'lumotlari",
-                  "1-3 ish kuni — tekshirish vaqti",
+                  "1–2 ish kuni — tekshirish vaqti",
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-3 text-sm text-gray-600">
                     <CheckCircle size={15} className="text-green-500 shrink-0" />

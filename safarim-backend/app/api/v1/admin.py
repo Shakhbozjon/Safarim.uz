@@ -92,7 +92,13 @@ async def get_driver_documents(
         raise HTTPException(status_code=404, detail="Haydovchi topilmadi")
 
     return {
-        "license_url": storage_service.get_url(driver.license_image, settings.MINIO_BUCKET_DOCUMENTS),
+        # Ishga tushirish davrida hujjat yuklash majburiy emas — admin
+        # haydovchini yuzma-yuz ko'rib tasdiqlagan bo'lishi mumkin
+        "license_url": (
+            storage_service.get_url(driver.license_image, settings.MINIO_BUCKET_DOCUMENTS)
+            if driver.license_image
+            else None
+        ),
         # Texpasport talabi kiritilgunga qadar tasdiqlangan haydovchilarda yo'q
         "tech_passport_url": (
             storage_service.get_url(driver.tech_passport_image, settings.MINIO_BUCKET_DOCUMENTS)

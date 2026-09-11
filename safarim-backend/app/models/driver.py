@@ -14,8 +14,12 @@ class DriverProfile(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
 
-    # Hujjatlar (MinIO path)
-    license_image: Mapped[str] = mapped_column(String, nullable=False)
+    # Hujjatlar (MinIO path).
+    # Ikkalasi ham NULL bo'lishi mumkin: ishga tushirish davrida haydovchi
+    # hujjatini yuklashga majbur emas — admin uni yuzma-yuz ko'rib tasdiqlaydi.
+    # Notanish odam ro'yxatdan o'tadigan bosqichda yuklash yana majburiy
+    # qilinadi (o'shanda bu joyni qayta ko'rish kerak).
+    license_image: Mapped[str | None] = mapped_column(String, nullable=True)
     # Texpasport — mashina raqami haydovchi yozganiga mos kelishini admin shu
     # rasmdan tekshiradi. Nullable: bu talab kiritilgunga qadar tasdiqlangan
     # haydovchilarda rasm yo'q, ularni majburan qayta ariza berishga tushirmaymiz.

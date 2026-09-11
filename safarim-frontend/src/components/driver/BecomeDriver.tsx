@@ -22,7 +22,7 @@ const BENEFITS = [
 
 const STEPS = [
   "Arizani to'ldiring — mashina ma'lumotlari va guvohnoma (3 daqiqa)",
-  "Tekshiruvdan o'ting — 1-3 ish kuni ichida javob beramiz",
+  "Tekshiruvdan o'ting — 1–2 ish kuni ichida javob beramiz",
   "Safar e'lon qiling va yo'lovchi qabul qilib boshlang",
 ];
 
@@ -42,7 +42,7 @@ export default function BecomeDriver({ user, applicationStatus }: Props) {
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Arizangiz ko'rib chiqilmoqda</h1>
         <p className="text-gray-500 mb-8">
-          Hujjatlaringiz tekshirilmoqda. 1-3 ish kuni ichida javob beramiz —
+          Arizangiz tekshirilmoqda. 1–2 ish kuni ichida javob beramiz —
           natija bildirishnoma orqali keladi.
         </p>
         <Link href="/profile/driver-status">

@@ -66,8 +66,8 @@ async def apply_driver(
     vehicle_color: str = Form(...),
     vehicle_plate: str = Form(...),
     vehicle_seats: int = Form(...),
-    license_image: UploadFile = File(..., description="Haydovchilik guvohnomasi (JPEG/PNG, maks 5MB)"),
-    tech_passport_image: UploadFile = File(..., description="Texpasport (JPEG/PNG, maks 5MB)"),
+    license_image: UploadFile | None = File(None, description="Haydovchilik guvohnomasi (ixtiyoriy, JPEG/PNG, maks 5MB)"),
+    tech_passport_image: UploadFile | None = File(None, description="Texpasport (ixtiyoriy, JPEG/PNG, maks 5MB)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -86,18 +86,24 @@ async def apply_driver(
         msg = e.errors()[0]["msg"].replace("Value error, ", "")
         raise HTTPException(status_code=400, detail=msg)
 
-    # Hujjat rasmlarini tekshirish — haqiqiy hujjat suratimi (har xil rasm emas).
-    # Ikkalasi ham yuklashdan OLDIN tekshiriladi: birinchisi yuklanib, ikkinchisi
+    # Hujjatlar ixtiyoriy: yuklangani tekshiriladi, yuklanmagani o'tkazib
+    # yuboriladi. Tekshiruv yuklashdan OLDIN: birinchisi yuklanib, ikkinchisi
     # rad etilsa, MinIO'da hech kimga tegishli bo'lmagan fayl qolib ketardi.
-    await image_validation.validate_license_image(license_image)
-    await image_validation.validate_tech_passport_image(tech_passport_image)
+    if license_image is not None:
+        await image_validation.validate_license_image(license_image)
+    if tech_passport_image is not None:
+        await image_validation.validate_tech_passport_image(tech_passport_image)
 
-    license_key = await storage_service.upload(
-        license_image, settings.MINIO_BUCKET_DOCUMENTS, folder="licenses"
-    )
-    tech_passport_key = await storage_service.upload(
-        tech_passport_image, settings.MINIO_BUCKET_DOCUMENTS, folder="tech-passports"
-    )
+    license_key = None
+    if license_image is not None:
+        license_key = await storage_service.upload(
+            license_image, settings.MINIO_BUCKET_DOCUMENTS, folder="licenses"
+        )
+    tech_passport_key = None
+    if tech_passport_image is not None:
+        tech_passport_key = await storage_service.upload(
+            tech_passport_image, settings.MINIO_BUCKET_DOCUMENTS, folder="tech-passports"
+        )
 
     driver = await driver_service.apply_driver(
         db, current_user, data, license_key, tech_passport_key
@@ -129,7 +135,7 @@ async def get_driver_status(
     driver = await driver_service.get_driver_profile(db, current_user)
 
     messages = {
-        "pending": "Arizangiz ko'rib chiqilmoqda. 1-3 ish kuni ichida javob beriladi.",
+        "pending": "Arizangiz ko'rib chiqilmoqda. 1-2 ish kuni ichida javob beriladi.",
         "approved": "Tasdiqlangan. Safar e'lon qilishingiz mumkin.",
         "rejected": f"Rad etildi. Sabab: {driver.rejection_reason}",
     }

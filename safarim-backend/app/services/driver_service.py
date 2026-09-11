@@ -19,7 +19,7 @@ async def apply_driver(
     db: AsyncSession,
     user: User,
     data: DriverApplyRequest,
-    license_key: str,
+    license_key: str | None = None,
     tech_passport_key: str | None = None,
 ) -> DriverProfile:
     # Shu foydalanuvchining mavjud yozuvi (bo'lsa)
@@ -49,8 +49,12 @@ async def apply_driver(
         # Rad etilgan yozuv yangilanadi — yangisi yaratilmaydi.
         # `driver_profiles.user_id` unikal, ya'ni yangi yozuv qo'shish baza
         # cheklovini buzib, foydalanuvchiga 500 bo'lib ko'rinardi.
-        existing.license_image = license_key
-        existing.tech_passport_image = tech_passport_key
+        # Yangi surat berilmagan bo'lsa eskisi saqlanib qoladi — qayta ariza
+        # bergan haydovchining allaqachon yuklangan hujjati yo'qolmasin.
+        if license_key is not None:
+            existing.license_image = license_key
+        if tech_passport_key is not None:
+            existing.tech_passport_image = tech_passport_key
         existing.vehicle_make = data.vehicle_make
         existing.vehicle_model = data.vehicle_model
         existing.vehicle_color = data.vehicle_color

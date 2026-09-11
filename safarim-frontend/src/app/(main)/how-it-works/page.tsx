@@ -12,7 +12,7 @@ const PASSENGER = [
 const DRIVER = [
   { n: 1, title: "Ro'yxatdan o'ting", desc: "Telefon raqamingiz bilan bir daqiqada hisob yarating." },
   { n: 2, title: "Ariza yuboring", desc: "Avtomobil ma'lumotlari va haydovchilik guvohnomasi rasmini yuklang." },
-  { n: 3, title: "Tasdiqlashni kuting", desc: "Admin 1–3 ish kuni ichida hujjatlaringizni tekshirib tasdiqlaydi." },
+  { n: 3, title: "Tasdiqlashni kuting", desc: "Admin 1–2 ish kuni ichida tekshirib tasdiqlaydi." },
   { n: 4, title: "Safar e'lon qiling", desc: "Yo'nalish, vaqt, narx va bo'sh o'rinlarni kiriting — yo'lovchilar sizni topadi." },
 ];
 

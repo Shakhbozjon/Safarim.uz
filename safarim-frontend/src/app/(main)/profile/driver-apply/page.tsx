@@ -503,22 +503,39 @@ function Step2Form({
   error,
 }: {
   onBack: () => void;
-  onSubmit: (licenseFile: File, techPassportFile: File) => void;
+  onSubmit: (licenseFile: File | null, techPassportFile: File | null) => void;
   loading: boolean;
   error: string;
 }) {
   const [license, setLicense] = useState<File | null>(null);
   const [techPassport, setTechPassport] = useState<File | null>(null);
 
+  const noneUploaded = !license && !techPassport;
+
   return (
     <div className="space-y-5">
+      {/* Ishga tushirish davri: hujjatni yangi saytga yuklashdan cho'chish
+          normal reaksiya. Tekshiruvdan voz kechmaymiz — shaklini
+          o'zgartiramiz: admin haydovchini yuzma-yuz ko'rib tasdiqlaydi. */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+        <p className="text-sm font-semibold text-blue-900 mb-1.5">
+          Hujjatlarni hozir yuklash shart emas
+        </p>
+        <p className="text-[13px] text-blue-700 leading-relaxed">
+          Yuklasangiz arizangiz tezroq ko&apos;riladi. Yuklamasangiz ham
+          topshirishingiz mumkin — uchrashganimizda guvohnoma va texpasportni
+          ko&apos;rsatasiz, biz o&apos;sha yerda tasdiqlaymiz.
+        </p>
+      </div>
+
       <DocUpload
         title="Haydovchilik guvohnomasi"
         docName="Guvohnoma"
         hint={
           <>
-            Guvohnomangizning old tomonini <b>hoziroq suratga oling</b> — internetdan
-            olingan yoki boshqa rasm qabul qilinmaydi (JPEG/PNG, maks 5MB)
+            Guvohnomangizning old tomonini suratga oling. Suratni <b>faqat admin
+            ko&apos;radi</b> — yo&apos;lovchiga hech qachon ko&apos;rsatilmaydi,
+            hisobingizni o&apos;chirsangiz surat ham o&apos;chadi (JPEG/PNG, maks 5MB)
           </>
         }
         tips={[
@@ -561,11 +578,11 @@ function Step2Form({
         <Button
           fullWidth
           size="lg"
-          disabled={!license || !techPassport || loading}
+          disabled={loading}
           loading={loading}
-          onClick={() => license && techPassport && onSubmit(license, techPassport)}
+          onClick={() => onSubmit(license, techPassport)}
         >
-          Ariza topshirish
+          {noneUploaded ? "Hujjatsiz topshirish" : "Ariza topshirish"}
         </Button>
       </div>
     </div>
@@ -612,7 +629,7 @@ export default function DriverApplyPage() {
     setForm((prev) => ({ ...prev, [key]: val }));
   }
 
-  async function handleSubmit(licenseFile: File, techPassportFile: File) {
+  async function handleSubmit(licenseFile: File | null, techPassportFile: File | null) {
     setLoading(true);
     setError("");
 
@@ -622,8 +639,9 @@ export default function DriverApplyPage() {
     fd.append("vehicle_color",  form.vehicle_color);
     fd.append("vehicle_plate",  form.vehicle_plate);
     fd.append("vehicle_seats",  form.vehicle_seats);
-    fd.append("license_image",  licenseFile);
-    fd.append("tech_passport_image", techPassportFile);
+    // Yuklanmagan hujjat umuman yuborilmaydi — backend uni ixtiyoriy deb biladi
+    if (licenseFile) fd.append("license_image", licenseFile);
+    if (techPassportFile) fd.append("tech_passport_image", techPassportFile);
 
     try {
       await api.post("/drivers/apply", fd, {

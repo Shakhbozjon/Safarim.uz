@@ -86,8 +86,9 @@ async def main() -> None:
             return
 
         for user, profile in targets:
-            if profile.license_image:
-                storage_service.delete_file(profile.license_image, settings.MINIO_BUCKET_DOCUMENTS)
+            for key in (profile.license_image, profile.tech_passport_image):
+                if key:
+                    storage_service.delete_file(key, settings.MINIO_BUCKET_DOCUMENTS)
             plate = profile.vehicle_plate
             await db.delete(profile)
             user.is_driver = False

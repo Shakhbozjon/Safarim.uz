@@ -171,7 +171,7 @@ export default function DriverDetailPage() {
         title="Haydovchilik guvohnomasi"
         url={docs?.license_url}
         loading={docsLoading}
-        emptyText="Rasm yuklanmagan"
+        emptyText="Hujjat yuklanmagan — haydovchini yuzma-yuz ko'rgan bo'lsangiz shundayam tasdiqlashingiz mumkin"
       />
 
       <DocPanel
@@ -185,7 +185,7 @@ export default function DriverDetailPage() {
         }
         url={docs?.tech_passport_url}
         loading={docsLoading}
-        emptyText="Texpasport yuklanmagan — bu ariza talab kiritilgunga qadar topshirilgan"
+        emptyText="Texpasport yuklanmagan — uchrashganda raqamni hujjatdan tekshiring"
       />
 
       {/* Action buttons */}

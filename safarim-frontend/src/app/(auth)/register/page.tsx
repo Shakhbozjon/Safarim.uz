@@ -118,8 +118,8 @@ export default function RegisterPage() {
 
       {role === "driver" && (
         <p className="text-xs text-gray-500 mb-5 leading-relaxed">
-          Hisob yaratilgach mashina ma&apos;lumotlari, guvohnoma va texpasportni
-          yuklaysiz — 1–2 ish kuni ichida tekshiramiz.
+          Hisob yaratilgach mashina ma&apos;lumotlarini kiritasiz. Hujjat yuklash
+          majburiy emas — uchrashganda ko&apos;rsatsangiz ham bo&apos;ladi.
         </p>
       )}
 
