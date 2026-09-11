@@ -58,6 +58,7 @@ async def get_pending_drivers(
 async def list_drivers(
     status: str = Query("pending", pattern="^(pending|approved|rejected|all)$"),
     q: str | None = Query(None, description="Ism, telefon yoki avtomobil raqami"),
+    needs_review: bool = Query(False, description="Hujjat yuklagan, hali tekshirilmaganlar"),
     admin=Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -71,7 +72,24 @@ async def list_drivers(
         db,
         status=None if status == "all" else DriverStatus(status),
         q=q,
+        needs_review=needs_review,
     )
+
+
+@router.get(
+    "/drivers/{driver_id}",
+    response_model=AdminDriverListResponse,
+    summary="Bitta haydovchi (holatidan qat'i nazar)",
+)
+async def get_driver(
+    driver_id: str,
+    admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin sahifasi ilgari haydovchini "kutayotganlar" ro'yxatidan qidirardi —
+    tasdiqlangani ochilmasdi. Avtomatik tasdiqlashda u ro'yxat butunlay bo'sh
+    bo'ladi, shuning uchun bitta haydovchini olish yo'li kerak."""
+    return await driver_service.get_driver_by_id(db, driver_id)
 
 
 @router.get(
@@ -83,13 +101,7 @@ async def get_driver_documents(
     admin=Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    import uuid
-    result = await db.execute(
-        select(DriverProfile).where(DriverProfile.id == uuid.UUID(driver_id))
-    )
-    driver = result.scalar_one_or_none()
-    if not driver:
-        raise HTTPException(status_code=404, detail="Haydovchi topilmadi")
+    driver = await driver_service.get_driver_by_id(db, driver_id)
 
     return {
         # Ishga tushirish davrida hujjat yuklash majburiy emas — admin

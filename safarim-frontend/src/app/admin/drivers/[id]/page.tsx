@@ -9,29 +9,17 @@ import {
   CheckCircle, XCircle, Loader2, ExternalLink,
 } from "lucide-react";
 import api from "@/lib/api";
-import type { AdminDriverDocuments } from "@/types";
+import type { AdminDriverDocuments, AdminDriverListItem } from "@/types";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
-interface PendingDriver {
-  id: string;
-  user_id: string;
-  vehicle_plate: string;
-  vehicle_make: string;
-  vehicle_model: string;
-  status: string;
-  created_at: string;
-  user: {
-    id: string;
-    full_name: string;
-    phone: string;
-    profile_photo: string | null;
-  };
-}
-
-async function fetchPendingDrivers(): Promise<PendingDriver[]> {
-  const { data } = await api.get("/admin/drivers/pending");
+/** Sahifa ilgari haydovchini "kutayotganlar" ro'yxatidan qidirardi: ariza
+ *  ko'rib chiqilgach u ro'yxatdan chiqib ketardi va sahifa "topilmadi" derdi.
+ *  Avtomatik tasdiqlashda esa ro'yxat butunlay bo'sh bo'ladi. */
+async function fetchDriver(id: string): Promise<AdminDriverListItem> {
+  const { data } = await api.get(`/admin/drivers/${id}`);
   return data;
 }
 
@@ -56,11 +44,12 @@ export default function DriverDetailPage() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
 
-  const { data: drivers, isLoading: driversLoading } = useQuery<PendingDriver[]>({
-    queryKey: ["admin", "drivers", "pending"],
-    queryFn: fetchPendingDrivers,
+  const { data: driver, isLoading: driversLoading } = useQuery<AdminDriverListItem>({
+    queryKey: ["admin", "driver", id],
+    queryFn: () => fetchDriver(id),
+    enabled: !!id,
+    retry: false,
   });
-  const driver = drivers?.find((d) => d.id === id);
 
   const { data: docs, isLoading: docsLoading } = useQuery<AdminDriverDocuments>({
     queryKey: ["admin", "driver-docs", id],
@@ -71,7 +60,10 @@ export default function DriverDetailPage() {
   const approveMut = useMutation({
     mutationFn: () => api.post(`/admin/drivers/${id}/approve`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "drivers", "pending"] });
+      // Prefiks bo'yicha: ro'yxat kaliti ["admin","drivers",tab,q] — aniq
+      // kalit bilan invalidatsiya uni yangilamay qo'yardi.
+      qc.invalidateQueries({ queryKey: ["admin", "drivers"] });
+      qc.invalidateQueries({ queryKey: ["admin", "driver", id] });
       qc.invalidateQueries({ queryKey: ["admin", "stats"] });
       router.push("/admin/drivers");
     },
@@ -80,7 +72,10 @@ export default function DriverDetailPage() {
   const rejectMut = useMutation({
     mutationFn: () => api.post(`/admin/drivers/${id}/reject`, { reason }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "drivers", "pending"] });
+      // Prefiks bo'yicha: ro'yxat kaliti ["admin","drivers",tab,q] — aniq
+      // kalit bilan invalidatsiya uni yangilamay qo'yardi.
+      qc.invalidateQueries({ queryKey: ["admin", "drivers"] });
+      qc.invalidateQueries({ queryKey: ["admin", "driver", id] });
       qc.invalidateQueries({ queryKey: ["admin", "stats"] });
       router.push("/admin/drivers");
     },
@@ -97,7 +92,7 @@ export default function DriverDetailPage() {
   if (!driver) {
     return (
       <div className="p-8">
-        <p className="text-gray-500">Haydovchi topilmadi yoki allaqachon ko'rib chiqilgan.</p>
+        <p className="text-gray-500">Haydovchi topilmadi.</p>
         <Link href="/admin/drivers" className="text-primary-600 text-sm mt-2 inline-block">
           Orqaga qaytish
         </Link>
@@ -117,7 +112,13 @@ export default function DriverDetailPage() {
         </Link>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Haydovchi arizasi</h1>
-          <p className="text-sm text-gray-400">Ko'rib chiqing va qaror qabul qiling</p>
+          <p className="text-sm text-gray-400">
+            {driver.documents_verified
+              ? "Hujjatlari tekshirilgan"
+              : driver.status === "approved"
+                ? "Hisobi ochiq — hujjatlari hali tekshirilmagan"
+                : "Ko'rib chiqing va qaror qabul qiling"}
+          </p>
         </div>
       </div>
 
@@ -126,7 +127,10 @@ export default function DriverDetailPage() {
         <div className="flex items-center gap-4 mb-5">
           <Avatar src={driver.user.profile_photo} name={driver.user.full_name} size="lg" />
           <div>
-            <h2 className="text-lg font-bold text-gray-900">{driver.user.full_name}</h2>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-1.5">
+              {driver.user.full_name}
+              {driver.documents_verified && <VerifiedBadge size={17} />}
+            </h2>
             <div className="flex items-center gap-2 mt-1 text-gray-500 text-sm">
               <Phone size={14} />
               {driver.user.phone}
@@ -188,30 +192,52 @@ export default function DriverDetailPage() {
         emptyText="Texpasport yuklanmagan — uchrashganda raqamni hujjatdan tekshiring"
       />
 
-      {/* Action buttons */}
-      <div className="flex gap-3">
-        <Button
-          onClick={() => approveMut.mutate()}
-          disabled={approveMut.isPending || rejectMut.isPending}
-          className="flex-1 gap-2 bg-green-500 hover:bg-green-600"
-        >
-          {approveMut.isPending ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <CheckCircle size={16} />
+      {/* Tugmalar holatga qarab: tekshirilgan haydovchida qaror qabul
+          qilinib bo'lingan, faqat sana ko'rsatiladi. */}
+      {driver.documents_verified ? (
+        <div className="bg-green-50 border border-green-100 rounded-2xl p-5 flex items-center gap-3">
+          <CheckCircle size={20} className="text-green-500 shrink-0" />
+          <p className="text-sm font-semibold text-green-800">
+            Hujjatlari tekshirilgan
+            {driver.verified_at &&
+              ` — ${new Date(driver.verified_at).toLocaleDateString("uz-UZ", {
+                day: "2-digit", month: "long", year: "numeric",
+              })}`}
+          </p>
+        </div>
+      ) : (
+        <>
+          {!docsLoading && !docs?.license_url && (
+            <p className="text-xs text-gray-400 mb-2.5 leading-relaxed">
+              Guvohnoma yuklanmagan — tasdiqlasangiz ham profilida tasdiq belgisi
+              berilmaydi (belgi hujjat ko'rilganda beriladi).
+            </p>
           )}
-          Tasdiqlash
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setRejectOpen(true)}
-          disabled={approveMut.isPending || rejectMut.isPending}
-          className="flex-1 gap-2 border-red-200 text-red-600 hover:bg-red-50"
-        >
-          <XCircle size={16} />
-          Rad etish
-        </Button>
-      </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => approveMut.mutate()}
+              disabled={approveMut.isPending || rejectMut.isPending}
+              className="flex-1 gap-2 bg-green-500 hover:bg-green-600"
+            >
+              {approveMut.isPending ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <CheckCircle size={16} />
+              )}
+              {driver.status === "approved" ? "Hujjatlarni tasdiqlash" : "Tasdiqlash"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setRejectOpen(true)}
+              disabled={approveMut.isPending || rejectMut.isPending}
+              className="flex-1 gap-2 border-red-200 text-red-600 hover:bg-red-50"
+            >
+              <XCircle size={16} />
+              {driver.status === "approved" ? "Haydovchilikdan chiqarish" : "Rad etish"}
+            </Button>
+          </div>
+        </>
+      )}
 
       {/* Reject modal */}
       <Modal

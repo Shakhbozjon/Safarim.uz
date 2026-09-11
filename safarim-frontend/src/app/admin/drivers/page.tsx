@@ -5,13 +5,18 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { clsx } from "clsx";
 import { Check, ChevronRight, Car, Clock, Loader2, Phone, Search, X } from "lucide-react";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import api from "@/lib/api";
 import type { AdminDriverListItem } from "@/types";
 import Avatar from "@/components/ui/Avatar";
 
-type StatusKey = "pending" | "approved" | "rejected" | "all";
+// "review" — holat emas, filtr: hujjat yuklagan, lekin hali hech kim ko'rmagan.
+// Avtomatik tasdiqlash yoqilganda "Kutayotgan" bo'shab qoladi va adminning
+// haqiqiy ish navbati shu bo'ladi, shuning uchun birinchi va sukut bo'yicha.
+type StatusKey = "review" | "pending" | "approved" | "rejected" | "all";
 
 const TABS: { key: StatusKey; label: string }[] = [
+  { key: "review", label: "Hujjat tekshirilmagan" },
   { key: "pending", label: "Kutayotgan" },
   { key: "approved", label: "Tasdiqlangan" },
   { key: "rejected", label: "Rad etilgan" },
@@ -24,9 +29,11 @@ const STATUS_BADGE: Record<string, { label: string; cls: string; icon: React.Ele
   rejected: { label: "Rad etilgan",  cls: "bg-red-100 text-red-700",      icon: X },
 };
 
-async function fetchDrivers(status: StatusKey, q: string): Promise<AdminDriverListItem[]> {
+async function fetchDrivers(tab: StatusKey, q: string): Promise<AdminDriverListItem[]> {
   const { data } = await api.get("/admin/drivers", {
-    params: { status, q: q || undefined },
+    params: tab === "review"
+      ? { status: "all", needs_review: true, q: q || undefined }
+      : { status: tab, q: q || undefined },
   });
   return data;
 }
@@ -40,7 +47,7 @@ function formatDate(iso: string) {
 }
 
 export default function AdminDriversPage() {
-  const [tab, setTab] = useState<StatusKey>("pending");
+  const [tab, setTab] = useState<StatusKey>("review");
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
 
@@ -126,7 +133,11 @@ export default function AdminDriversPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
           <Car size={40} className="mx-auto text-gray-200 mb-3" />
           <p className="font-medium text-gray-500">
-            {debounced ? `«${debounced}» bo'yicha haydovchi topilmadi` : "Bu bo'limda haydovchi yo'q"}
+            {debounced
+              ? `«${debounced}» bo'yicha haydovchi topilmadi`
+              : tab === "review"
+                ? "Tekshirilmagan hujjat yo'q"
+                : "Bu bo'limda haydovchi yo'q"}
           </p>
           {debounced ? (
             <>
@@ -166,7 +177,10 @@ export default function AdminDriversPage() {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900">{driver.user.full_name}</p>
+                    <p className="font-semibold text-gray-900 flex items-center gap-1.5">
+                      {driver.user.full_name}
+                      {driver.documents_verified && <VerifiedBadge size={14} />}
+                    </p>
                     {(() => {
                       const b = STATUS_BADGE[driver.status] ?? STATUS_BADGE.pending;
                       const Icon = b.icon;

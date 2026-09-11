@@ -522,10 +522,9 @@ function Step2Form({
           Hujjatlarni hozir yuklash shart emas
         </p>
         <p className="text-[13px] text-blue-700 leading-relaxed">
-          Guvohnomangizni yuklasangiz profilingizda <b>«Hujjati tekshirilgan»</b>{" "}
-          belgisi turadi — yo&apos;lovchi safar tanlayotganda shuni ko&apos;radi.
-          Yuklamasangiz ham ariza topshirishingiz mumkin; kerak bo&apos;lsa
-          tekshirish uchun siz bilan bog&apos;lanamiz.
+          Guvohnomangizni yuklasangiz, <b>tekshirilgandan keyin</b> ismingiz yonida
+          tasdiq belgisi turadi — yo&apos;lovchi safar tanlayotganda shuni ko&apos;radi.
+          Yuklamasangiz ham safar e&apos;lon qilaverasiz.
         </p>
       </div>
 
@@ -668,7 +667,7 @@ export default function DriverApplyPage() {
         </button>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Haydovchi bo'lish</h1>
-          <p className="text-sm text-gray-500">Ariza 1–2 ish kunida ko'rib chiqiladi</p>
+          <p className="text-sm text-gray-500">Mashina ma'lumotlari — hujjat ixtiyoriy</p>
         </div>
       </div>
 

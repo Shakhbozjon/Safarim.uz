@@ -201,7 +201,7 @@ export default function DriverStatusPage() {
       {status.status === "pending" && (
         <div className="bg-gray-50 rounded-2xl p-5 text-center">
           <p className="text-sm text-gray-500">
-            Ariza ko'rib chiqilganda sizga SMS xabar yuboriladi
+            Ariza ko'rib chiqilganda sizga bildirishnoma yuboriladi
           </p>
         </div>
       )}

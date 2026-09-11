@@ -118,8 +118,8 @@ export default function RegisterPage() {
 
       {role === "driver" && (
         <p className="text-xs text-gray-500 mb-5 leading-relaxed">
-          Hisob yaratilgach mashina ma&apos;lumotlarini kiritasiz. Hujjat yuklash
-          majburiy emas — uchrashganda ko&apos;rsatsangiz ham bo&apos;ladi.
+          Hisob yaratilgach mashina ma&apos;lumotlarini kiritasiz va darrov safar
+          e&apos;lon qila olasiz. Hujjat yuklash majburiy emas.
         </p>
       )}
 

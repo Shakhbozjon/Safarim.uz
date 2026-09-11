@@ -16,7 +16,7 @@ const stats = (commissionFree: boolean) => [
   commissionFree
     ? { value: "0%", label: "Hozircha komissiya yo'q" }
     : { value: "2–5%", label: "Past komissiya" },
-  { value: "Tasdiqlangan", label: "Haydovchilar" },
+  { value: "Reyting", label: "Har safardan keyin baho" },
 ];
 
 const STEPS = [
@@ -26,7 +26,7 @@ const STEPS = [
 ];
 
 const SAFETY = [
-  { title: "Tasdiqlangan haydovchilar", desc: "Har bir haydovchi admin tasdig'idan o'tadi; hujjatini yuklaganlarda profilda alohida belgi turadi." },
+  { title: "Hujjati tekshirilgan haydovchilar", desc: "Guvohnomasi tekshirilgan haydovchining ismi yonida tasdiq belgisi turadi — safar tanlashda shunga qarang." },
   { title: "Reyting va sharhlar", desc: "Har safardan keyin yo'lovchi va haydovchi bir-birini baholaydi." },
   { title: "Raqam himoyasi", desc: "Telefon raqamlar faqat band qilish tasdiqlangandan keyin ko'rinadi." },
 ];
@@ -36,7 +36,7 @@ const earnings = (commissionFree: boolean) => [
   commissionFree
     ? { value: "0%", label: "Ishga tushirish davri — komissiya yo'q" }
     : { value: "2–5%", label: "Faqat muvaffaqiyatli band qilishdan" },
-  { value: "1–2 kun", label: "Ariza tasdiqlash muddati" },
+  { value: "Darhol", label: "Hisob ochilishi" },
 ];
 
 const H2 = "text-[clamp(26px,4vw,38px)] font-extrabold tracking-tight text-gray-900";
@@ -103,7 +103,7 @@ export default async function HomePage() {
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3.5 text-[12.5px] font-semibold text-gray-500">
               <span className="inline-flex items-center gap-1.5">
                 <i className="w-[5px] h-[5px] rounded-full bg-green-500" />
-                Har bir haydovchi tasdiqdan o'tadi
+                Hujjati tekshirilganlar belgilanadi
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <i className="w-[5px] h-[5px] rounded-full bg-green-500" />
@@ -132,10 +132,16 @@ export default async function HomePage() {
                 <div className="flex items-center gap-3 mb-5">
                   <div className="w-[42px] h-[42px] rounded-full bg-white/20 flex items-center justify-center font-extrabold text-sm shrink-0">JR</div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[15px] font-bold">Jasur Rahimov</div>
+                    <div className="text-[15px] font-bold flex items-center gap-1.5">
+                      Jasur Rahimov
+                      {/* Haqiqiy safar kartochkasidagi belgi bilan bir xil */}
+                      <svg width="15" height="15" viewBox="0 0 24 24" className="shrink-0" aria-hidden="true">
+                        <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" fill="#fff" />
+                        <path d="m9 12 2 2 4-4" fill="none" stroke="#3b5bdb" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
                     <div className="text-[12.5px] opacity-75">4.9 ★ · 127 sharh</div>
                   </div>
-                  <span className="text-[11.5px] bg-accent-500 px-2.5 py-1 rounded-full font-bold shrink-0">Tasdiqlangan</span>
                 </div>
 
                 <div className="flex items-center gap-3.5 py-5 border-y border-white/20">

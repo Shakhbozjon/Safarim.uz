@@ -14,6 +14,16 @@ class DriverProfile(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
 
+    # ── Hujjat holati ────────────────────────────────────────────────────
+    # "Tasdiqlangan" (status=approved) va "hujjati tekshirilgan" ikki xil narsa:
+    # birinchisi — safar e'lon qila oladi (pilotda avtomatik beriladi),
+    # ikkinchisi — admin hujjatni ko'zi bilan ko'rgan.
+
+    # ── Hujjat holati ────────────────────────────────────────────────────
+    # "Tasdiqlangan" (status=approved) va "hujjati tekshirilgan" ikki xil narsa:
+    # birinchisi — safar e'lon qila oladi (pilotda avtomatik beriladi),
+    # ikkinchisi — admin hujjatni ko'zi bilan ko'rgan.
+
     # Hujjatlar (MinIO path).
     # Ikkalasi ham NULL bo'lishi mumkin: ishga tushirish davrida haydovchi
     # hujjatini yuklashga majbur emas — admin uni yuzma-yuz ko'rib tasdiqlaydi.
@@ -70,3 +80,17 @@ class DriverProfile(Base):
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="driver_profile", foreign_keys=[user_id])
     verifier: Mapped[User | None] = relationship("User", foreign_keys=[verified_by])
+
+    @property
+    def has_documents(self) -> bool:
+        """Ikkala hujjat ham yuklanganmi."""
+        return bool(self.license_image and self.tech_passport_image)
+
+    @property
+    def documents_verified(self) -> bool:
+        """Guvohnoma BOR va uni admin ko'rgan — profildagi belgi shunga qarab.
+
+        Avtomatik ochilgan haydovchida `verified_by` bo'sh: hujjat yuklangan
+        bo'lsa ham hech kim ko'rmagan, demak belgi berilmaydi.
+        """
+        return bool(self.license_image and self.verified_by)

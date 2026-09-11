@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = { title: "Xavfsizlik — UzSafar" };
 
 const FEATURES = [
-  { title: "Tasdiqlangan haydovchilar", desc: "Har bir haydovchi avtomobil ma'lumotlari bo'yicha admin tasdig'idan o'tadi. Guvohnomasini yuklaganlarda profilda «Hujjati tekshirilgan» belgisi turadi — safar tanlashda shunga qarang." },
+  { title: "Hujjati tekshirilgan haydovchilar", desc: "Guvohnomasini yuklagan va admin tomonidan tekshirilgan haydovchining ismi yonida tasdiq belgisi turadi. Belgisi yo'q haydovchining hujjati hali ko'rilmagan — safar tanlashda shunga e'tibor bering." },
   { title: "Reyting va sharhlar", desc: "Har safardan keyin yo'lovchi va haydovchi bir-birini baholaydi. Past reyting profilга ta'sir qiladi." },
   { title: "Telefon raqam himoyasi", desc: "Raqamlar faqat band qilish tasdiqlangач ikkinchi tomonга ochiladi — ochiq ko'rinmaydi." },
   { title: "Ikki tomonlama tasdiq", desc: "Safar bo'lgani ikkala tomon tomonidan tasdiqlanadi. Kelishmovchilik bo'lsa admin hal qiladi." },

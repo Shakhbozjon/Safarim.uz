@@ -134,9 +134,18 @@ async def get_driver_status(
 ):
     driver = await driver_service.get_driver_profile(db, current_user)
 
+    # Hisob ochiq bo'lsa ham hujjati tekshirilmagan bo'lishi mumkin — haydovchi
+    # buni bilib tursin, aks holda belgi nega yo'qligi tushunarsiz bo'ladi.
+    approved_msg = "Tasdiqlangan. Safar e'lon qilishingiz mumkin."
+    if not driver.verified_by:
+        approved_msg += (
+            " Guvohnomangizni yuklasangiz, ko'rib chiqqach profilingizda "
+            "tasdiq belgisi paydo bo'ladi."
+        )
+
     messages = {
         "pending": "Arizangiz ko'rib chiqilmoqda. 1-2 ish kuni ichida javob beriladi.",
-        "approved": "Tasdiqlangan. Safar e'lon qilishingiz mumkin.",
+        "approved": approved_msg,
         "rejected": f"Rad etildi. Sabab: {driver.rejection_reason}",
     }
 

@@ -60,6 +60,16 @@ def _metric(total, period, previous) -> dict:
     }
 
 
+
+def _driver_joined():
+    """Haydovchi qachon paydo bo'lgani.
+
+    Ilgari faqat `verified_at` ishlatilardi. Avtomatik tasdiqlashda u bo'sh
+    qoladi (hech kim tasdiqlamagan) va "yangi haydovchi" ko'rsatkichi doim 0
+    ko'rsatib turardi — shuning uchun ro'yxatdan o'tish sanasiga tayanamiz.
+    """
+    return func.coalesce(DriverProfile.verified_at, DriverProfile.created_at)
+
 async def dashboard(db: AsyncSession, days: int = DEFAULT_DAYS) -> dict:
     days = max(1, min(days, MAX_DAYS))
 
@@ -81,11 +91,11 @@ async def dashboard(db: AsyncSession, days: int = DEFAULT_DAYS) -> dict:
     )
     drivers = _metric(
         await count(DriverProfile, DriverProfile.status == DriverStatus.approved),
-        await count(DriverProfile, DriverProfile.verified_at >= start),
+        await count(DriverProfile, _driver_joined() >= start),
         await count(
             DriverProfile,
-            DriverProfile.verified_at >= prev_start,
-            DriverProfile.verified_at < start,
+            _driver_joined() >= prev_start,
+            _driver_joined() < start,
         ),
     )
     trips = _metric(

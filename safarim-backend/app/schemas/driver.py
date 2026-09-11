@@ -120,6 +120,11 @@ class AdminDriverListResponse(BaseModel):
     vehicle_make: str
     vehicle_model: str
     status: DriverStatus
+    # Model propertylaridan avtomatik to'ladi (from_attributes)
+    documents_verified: bool = False
+    has_documents: bool = False
+    verified_at: datetime | None = None
+    rejection_reason: str | None = None
     created_at: datetime
     user: AdminUserBrief
 

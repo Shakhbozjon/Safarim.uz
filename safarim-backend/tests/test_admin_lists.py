@@ -123,3 +123,55 @@ async def test_driver_list_search_and_phone_field(client: AsyncClient, db, admin
 async def test_driver_list_requires_admin(client: AsyncClient, user: User):
     r = await client.get(f"{API}/drivers", params={"status": "all"}, headers=auth_headers(user))
     assert r.status_code == 403
+
+
+# ─── Tekshiruv navbati ───────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_hujjat_tekshirilmaganlar_navbati(client: AsyncClient, db, admin_user: User):
+    """Avtomatik tasdiqlashda "kutayotganlar" bo'shab qoladi — adminning
+    haqiqiy navbati "hujjat yuklagan, hali ko'rilmagan" ro'yxati."""
+    u1 = await _user(db, "Navbatdagi Haydovchi", "+998905550101")
+    await _driver(db, u1, "01A111AA", DriverStatus.approved)          # hujjatli, tekshirilmagan
+
+    u2 = await _user(db, "Tekshirilgan Haydovchi", "+998905550102")
+    dp2 = await _driver(db, u2, "01A222AA", DriverStatus.approved)
+    dp2.verified_by = admin_user.id                                   # admin ko'rgan
+    await db.commit()
+
+    u3 = await _user(db, "Hujjatsiz Haydovchi", "+998905550103")
+    dp3 = await _driver(db, u3, "01A333AA", DriverStatus.approved)
+    dp3.license_image = None                                          # ko'radigan hujjat yo'q
+    await db.commit()
+
+    u4 = await _user(db, "Rad Etilgan Haydovchi", "+998905550104")
+    await _driver(db, u4, "01A444AA", DriverStatus.rejected)          # navbatga tushmasin
+
+    r = await client.get(
+        f"{API}/drivers",
+        params={"status": "all", "needs_review": "true"},
+        headers=auth_headers(admin_user),
+    )
+    assert r.status_code == 200, r.text
+    plates = [d["vehicle_plate"] for d in r.json()]
+    assert plates == ["01A111AA"]
+
+
+@pytest.mark.asyncio
+async def test_bitta_haydovchini_ochish(client: AsyncClient, db, admin_user: User):
+    """Sahifa ilgari haydovchini faqat "kutayotganlar" ro'yxatidan qidirardi."""
+    u = await _user(db, "Tasdiqlangan Haydovchi", "+998905550105")
+    dp = await _driver(db, u, "01A555AA", DriverStatus.approved)
+
+    r = await client.get(f"{API}/drivers/{dp.id}", headers=auth_headers(admin_user))
+    assert r.status_code == 200, r.text
+    assert r.json()["vehicle_plate"] == "01A555AA"
+    assert r.json()["documents_verified"] is False
+
+    assert (await client.get(
+        f"{API}/drivers/{uuid.uuid4()}", headers=auth_headers(admin_user)
+    )).status_code == 404
+    # Buzuq id 500 emas, 404 berishi kerak
+    assert (await client.get(
+        f"{API}/drivers/bu-uuid-emas", headers=auth_headers(admin_user)
+    )).status_code == 404

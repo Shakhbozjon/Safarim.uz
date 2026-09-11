@@ -203,21 +203,34 @@ async def test_yaqin_sanalar_tumanga_bogliq(db, driver_user):
     assert dates_buvayda == []
 
 
-# ─── «Hujjati tekshirilgan» belgisi ──────────────────────────────────────────
+# ─── Tasdiq belgisi ──────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_belgi_faqat_guvohnoma_yuklaganda(db, driver_user):
-    """Hujjat yuklash ixtiyoriy — shuning uchun «tasdiqlangan» va «hujjati
-    tekshirilgan» ikki xil narsa. Belgi faqat ikkinchisida."""
+async def test_belgi_faqat_admin_tekshirganda(db, driver_user, admin_user):
+    """«Tasdiqlangan» va «hujjati tekshirilgan» — ikki xil narsa.
+
+    Hisob avtomatik ochilishi mumkin (pilot davri), belgi esa faqat admin
+    guvohnomani ko'rgandan keyin beriladi.
+    """
     driver, dp = driver_user
     await _locations(db)
-    trip = await _trip(db, driver, from_district=BUVAYDA)
+    await _trip(db, driver, from_district=BUVAYDA)
 
+    def _flag():
+        return trip_service.serialize_trip(found[0]).driver.documents_verified
+
+    # 1. Guvohnoma bor, lekin hech kim ko'rmagan → belgi yo'q
     found = await trip_service.search_trips(db, _params())
-    assert trip_service.serialize_trip(found[0]).driver.documents_verified is True
+    assert _flag() is False
 
+    # 2. Admin tekshirdi → belgi bor
+    dp.verified_by = admin_user.id
+    await db.commit()
+    found = await trip_service.search_trips(db, _params())
+    assert _flag() is True
+
+    # 3. Guvohnoma yo'q, lekin tasdiqlangan → belgi baribir yo'q
     dp.license_image = None
     await db.commit()
-
     found = await trip_service.search_trips(db, _params())
-    assert trip_service.serialize_trip(found[0]).driver.documents_verified is False
+    assert _flag() is False

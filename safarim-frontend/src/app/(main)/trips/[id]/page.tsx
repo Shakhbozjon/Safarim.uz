@@ -17,6 +17,7 @@ import Modal from "@/components/ui/Modal";
 import { TripDetailSkeleton } from "@/components/ui/Skeleton";
 import PhoneVerifyModal from "@/components/auth/PhoneVerifyModal";
 import WomenOnlyGate from "@/components/trips/WomenOnlyGate";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useMounted } from "@/hooks/useMounted";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -307,7 +308,10 @@ export default function TripDetailPage() {
           <div className="flex items-center gap-3">
             <Avatar src={trip.driver.profile_photo} name={trip.driver.full_name} size="lg" />
             <div className="flex-1 min-w-0">
-              <p className="text-lg font-bold text-gray-900 truncate">{trip.driver.full_name}</p>
+              <p className="text-lg font-bold text-gray-900 truncate flex items-center gap-1.5">
+                <span className="truncate">{trip.driver.full_name}</span>
+                {trip.driver.documents_verified && <VerifiedBadge size={17} />}
+              </p>
               <Stars
                 rating={trip.driver.rating_avg}
                 showValue
@@ -315,13 +319,9 @@ export default function TripDetailPage() {
                 className="mt-1"
               />
             </div>
-            {/* Ikki xil holat, ikki xil gap: hamma haydovchi admin
-                tasdig'idan o'tadi, hujjat esa hammada yuklanmagan. */}
-            {trip.driver.documents_verified ? (
-              <Badge variant="success" dot>Hujjati tekshirilgan</Badge>
-            ) : (
-              <Badge variant="default" dot>Tasdiqlangan</Badge>
-            )}
+            {/* Nishon ataylab yo'q: hisob avtomatik ochilishi mumkin, ya'ni
+                "Tasdiqlangan" degan yozuv hech narsani anglatmasdi. Tekshiruv
+                haqida yagona signal — ism yonidagi belgi. */}
           </div>
 
           <div className="mt-5 space-y-3.5">

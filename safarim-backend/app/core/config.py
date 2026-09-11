@@ -100,6 +100,18 @@ class Settings(BaseSettings):
     # depozit talab qilinmaydi. Launch/promo uchun; keyin False qilib qayta yoqiladi.
     COMMISSION_FREE_MODE: bool = False
 
+    # Pilot davri: ariza darrov approved bo'ladi — haydovchi admin tugmasini
+    # kutib o'tirmaydi. ⚠️ verified_by BO'SH qoladi, ya'ni bu "hujjati
+    # tekshirilgan" degani EMAS: belgi faqat admin ko'rgandan keyin beriladi.
+    # Haydovchi ko'paygach false qilinadi.
+    AUTO_APPROVE_DRIVERS: bool = False
+
+    # Pilot davri: ariza darrov approved bo'ladi — haydovchi admin tugmasini
+    # kutib o'tirmaydi. ⚠️ verified_by BO'SH qoladi, ya'ni bu "hujjati
+    # tekshirilgan" degani EMAS: belgi faqat admin ko'rgandan keyin beriladi.
+    # Haydovchi ko'paygach false qilinadi.
+    AUTO_APPROVE_DRIVERS: bool = False
+
     # Reyting chegaralari
     RATING_WARNING_THRESHOLD: float = 4.0
     RATING_BLOCK_THRESHOLD: float = 3.5

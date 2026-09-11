@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Luggage, MapPin, Users, CigaretteOff, PawPrint, BadgeCheck } from "lucide-react";
+import { Luggage, MapPin, Users, CigaretteOff, PawPrint } from "lucide-react";
 import { clsx } from "clsx";
 import Avatar from "@/components/ui/Avatar";
 import Stars from "@/components/ui/Stars";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import SeatIndicator from "@/components/trips/SeatIndicator";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import type { TripResponse } from "@/types";
 import { formatPrice } from "@/lib/format";
 
@@ -64,13 +65,7 @@ export default function TripCard({ trip, className }: TripCardProps) {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 leading-tight truncate flex items-center gap-1">
                 <span className="truncate">{driver.full_name}</span>
-                {driver.documents_verified && (
-                  <BadgeCheck
-                    size={14}
-                    className="text-green-600 shrink-0"
-                    aria-label="Hujjati tekshirilgan"
-                  />
-                )}
+                {driver.documents_verified && <VerifiedBadge size={14} />}
               </p>
               <Stars
                 rating={driver.rating_avg}

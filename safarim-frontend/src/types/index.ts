@@ -278,6 +278,12 @@ export interface AdminDriverListItem {
   vehicle_make: string;
   vehicle_model: string;
   status: DriverStatus;
+  /** Guvohnoma yuklangan VA admin ko'rgan — profildagi belgi shunga qarab */
+  documents_verified: boolean;
+  /** Ikkala hujjat ham yuklanganmi */
+  has_documents: boolean;
+  verified_at: string | null;
+  rejection_reason: string | null;
   created_at: string;
   user: {
     id: string;

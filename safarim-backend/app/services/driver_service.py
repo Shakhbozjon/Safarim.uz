@@ -45,6 +45,10 @@ async def apply_driver(
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Bu avtomobil raqami allaqachon ro'yxatdan o'tgan")
 
+    # Rad etilgan haydovchi qayta ariza bersa avtomatika ishlamaydi —
+    # adminning "yo'q" qarori o'z-o'zidan bekor bo'lib qolmasin.
+    was_rejected = bool(existing and existing.status == DriverStatus.rejected)
+
     if existing:
         # Rad etilgan yozuv yangilanadi — yangisi yaratilmaydi.
         # `driver_profiles.user_id` unikal, ya'ni yangi yozuv qo'shish baza
@@ -78,6 +82,17 @@ async def apply_driver(
         db.add(driver)
 
     user.is_driver = True
+
+    # Pilot davri: haydovchi kutmaydi. verified_at/verified_by ATAYLAB bo'sh
+    # qoldiriladi — hech kim tekshirmadi, demak "Hujjati tekshirilgan" belgisi
+    # ham berilmaydi. AdminAction ham yozilmaydi: hech qanday admin harakat
+    # qilmadi, jurnal yolg'on gapirmasin.
+    auto_approved = settings.AUTO_APPROVE_DRIVERS and not was_rejected
+    if auto_approved:
+        driver.status = DriverStatus.approved
+        driver.verified_at = None
+        driver.verified_by = None
+
     try:
         await db.commit()
     except IntegrityError:
@@ -89,6 +104,20 @@ async def apply_driver(
             status_code=400, detail="Bu avtomobil raqami allaqachon ro'yxatdan o'tgan"
         )
     await db.refresh(driver)
+
+    if auto_approved:
+        # Naqd bandlikda komissiya shu hisobdan yechiladi — approve_driver
+        # dagidek, hamyon oldindan ochib qo'yiladi.
+        await wallet_service.get_or_create(db, user.id)
+        await notification_service.create(
+            db,
+            user_id=user.id,
+            title="Haydovchi profilingiz ochildi",
+            body="Endi safar e'lon qilishingiz mumkin. Guvohnomangizni yuklab "
+                 "qo'ysangiz, ko'rib chiqqach profilingizda tasdiq belgisi paydo bo'ladi.",
+            ref_type=NotificationRefType.system,
+        )
+
     return driver
 
 
@@ -158,6 +187,46 @@ async def get_monthly_earnings(db: AsyncSession, user: User) -> list[DriverMonth
 
 # ─── Admin funksiyalari ────────────────────────────────────────────────────────
 
+def _driver_uuid(driver_id: str):
+    """Noto'g'ri formatdagi id 500 emas, 404 bersin."""
+    import uuid as _uuid
+    try:
+        return _uuid.UUID(driver_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=404, detail="Haydovchi topilmadi")
+
+
+async def get_driver_by_id(db: AsyncSession, driver_id: str) -> DriverProfile:
+    """Bitta haydovchi — holatidan qat'i nazar.
+
+    Admin sahifasi ilgari haydovchini faqat "kutayotganlar" ro'yxatidan
+    qidirardi: avtomatik tasdiqlash yoqilganda u ro'yxat bo'sh bo'ladi va
+    hech kimni ochib bo'lmay qolardi.
+    """
+    result = await db.execute(
+        select(DriverProfile)
+        .options(selectinload(DriverProfile.user))
+        .where(DriverProfile.id == _driver_uuid(driver_id))
+    )
+    driver = result.scalar_one_or_none()
+    if not driver:
+        raise HTTPException(status_code=404, detail="Haydovchi topilmadi")
+    return driver
+
+
+def needs_review_conditions() -> list:
+    """Hujjat yuklagan, lekin hali hech kim ko'rmagan haydovchilar.
+
+    Avtomatik tasdiqlashda "kutayotganlar" navbati bo'shab qoladi — adminning
+    haqiqiy ish navbati shu bo'ladi.
+    """
+    return [
+        DriverProfile.verified_by.is_(None),
+        DriverProfile.license_image.isnot(None),
+        DriverProfile.status != DriverStatus.rejected,
+    ]
+
+
 async def get_pending_drivers(db: AsyncSession) -> list[DriverProfile]:
     return await list_drivers(db, status=DriverStatus.pending)
 
@@ -167,6 +236,7 @@ async def list_drivers(
     status: DriverStatus | None = None,
     q: str | None = None,
     limit: int = 100,
+    needs_review: bool = False,
 ) -> list[DriverProfile]:
     """Admin uchun haydovchilar ro'yxati.
 
@@ -176,6 +246,8 @@ async def list_drivers(
     conditions = []
     if status is not None:
         conditions.append(DriverProfile.status == status)
+    if needs_review:
+        conditions += needs_review_conditions()
     if q:
         needle = f"%{q.strip().lower()}%"
         conditions.append(
@@ -191,10 +263,11 @@ async def list_drivers(
         .where(*conditions)
         .limit(limit)
     )
-    # Kutayotganlar eng eskisidan (navbat), qolganlar eng yangisidan
+    # Navbatdagilar eng eskisidan (kim uzoq kutgan bo'lsa tepada),
+    # qolganlar eng yangisidan
     query = query.order_by(
         DriverProfile.created_at.asc()
-        if status == DriverStatus.pending
+        if (status == DriverStatus.pending or needs_review)
         else DriverProfile.created_at.desc()
     )
     result = await db.execute(query)
@@ -202,15 +275,17 @@ async def list_drivers(
 
 
 async def approve_driver(db: AsyncSession, driver_id: str, admin: User) -> DriverProfile:
-    import uuid
-    result = await db.execute(
-        select(DriverProfile).where(DriverProfile.id == uuid.UUID(driver_id))
-    )
-    driver = result.scalar_one_or_none()
-    if not driver:
-        raise HTTPException(status_code=404, detail="Haydovchi topilmadi")
-    if driver.status == DriverStatus.approved:
-        raise HTTPException(status_code=400, detail="Allaqachon tasdiqlangan")
+    """Hujjatni tasdiqlash — profildagi belgi shundan keyin beriladi.
+
+    Avtomatik ochilgan haydovchi ham shu yerdan o'tadi: uning holati allaqachon
+    `approved`, lekin `verified_by` bo'sh — ya'ni hujjatini hech kim ko'rmagan.
+    """
+    driver = await get_driver_by_id(db, driver_id)
+    if driver.verified_by is not None:
+        raise HTTPException(status_code=400, detail="Hujjatlari allaqachon tekshirilgan")
+
+    # Avtomatik ochilgan edi (admin hech narsa qilmagan) — matnlar boshqacha
+    was_auto = driver.status == DriverStatus.approved
 
     driver.status = DriverStatus.approved
     driver.verified_at = datetime.utcnow()
@@ -221,16 +296,26 @@ async def approve_driver(db: AsyncSession, driver_id: str, admin: User) -> Drive
         admin_id=admin.id,
         action_type=AdminActionType.approve_driver,
         target_user_id=driver.user_id,
-        reason="Hujjatlar tekshirildi va tasdiqlandi",
+        reason=(
+            "Hujjatlar tekshirildi (hisob avval avtomatik ochilgan edi)"
+            if was_auto else "Hujjatlar tekshirildi va tasdiqlandi"
+        ),
     )
     db.add(action)
 
-    # Haydovchiga bildirishnoma
+    # Haydovchiga bildirishnoma. Hisobi avval avtomatik ochilgan bo'lsa
+    # "tasdiqlandingiz" demaymiz — u allaqachon ishlab yurgan edi, yangilik
+    # faqat belgi.
     await notification_service.create(
         db,
         user_id=driver.user_id,
-        title="Haydovchilik tasdiqlandi! 🎉",
-        body="Tabriklaymiz! Siz haydovchi sifatida tasdiqlandingiz. Endi safar yarata olasiz.",
+        title="Hujjatlaringiz tekshirildi ✅" if was_auto else "Haydovchilik tasdiqlandi! 🎉",
+        body=(
+            "Profilingizda tasdiq belgisi paydo bo'ldi — yo'lovchilar safar "
+            "tanlayotganda shuni ko'radi."
+            if was_auto else
+            "Tabriklaymiz! Siz haydovchi sifatida tasdiqlandingiz. Endi safar yarata olasiz."
+        ),
         ref_type=NotificationRefType.system,
     )
 
@@ -243,15 +328,18 @@ async def approve_driver(db: AsyncSession, driver_id: str, admin: User) -> Drive
 
 
 async def reject_driver(db: AsyncSession, driver_id: str, admin: User, reason: str) -> DriverProfile:
-    import uuid
-    result = await db.execute(
-        select(DriverProfile).where(DriverProfile.id == uuid.UUID(driver_id))
-    )
-    driver = result.scalar_one_or_none()
-    if not driver:
-        raise HTTPException(status_code=404, detail="Haydovchi topilmadi")
-    if driver.status == DriverStatus.approved:
-        raise HTTPException(status_code=400, detail="Tasdiqlangan haydovchi rad etilmaydi")
+    """Haydovchilikdan chiqarish.
+
+    Hujjati tekshirilgan haydovchi bu yerdan o'tmaydi (uning uchun bloklash
+    bor). Avtomatik ochilgan, hali tekshirilmagan haydovchini esa rad etish
+    yo'li ochiq bo'lishi shart — bu adminning yagona "yo'q" tugmasi.
+    """
+    driver = await get_driver_by_id(db, driver_id)
+    if driver.verified_by is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Hujjati tekshirilgan haydovchi rad etilmaydi — foydalanuvchini bloklang",
+        )
 
     driver.status = DriverStatus.rejected
     driver.rejection_reason = reason
