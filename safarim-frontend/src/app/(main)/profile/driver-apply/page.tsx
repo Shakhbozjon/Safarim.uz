@@ -578,13 +578,29 @@ function Step2Form({
         <Button
           fullWidth
           size="lg"
-          disabled={loading}
+          disabled={noneUploaded || loading}
           loading={loading}
           onClick={() => onSubmit(license, techPassport)}
         >
-          {noneUploaded ? "Hujjatsiz topshirish" : "Ariza topshirish"}
+          Ariza topshirish
         </Button>
       </div>
+
+      {/* O'tkazib yuborish ataylab tugma emas, havola.
+          Ilgari yagona tugma "Hujjatsiz topshirish" deb turardi — hujjatini
+          yuklamoqchi bo'lgan odam ham shuni bosishga majbur edi. Endi tugma
+          "men yukladim", havola esa "men keyinroq yuklayman" degani.
+          Hujjat tanlangach havola ortiqcha — yashiriladi. */}
+      {noneUploaded && (
+        <button
+          type="button"
+          onClick={() => onSubmit(null, null)}
+          disabled={loading}
+          className="block mx-auto text-[13.5px] font-semibold text-gray-500 hover:text-gray-700 underline underline-offset-4 disabled:opacity-50 transition-colors"
+        >
+          Hozircha o&apos;tkazib yuborish
+        </button>
+      )}
     </div>
   );
 }
