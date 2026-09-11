@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
   Car, Camera, ChevronRight, ChevronLeft,
@@ -617,6 +618,7 @@ const EMPTY: Step1Data = {
 
 export default function DriverApplyPage() {
   const router = useRouter();
+  const qc = useQueryClient();
   const [authChecked, setAuthChecked] = useState(false);
   const [step, setStep]     = useState(1);
   const [form, setForm]     = useState<Step1Data>(EMPTY);
@@ -663,6 +665,16 @@ export default function DriverApplyPage() {
       await api.post("/drivers/apply", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
+      // `is_driver` serverda ariza bilan birga true bo'ladi, brauzerdagi
+      // `/auth/me` javobi esa 5 daqiqa keshda turardi. Natijada haydovchi
+      // "tasdiqlandi" xabarini ko'rib, "Safar e'lon qilish" ni bosganda
+      // "Haydovchi bo'ling" ekraniga tushardi va pastdagi menyu ham
+      // yo'lovchiniki bo'lib qolardi. Avtomatik tasdiqlashda bu darrov
+      // sezildi: kutish yo'qolgach, eski kesh yagona to'siq bo'lib qoldi.
+      await qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["driver-status"] });
+
       router.push("/profile/driver-status");
     } catch (err: any) {
       setError(getApiError(err));

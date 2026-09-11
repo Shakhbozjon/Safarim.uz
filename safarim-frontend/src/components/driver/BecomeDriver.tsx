@@ -17,13 +17,13 @@ import type { User } from "@/types";
 const BENEFITS = [
   { icon: Wallet, title: "Qo'shimcha daromad", desc: "Bo'sh o'rindiqlar yo'l xarajatingizni qoplaydi" },
   { icon: Users, title: "Yo'lovchini o'zingiz tanlaysiz", desc: "Band qilish so'rovlarini ko'rib, qabul qilasiz" },
-  { icon: ShieldCheck, title: "Tekshirilgan platforma", desc: "Barcha haydovchilar hujjat orqali tasdiqlanadi" },
+  { icon: ShieldCheck, title: "Tasdiq belgisi", desc: "Hujjatingiz tekshirilgach ismingiz yonida belgi turadi" },
 ];
 
 const STEPS = [
-  "Arizani to'ldiring — mashina ma'lumotlari va guvohnoma (3 daqiqa)",
-  "Tekshiruvdan o'ting — 1–2 ish kuni ichida javob beramiz",
-  "Safar e'lon qiling va yo'lovchi qabul qilib boshlang",
+  "Arizani to'ldiring — mashina ma'lumotlari (3 daqiqa)",
+  "Hisobingiz ochiladi — darrov safar e'lon qila olasiz",
+  "Guvohnomangizni yuklang — tekshirilgach tasdiq belgisi beriladi",
 ];
 
 interface Props {
