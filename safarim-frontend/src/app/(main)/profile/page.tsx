@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { isAuthenticated } from "@/lib/auth";
 import api from "@/lib/api";
+import type { DriverProfileResponse } from "@/types";
 import { useState, useEffect } from "react";
 
 const MENU_ITEMS = [
@@ -45,6 +46,18 @@ export default function ProfilePage() {
     enabled: isAuthenticated() && !user?.is_driver,
     retry: false,
     // 404 → ariza topshirilmagan, xato emas
+  });
+
+  // Hujjat holati — «hozircha o'tkazib yuborish»ni bosgan haydovchiga
+  // tasdiq belgisiga boradigan yo'lni ko'rsatish uchun kerak.
+  const { data: driverProfile } = useQuery<DriverProfileResponse>({
+    queryKey: ["driver-profile"],
+    queryFn: async () => {
+      const { data } = await api.get("/drivers/me");
+      return data;
+    },
+    enabled: isAuthenticated() && !!user?.is_driver,
+    retry: false,
   });
 
   // Kirmagan foydalanuvchini login'ga yo'naltirish (render paytida emas — SSR xavfsizligi)
@@ -189,6 +202,31 @@ export default function ProfilePage() {
                   <p className="text-sm text-green-600">Safar e'lon qilishingiz mumkin</p>
                 </div>
               </div>
+              {/* Hujjati tekshirilmagan haydovchi: belgi olish yo'li.
+                  Ariza paytida hujjatni o'tkazib yuborgan bo'lsa, bu banner
+                  bo'lmasa u belgiga hech qachon yeta olmaydi. */}
+              {driverProfile && !driverProfile.documents_verified && (
+                <Link href="/profile/driver-documents">
+                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-center gap-4 hover:bg-blue-100/60 transition-colors">
+                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                      <ShieldCheck size={24} className="text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-blue-900">
+                        {driverProfile.has_license
+                          ? "Hujjatingiz ko'rib chiqilmoqda"
+                          : "Tasdiq belgisini oling"}
+                      </p>
+                      <p className="text-sm text-blue-700 leading-snug">
+                        {driverProfile.has_license
+                          ? "Tekshirilgach ismingiz yonida belgi paydo bo'ladi"
+                          : "Guvohnomangizni yuklang — yo'lovchilar ko'proq ishonadi"}
+                      </p>
+                    </div>
+                    <ChevronRight size={18} className="text-blue-400 shrink-0" />
+                  </div>
+                </Link>
+              )}
               <Link href="/create-trip">
                 <Button fullWidth size="lg">
                   <Car size={16} />

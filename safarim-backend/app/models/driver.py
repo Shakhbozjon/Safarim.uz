@@ -19,11 +19,6 @@ class DriverProfile(Base):
     # birinchisi — safar e'lon qila oladi (pilotda avtomatik beriladi),
     # ikkinchisi — admin hujjatni ko'zi bilan ko'rgan.
 
-    # ── Hujjat holati ────────────────────────────────────────────────────
-    # "Tasdiqlangan" (status=approved) va "hujjati tekshirilgan" ikki xil narsa:
-    # birinchisi — safar e'lon qila oladi (pilotda avtomatik beriladi),
-    # ikkinchisi — admin hujjatni ko'zi bilan ko'rgan.
-
     # Hujjatlar (MinIO path).
     # Ikkalasi ham NULL bo'lishi mumkin: ishga tushirish davrida haydovchi
     # hujjatini yuklashga majbur emas — admin uni yuzma-yuz ko'rib tasdiqlaydi.
@@ -85,6 +80,17 @@ class DriverProfile(Base):
     def has_documents(self) -> bool:
         """Ikkala hujjat ham yuklanganmi."""
         return bool(self.license_image and self.tech_passport_image)
+
+    # Quyidagi ikkitasi haydovchining O'ZIGA qaytariladi (rasm emas, faqat
+    # "bormi") — hujjatni keyin yuklash sahifasi qaysi holatni ko'rsatishni
+    # shulardan biladi.
+    @property
+    def has_license(self) -> bool:
+        return bool(self.license_image)
+
+    @property
+    def has_tech_passport(self) -> bool:
+        return bool(self.tech_passport_image)
 
     @property
     def documents_verified(self) -> bool:

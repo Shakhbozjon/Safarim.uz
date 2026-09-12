@@ -57,6 +57,11 @@ class DriverProfileResponse(BaseModel):
     warning_count: int
     is_on_pause: bool
     created_at: datetime
+    # Hujjat holati — haydovchining O'ZI uchun. Rasm URL'i ataylab yo'q:
+    # guvohnoma suratini faqat admin ko'radi. Model propertylaridan to'ladi.
+    has_license: bool = False
+    has_tech_passport: bool = False
+    documents_verified: bool = False
 
     model_config = {"from_attributes": True}
 

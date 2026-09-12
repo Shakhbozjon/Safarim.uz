@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, CheckCircle, XCircle, ChevronLeft, Car, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { Clock, CheckCircle, XCircle, ChevronLeft, Car, RefreshCw, ShieldCheck, ChevronRight } from "lucide-react";
 import { clsx } from "clsx";
 import Button from "@/components/ui/Button";
 import api from "@/lib/api";
@@ -21,6 +22,8 @@ interface DriverProfile {
   vehicle_seats: number;
   status: string;
   created_at: string;
+  has_license: boolean;
+  documents_verified: boolean;
 }
 
 const STATUS_CONFIG = {
@@ -183,6 +186,44 @@ export default function DriverStatusPage() {
           ))}
         </div>
       </div>
+
+      {/* Hujjat holati — ariza paytida o'tkazib yuborgan bo'lsa, belgi
+          olishning yo'li shu yerdan ham ko'rinib tursin. Rad etilgan arizada
+          gap hujjatda emas — u yerda ko'rsatilmaydi. */}
+      {status.status !== "rejected" && !profile.documents_verified && (
+        <Link href="/profile/driver-documents">
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-5 flex items-center gap-4 hover:bg-gray-50 transition-colors">
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
+              <ShieldCheck size={24} className="text-blue-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900">
+                {profile.has_license ? "Hujjat ko'rib chiqilmoqda" : "Hujjat yuklanmagan"}
+              </p>
+              <p className="text-sm text-gray-500 leading-snug">
+                {profile.has_license
+                  ? "Tekshirilgach ismingiz yonida tasdiq belgisi paydo bo'ladi"
+                  : "Guvohnomangizni yuklab tasdiq belgisini oling"}
+              </p>
+            </div>
+            <ChevronRight size={18} className="text-gray-300 shrink-0" />
+          </div>
+        </Link>
+      )}
+
+      {profile.documents_verified && (
+        <div className="bg-green-50 border border-green-100 rounded-2xl p-5 mb-5 flex items-center gap-4">
+          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
+            <ShieldCheck size={24} className="text-green-500" />
+          </div>
+          <div>
+            <p className="font-semibold text-green-800">Hujjatlaringiz tekshirilgan</p>
+            <p className="text-sm text-green-600 leading-snug">
+              Ismingiz yonida tasdiq belgisi turibdi
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       {status.status === "approved" && (

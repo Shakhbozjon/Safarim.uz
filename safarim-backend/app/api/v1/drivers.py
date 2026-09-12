@@ -111,6 +111,55 @@ async def apply_driver(
     return driver
 
 
+@router.post(
+    "/me/documents",
+    response_model=DriverProfileResponse,
+    summary="Hujjatni keyin yuklash — ariza topshirilgandan so'ng",
+)
+async def upload_my_documents(
+    license_image: UploadFile | None = File(None, description="Haydovchilik guvohnomasi (JPEG/PNG, maks 5MB)"),
+    tech_passport_image: UploadFile | None = File(None, description="Texpasport (JPEG/PNG, maks 5MB)"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ariza paytida hujjat yuklamagan haydovchi uni keyin yuklaydi.
+
+    Haydovchining holati (`approved`/`pending`) o'zgarmaydi — faqat hujjat
+    qo'shiladi va adminning tekshirish navbatiga tushadi.
+    """
+    if license_image is None and tech_passport_image is None:
+        raise HTTPException(status_code=400, detail="Kamida bitta hujjat yuklang")
+
+    # `apply` dagi tartib: avval IKKALASI tekshiriladi, keyin yuklanadi.
+    # Aks holda birinchisi MinIO'ga tushib, ikkinchisi rad etilsa — egasiz fayl
+    # qolib ketardi.
+    if license_image is not None:
+        await image_validation.validate_license_image(license_image)
+    if tech_passport_image is not None:
+        await image_validation.validate_tech_passport_image(tech_passport_image)
+
+    license_key = None
+    if license_image is not None:
+        license_key = await storage_service.upload(
+            license_image, settings.MINIO_BUCKET_DOCUMENTS, folder="licenses"
+        )
+    tech_passport_key = None
+    if tech_passport_image is not None:
+        tech_passport_key = await storage_service.upload(
+            tech_passport_image, settings.MINIO_BUCKET_DOCUMENTS, folder="tech-passports"
+        )
+
+    driver, replaced = await driver_service.upload_documents(
+        db, current_user, license_key, tech_passport_key
+    )
+
+    # Almashtirilgan eski surat MinIO'da qolmasin — shaxsiy hujjat.
+    for key in replaced:
+        storage_service.delete_file(key, settings.MINIO_BUCKET_DOCUMENTS)
+
+    return driver
+
+
 @router.get(
     "/me",
     response_model=DriverProfileResponse,

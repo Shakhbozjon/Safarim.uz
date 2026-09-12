@@ -13,6 +13,7 @@ import {
   Clock,
   RefreshCw,
   Scale,
+  ShieldCheck,
   Table2,
   Wallet,
 } from "lucide-react";
@@ -178,6 +179,9 @@ export default function AdminDashboard() {
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
           <QueueCard label="Kutayotgan ariza" value={a?.pending_drivers} href="/admin/drivers" tone="warn" icon={Clock} />
+          {/* Avtomatik tasdiqlashda yuqoridagi doim 0 — tekshiriladigan hujjat
+              shu kartada ko'rinadi (keyin yuklanganlari ham shu yerga tushadi) */}
+          <QueueCard label="Tekshiriladigan hujjat" value={a?.drivers_needs_review} href="/admin/drivers" tone="warn" icon={ShieldCheck} />
           <QueueCard label="Ochiq nizo" value={a?.open_disputes} href="/admin/disputes" tone="urgent" icon={Scale} />
           <QueueCard label="Tasdiq kutmoqda" value={a?.awaiting_confirmation} tone="calm" icon={ClipboardList} />
           <QueueCard label="To'lanmagan komissiya, so'm" value={a?.unpaid_commission} href="/admin/commissions" tone="warn" icon={Wallet} />

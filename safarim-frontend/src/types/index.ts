@@ -156,6 +156,11 @@ export interface DriverProfileResponse {
   warning_count: number;
   is_on_pause: boolean;
   created_at: string;
+  /** Guvohnoma yuklanganmi (surat URL'i berilmaydi — uni faqat admin ko'radi) */
+  has_license: boolean;
+  has_tech_passport: boolean;
+  /** Guvohnoma BOR va admin uni ko'rgan — profildagi tasdiq belgisi shunga qarab */
+  documents_verified: boolean;
 }
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
@@ -357,6 +362,10 @@ export interface AdminStats {
   };
   alerts: {
     pending_drivers: number;
+    /** Hujjat yuklagan, lekin hali hech kim ko'rmagan haydovchilar.
+     *  Avtomatik tasdiqlashda adminning haqiqiy navbati shu — `pending_drivers`
+     *  doim 0 bo'lib qoladi. */
+    drivers_needs_review: number;
     open_disputes: number;
     awaiting_confirmation: number;
     unpaid_commission: number;

@@ -31,6 +31,7 @@ from app.models.payment import DriverMonthlyCommission
 from app.models.trip import Trip
 from app.models.user import User
 from app.models.wallet import DriverWallet
+from app.services import driver_service
 
 # O'zbekistonda yozgi vaqt yo'q — doimiy +05:00
 _TASHKENT_SHIFT = text("interval '5 hours'")
@@ -185,6 +186,12 @@ async def dashboard(db: AsyncSession, days: int = DEFAULT_DAYS) -> dict:
     # ── Ish navbati ──────────────────────────────────────────────────────────
     alerts = {
         "pending_drivers": await count(DriverProfile, DriverProfile.status == DriverStatus.pending),
+        # Avtomatik tasdiqlash yoqilganda "kutayotgan ariza" doim 0 bo'ladi —
+        # adminning haqiqiy navbati shu: hujjat yuklangan, lekin hech kim
+        # ko'rmagan. Hujjatni keyin yuklagan haydovchi ham shu yerga tushadi.
+        "drivers_needs_review": await count(
+            DriverProfile, *driver_service.needs_review_conditions()
+        ),
         "open_disputes": await count(Booking, Booking.status == BookingStatus.disputed),
         "awaiting_confirmation": await count(
             Booking, Booking.status == BookingStatus.awaiting_confirmation

@@ -121,6 +121,86 @@ async def apply_driver(
     return driver
 
 
+async def upload_documents(
+    db: AsyncSession,
+    user: User,
+    license_key: str | None = None,
+    tech_passport_key: str | None = None,
+) -> tuple[DriverProfile, list[str]]:
+    """Ariza topshirilgandan KEYIN hujjat yuklash.
+
+    Ishga tushirish davrida hujjat ixtiyoriy — «hozircha o'tkazib yuborish»ni
+    bosgan haydovchining tasdiq belgisiga boradigan yagona yo'li shu.
+
+    ⚠️ `status` ATAYLAB o'zgartirilmaydi: haydovchi allaqachon `approved`
+    bo'lib safar e'lon qilib yuribdi, hujjat yuklagani uchun uni `pending` ga
+    tushirsak — ishidan ayrilgan bo'ladi. Hujjat `verified_by` bo'sh holda
+    tushadi, ya'ni avtomatik ravishda adminning `needs_review` navbatiga
+    qo'shiladi (qarang: `needs_review_conditions`).
+
+    Qaytaradi: (haydovchi, MinIO'dan o'chiriladigan eski kalitlar).
+    Eski faylni chaqiruvchi o'chiradi — `users.py` dagi tartib shunday.
+    """
+    driver = (await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == user.id)
+    )).scalar_one_or_none()
+
+    if not driver:
+        raise HTTPException(
+            status_code=404, detail="Avval haydovchi arizasini topshiring"
+        )
+    if driver.status == DriverStatus.rejected:
+        raise HTTPException(
+            status_code=400,
+            detail="Arizangiz rad etilgan — hujjat bilan qaytadan ariza topshiring",
+        )
+    # Tekshirilgan hujjatni almashtirish yo'li ataylab yopiq: aks holda admin
+    # ko'rgan suratni keyin boshqasiga almashtirib qo'yish mumkin bo'lardi.
+    if driver.verified_by is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Hujjatlaringiz allaqachon tekshirilgan. O'zgartirish kerak bo'lsa qo'llab-quvvatlash xizmatiga murojaat qiling",
+        )
+
+    had_license = bool(driver.license_image)
+    replaced: list[str] = []
+
+    if license_key is not None:
+        if driver.license_image:
+            replaced.append(driver.license_image)
+        driver.license_image = license_key
+    if tech_passport_key is not None:
+        if driver.tech_passport_image:
+            replaced.append(driver.tech_passport_image)
+        driver.tech_passport_image = tech_passport_key
+
+    # Bildirishnoma matni guvohnomaga bog'liq: belgi FAQAT guvohnoma
+    # ko'rilganda beriladi, texpasport o'zi belgi keltirmaydi.
+    if license_key is not None:
+        body = (
+            "Guvohnomangiz qayta yuklandi. Ko'rib chiqilgach profilingizda "
+            "tasdiq belgisi paydo bo'ladi."
+            if had_license else
+            "Ko'rib chiqilgach profilingizda tasdiq belgisi paydo bo'ladi."
+        )
+    else:
+        body = (
+            "Texpasportingiz saqlandi. Tasdiq belgisi uchun haydovchilik "
+            "guvohnomangizni ham yuklang."
+        )
+    await notification_service.create(
+        db,
+        user_id=user.id,
+        title="Hujjatingiz qabul qilindi",
+        body=body,
+        ref_type=NotificationRefType.system,
+    )
+
+    await db.commit()
+    await db.refresh(driver)
+    return driver, replaced
+
+
 async def update_preferences(
     db: AsyncSession,
     user: User,
