@@ -25,6 +25,15 @@ export default function DriverDocumentsPage() {
   const [techPassport, setTechPassport] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Yuborilgani haqidagi tasdiq. Faqat shu tashrif uchun — sahifa qayta
+  // ochilganda "Tekshiruvda" holati o'zi gapiradi.
+  const [sent, setSent] = useState(false);
+  // `DocUpload` surat ko'rinishini O'ZIDA saqlaydi. Yuborilgach kalitni
+  // o'zgartirib uni qaytadan yaratamiz — aks holda yuborilgan surat ekranda
+  // qolib, hech narsa o'zgarmaganday tuyuladi (user shu ustida qoqildi).
+  const [formKey, setFormKey] = useState(0);
+  // Hujjati bor haydovchiga forma darrov ko'rsatilmaydi — kerak bo'lsa ochadi
+  const [showForms, setShowForms] = useState(false);
 
   const { data: profile, isLoading } = useQuery<DriverProfileResponse>({
     queryKey: ["driver-profile"],
@@ -53,6 +62,12 @@ export default function DriverDocumentsPage() {
       qc.invalidateQueries({ queryKey: ["driver-status"] });
       setLicense(null);
       setTechPassport(null);
+      setFormKey((k) => k + 1);
+      setShowForms(false);
+      setSent(true);
+      // Tasdiq kartochkasi tepada — haydovchi tugma yonida, sahifaning
+      // pastida turgan bo'ladi va uni ko'rmay qoladi.
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
       setError(getApiError(err));
     } finally {
@@ -119,8 +134,10 @@ export default function DriverDocumentsPage() {
     );
   }
 
-  // Yuklab bo'lingan va yangi surat tanlanmagan holat — "navbatda turibdi"
-  const waiting = profile.has_license && !license && !techPassport;
+  // Guvohnomasi bor — demak tekshiruv navbatida turibdi
+  const waiting = profile.has_license;
+  // Hujjati bo'lmasa forma darrov ochiq; bo'lsa — «qayta yuklash» bosilganda
+  const formsVisible = showForms || !profile.has_license;
 
   return (
     <div className="max-w-lg mx-auto px-4 sm:px-6 py-6">
@@ -128,7 +145,21 @@ export default function DriverDocumentsPage() {
 
       {/* Holat kartochkasi: guvohnoma yuklangan bo'lsa navbatda turibdi,
           aks holda nima uchun kerakligi tushuntiriladi. */}
-      {waiting ? (
+      {/* Yangi surat tanlangan bo'lsa «yuborildi» endi to'g'ri emas */}
+      {sent && !license && !techPassport ? (
+        <div className="bg-green-50 border border-green-100 rounded-2xl p-5 mb-5 flex items-start gap-4">
+          <div className="w-11 h-11 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
+            <CheckCircle size={22} className="text-green-500" />
+          </div>
+          <div>
+            <p className="font-semibold text-green-800">Hujjatingiz yuborildi</p>
+            <p className="text-sm text-green-700 leading-relaxed mt-0.5">
+              Tekshirilgach profilingizda tasdiq belgisi paydo bo&apos;ladi.
+              Shu paytgacha safar e&apos;lon qilishda davom etavering.
+            </p>
+          </div>
+        </div>
+      ) : waiting ? (
         <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-5 mb-5 flex items-start gap-4">
           <div className="w-11 h-11 bg-yellow-100 rounded-xl flex items-center justify-center shrink-0">
             <Clock size={22} className="text-yellow-500" />
@@ -161,10 +192,23 @@ export default function DriverDocumentsPage() {
         </div>
       )}
 
+      {/* Hujjati bor haydovchiga forma yopiq turadi — u allaqachon qilgan
+          ishini qayta qilishga chaqirilmasin. Qayta yuklash yo'li esa ochiq:
+          birinchi surat xira chiqqan bo'lishi mumkin, admin hali ko'rmagan. */}
+      {!formsVisible && (
+        <button
+          type="button"
+          onClick={() => setShowForms(true)}
+          className="block mx-auto text-[13.5px] font-semibold text-gray-500 hover:text-gray-700 underline underline-offset-4 transition-colors"
+        >
+          Boshqa surat yuklash
+        </button>
+      )}
+
+      {formsVisible && (
       <div className="space-y-5">
-        {/* Guvohnoma yuklangan bo'lsa ham qayta yuklash yo'li ochiq qoladi:
-            birinchi surat xira chiqqan bo'lishi mumkin, admin hali ko'rmagan. */}
         <DocUpload
+          key={`license-${formKey}`}
           title={
             profile.has_license
               ? "Haydovchilik guvohnomasi (yuklangan)"
@@ -193,6 +237,7 @@ export default function DriverDocumentsPage() {
         />
 
         <DocUpload
+          key={`tech-${formKey}`}
           title={profile.has_tech_passport ? "Texpasport (yuklangan)" : "Texpasport"}
           docName="Texpasport"
           hint={
@@ -237,6 +282,7 @@ export default function DriverDocumentsPage() {
           Yuborish
         </Button>
       </div>
+      )}
     </div>
   );
 }
