@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Bell, Plus, User, LogOut, ChevronDown, Car } from "lucide-react";
+import { Menu, X, Bell, Plus, User, LogOut, ChevronDown, Car, ShieldCheck } from "lucide-react";
 import { clsx } from "clsx";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
@@ -182,8 +182,15 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                           { href: "/profile", icon: User, label: "Profilim" },
                           ...(user.is_driver
                             ? [
-                                { href: "/driver",      icon: Car,  label: "Panel" },
-                                { href: "/create-trip", icon: Plus, label: "Safar qo'shish" },
+                                { href: "/driver", icon: Car, label: "Panel" },
+                                // «Safar qo'shish» bu yerda ataylab yo'q: u
+                                // sarlavhadagi tugmada ham, panel sahifasining
+                                // o'zida ham bor edi — uchinchi nusxa.
+                                {
+                                  href: "/profile/driver-documents",
+                                  icon: ShieldCheck,
+                                  label: "Hujjatlarni tasdiqlash",
+                                },
                               ]
                             : [
                                 { href: "/my-trips",             icon: Car,  label: "Safarlarim" },
