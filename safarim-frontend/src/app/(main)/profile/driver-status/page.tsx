@@ -187,8 +187,8 @@ export default function DriverStatusPage() {
         </div>
       </div>
 
-      {/* Hujjat holati — ariza paytida o'tkazib yuborgan bo'lsa, belgi
-          olishning yo'li shu yerdan ham ko'rinib tursin. Rad etilgan arizada
+      {/* Hujjat holati — ariza paytida o'tkazib yuborgan bo'lsa, tekshiruvga
+          boradigan yo'l shu yerdan ham ko'rinib tursin. Rad etilgan arizada
           gap hujjatda emas — u yerda ko'rsatilmaydi. */}
       {status.status !== "rejected" && !profile.documents_verified && (
         <Link href="/profile/driver-documents">
@@ -198,12 +198,12 @@ export default function DriverStatusPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-gray-900">
-                {profile.has_license ? "Hujjat ko'rib chiqilmoqda" : "Hujjat yuklanmagan"}
+                {profile.has_license ? "Hujjat tekshiruvda" : "Hujjatlar tasdiqlanmagan"}
               </p>
               <p className="text-sm text-gray-500 leading-snug">
                 {profile.has_license
-                  ? "Tekshirilgach ismingiz yonida tasdiq belgisi paydo bo'ladi"
-                  : "Guvohnomangizni yuklab tasdiq belgisini oling"}
+                  ? "Tekshirilgach profilingizda tasdiq belgisi paydo bo'ladi"
+                  : "Guvohnoma va texpasportni yuklang"}
               </p>
             </div>
             <ChevronRight size={18} className="text-gray-300 shrink-0" />
@@ -217,7 +217,7 @@ export default function DriverStatusPage() {
             <ShieldCheck size={24} className="text-green-500" />
           </div>
           <div>
-            <p className="font-semibold text-green-800">Hujjatlaringiz tekshirilgan</p>
+            <p className="font-semibold text-green-800">Hujjatlaringiz tasdiqlangan</p>
             <p className="text-sm text-green-600 leading-snug">
               Ismingiz yonida tasdiq belgisi turibdi
             </p>

@@ -338,9 +338,10 @@ function Step2Form({
           Hujjatlarni hozir yuklash shart emas
         </p>
         <p className="text-[13px] text-blue-700 leading-relaxed">
-          Guvohnomangizni yuklasangiz, <b>tekshirilgandan keyin</b> ismingiz yonida
-          tasdiq belgisi turadi — yo&apos;lovchi safar tanlayotganda shuni ko&apos;radi.
-          Yuklamasangiz ham safar e&apos;lon qilaverasiz.
+          Hujjat tekshiruvi yo&apos;lovchi kim bilan ketayotganini bilishi uchun.
+          Hozir yuklamasangiz ham safar e&apos;lon qilaverasiz — keyinroq
+          profilingizdan yuklashingiz mumkin. Tekshirilgach ismingiz yonida
+          tasdiq belgisi turadi.
         </p>
       </div>
 

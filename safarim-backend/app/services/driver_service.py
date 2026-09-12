@@ -113,8 +113,8 @@ async def apply_driver(
             db,
             user_id=user.id,
             title="Haydovchi profilingiz ochildi",
-            body="Endi safar e'lon qilishingiz mumkin. Guvohnomangizni yuklab "
-                 "qo'ysangiz, ko'rib chiqqach profilingizda tasdiq belgisi paydo bo'ladi.",
+            body="Endi safar e'lon qilishingiz mumkin. Hujjatlaringizni "
+                 "profilingizdan yuklab tekshiruvdan o'tkazishingiz mumkin.",
             ref_type=NotificationRefType.system,
         )
 
@@ -130,7 +130,7 @@ async def upload_documents(
     """Ariza topshirilgandan KEYIN hujjat yuklash.
 
     Ishga tushirish davrida hujjat ixtiyoriy — «hozircha o'tkazib yuborish»ni
-    bosgan haydovchining tasdiq belgisiga boradigan yagona yo'li shu.
+    bosgan haydovchining tekshiruvga boradigan yagona yo'li shu.
 
     ⚠️ `status` ATAYLAB o'zgartirilmaydi: haydovchi allaqachon `approved`
     bo'lib safar e'lon qilib yuribdi, hujjat yuklagani uchun uni `pending` ga
@@ -185,8 +185,8 @@ async def upload_documents(
         )
     else:
         body = (
-            "Texpasportingiz saqlandi. Tasdiq belgisi uchun haydovchilik "
-            "guvohnomangizni ham yuklang."
+            "Texpasportingiz saqlandi. Tekshiruv uchun haydovchilik "
+            "guvohnomangiz ham kerak."
         )
     await notification_service.create(
         db,

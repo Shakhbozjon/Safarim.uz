@@ -14,7 +14,7 @@ import type { DriverProfileResponse } from "@/types";
 /** Hujjatni ARIZADAN KEYIN yuklash.
  *
  *  Ishga tushirish davrida hujjat ixtiyoriy: «hozircha o'tkazib yuborish»ni
- *  bosgan haydovchi uchun tasdiq belgisiga boradigan yagona yo'l shu sahifa.
+ *  bosgan haydovchi uchun tekshiruvga boradigan yagona yo'l shu sahifa.
  *  Hujjat yuklash haydovchining ish holatiga TEGMAYDI — u baribir safar
  *  e'lon qilaveradi, belgi esa admin ko'rgandan keyin qo'shiladi. */
 export default function DriverDocumentsPage() {
@@ -69,8 +69,8 @@ export default function DriverDocumentsPage() {
         <ChevronLeft size={20} />
       </button>
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Hujjatlarim</h1>
-        <p className="text-sm text-gray-500">Tasdiq belgisi uchun</p>
+        <h1 className="text-xl font-bold text-gray-900">Hujjatlarni tasdiqlash</h1>
+        <p className="text-sm text-gray-500">Guvohnoma va texpasport</p>
       </div>
     </div>
   );
@@ -106,7 +106,7 @@ export default function DriverDocumentsPage() {
             <ShieldCheck size={32} className="text-green-500" />
           </div>
           <h2 className="text-xl font-bold text-green-800 mb-2 flex items-center justify-center gap-2">
-            Hujjatlaringiz tekshirilgan
+            Hujjatlaringiz tasdiqlangan
             <VerifiedBadge size={18} />
           </h2>
           <p className="text-sm text-gray-600 leading-relaxed">
@@ -134,9 +134,9 @@ export default function DriverDocumentsPage() {
             <Clock size={22} className="text-yellow-500" />
           </div>
           <div>
-            <p className="font-semibold text-yellow-800">Ko&apos;rib chiqilmoqda</p>
+            <p className="font-semibold text-yellow-800">Tekshiruvda</p>
             <p className="text-sm text-yellow-700 leading-relaxed mt-0.5">
-              Guvohnomangiz qabul qilindi. Tekshirilgach ismingiz yonida tasdiq
+              Hujjatingiz qabul qilindi. Tekshirilgach profilingizda tasdiq
               belgisi paydo bo&apos;ladi. Shu paytgacha safar e&apos;lon qilishda
               davom etavering.
             </p>
@@ -145,17 +145,18 @@ export default function DriverDocumentsPage() {
       ) : (
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-5">
           <p className="text-sm font-semibold text-blue-900 mb-1.5">
-            Tasdiq belgisi nima beradi?
+            Tekshiruv nima uchun kerak?
           </p>
           <p className="text-[13px] text-blue-700 leading-relaxed">
-            Guvohnomangiz tekshirilgach ismingiz yonida{" "}
+            Yo&apos;lovchi kim bilan ketayotganini bilishi kerak. Hujjatingizni{" "}
+            <b>faqat admin ko&apos;radi</b> — yo&apos;lovchiga hech qachon
+            ko&apos;rsatilmaydi. Tekshirilgach profilingizda{" "}
             {/* Tailwind preflight `svg { display: block }` qiladi — matn
                 ichida ishlatilganda o'z qatoriga tushib ketmasin. */}
             <span className="inline-flex align-middle">
               <VerifiedBadge size={13} />
             </span>{" "}
-            belgisi turadi — yo&apos;lovchi safar tanlayotganda shuni
-            ko&apos;radi. Yuklamasangiz ham safar e&apos;lon qilaverasiz.
+            tasdiq belgisi paydo bo&apos;ladi.
           </p>
         </div>
       )}
@@ -178,10 +179,8 @@ export default function DriverDocumentsPage() {
               </>
             ) : (
               <>
-                Guvohnomangizning old tomonini suratga oling. Suratni <b>faqat
-                admin ko&apos;radi</b> — yo&apos;lovchiga hech qachon
-                ko&apos;rsatilmaydi, hisobingizni o&apos;chirsangiz surat ham
-                o&apos;chadi (JPEG/PNG, maks 5MB)
+                Guvohnomangizning old tomonini suratga oling. Hisobingizni
+                o&apos;chirsangiz surat ham o&apos;chadi (JPEG/PNG, maks 5MB)
               </>
             )
           }
@@ -215,8 +214,8 @@ export default function DriverDocumentsPage() {
         {!profile.has_license && !license && techPassport && (
           <div className="bg-amber-50 text-amber-700 text-sm rounded-xl px-4 py-3 border border-amber-100 flex items-start gap-2">
             <AlertCircle size={15} className="shrink-0 mt-0.5" />
-            Texpasport saqlanadi, lekin tasdiq belgisi uchun haydovchilik
-            guvohnomasi kerak.
+            Texpasport saqlanadi, lekin tekshiruv uchun haydovchilik
+            guvohnomasi ham kerak.
           </div>
         )}
 

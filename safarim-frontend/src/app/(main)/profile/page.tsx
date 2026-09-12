@@ -202,9 +202,10 @@ export default function ProfilePage() {
                   <p className="text-sm text-green-600">Safar e'lon qilishingiz mumkin</p>
                 </div>
               </div>
-              {/* Hujjati tekshirilmagan haydovchi: belgi olish yo'li.
-                  Ariza paytida hujjatni o'tkazib yuborgan bo'lsa, bu banner
-                  bo'lmasa u belgiga hech qachon yeta olmaydi. */}
+              {/* Hujjati tekshirilmagan haydovchi: tekshiruvga boradigan yo'l.
+                  ⚠️ Matn ataylab "belgi oling" demaydi — hujjat mukofot uchun
+                  emas, yo'lovchi kim bilan ketayotganini bilishi uchun
+                  yuklanadi. Belgi shunchaki natija. */}
               {driverProfile && !driverProfile.documents_verified && (
                 <Link href="/profile/driver-documents">
                   <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-center gap-4 hover:bg-blue-100/60 transition-colors">
@@ -214,13 +215,13 @@ export default function ProfilePage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-blue-900">
                         {driverProfile.has_license
-                          ? "Hujjatingiz ko'rib chiqilmoqda"
-                          : "Tasdiq belgisini oling"}
+                          ? "Hujjatingiz tekshiruvda"
+                          : "Hujjatlaringizni tasdiqlang"}
                       </p>
                       <p className="text-sm text-blue-700 leading-snug">
                         {driverProfile.has_license
-                          ? "Tekshirilgach ismingiz yonida belgi paydo bo'ladi"
-                          : "Guvohnomangizni yuklang — yo'lovchilar ko'proq ishonadi"}
+                          ? "Tekshirilgach profilingizda tasdiq belgisi paydo bo'ladi"
+                          : "Guvohnoma va texpasportni yuklang — tekshiruvdan o'tasiz"}
                       </p>
                     </div>
                     <ChevronRight size={18} className="text-blue-400 shrink-0" />

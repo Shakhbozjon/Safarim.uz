@@ -188,8 +188,8 @@ async def get_driver_status(
     approved_msg = "Tasdiqlangan. Safar e'lon qilishingiz mumkin."
     if not driver.verified_by:
         approved_msg += (
-            " Guvohnomangizni yuklasangiz, ko'rib chiqqach profilingizda "
-            "tasdiq belgisi paydo bo'ladi."
+            " Hujjatlaringiz hali tekshirilmagan — ularni profilingizdan "
+            "yuklashingiz mumkin."
         )
 
     messages = {
