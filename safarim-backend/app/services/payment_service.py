@@ -155,7 +155,12 @@ def verify_click_sign(
         f"{sign_time}"
     )
     expected = hashlib.md5(raw.encode()).hexdigest()
-    return expected == sign_string
+    # Doimiy vaqtli solishtirish — Payme'dagidek. Oddiy `==` birinchi farqda
+    # to'xtaydi va nazariy jihatdan imzoni belgima-belgi topishga yo'l qoldiradi.
+    # Baytlar bilan solishtiramiz: `compare_digest` str'da faqat ASCII qabul
+    # qiladi, `sign_string` esa mijozdan keladi va har qanday belgi bo'lishi
+    # mumkin (TypeError bo'lib 500 ga aylanib ketmasin).
+    return secrets.compare_digest(expected.encode(), (sign_string or "").encode())
 
 
 # ─── Payme verifikatsiya ───────────────────────────────────────────────────────

@@ -266,3 +266,82 @@ async def test_cannot_delete_account_with_wallet_debt(client, db, driver_user):
     )
     assert r.status_code == 400
     assert "qarz" in r.json()["detail"].lower()
+
+# ─── A5: sirlar doimiy vaqtda solishtiriladi ────────────────────────────────
+# Oddiy `==` birinchi farqli belgida to'xtaydi — nazariy jihatdan imzoni
+# belgima-belgi topishga yo'l qoladi. Payme'da bu allaqachon to'g'ri edi,
+# Click va Telegram'da unutilgan edi.
+
+def test_click_signature_accepts_correct_sign(monkeypatch):
+    """Doimiy vaqtli solishtirishga o'tgach to'g'ri imzo baribir o'tsin."""
+    monkeypatch.setattr(settings, "CLICK_SECRET_KEY", "sirkalit")
+    monkeypatch.setattr(settings, "CLICK_SERVICE_ID", "77")
+    import hashlib
+    raw = "1" "1" "sirkalit" "x" "100.0" "1" "t"
+    sign = hashlib.md5(raw.encode()).hexdigest()
+    assert payment_service.verify_click_sign(1, 1, "x", 100.0, 1, "t", sign) is True
+
+
+def test_click_signature_survives_non_ascii(monkeypatch):
+    """⚠️ `compare_digest` str'da faqat ASCII qabul qiladi.
+
+    Imzo mijozdan keladi — kirillcha yuborilsa TypeError bo'lib 500 ga
+    aylanardi. Baytlar bilan solishtirganimiz uchun oddiy `False` qaytadi.
+    """
+    monkeypatch.setattr(settings, "CLICK_SECRET_KEY", "sirkalit")
+    monkeypatch.setattr(settings, "CLICK_SERVICE_ID", "77")
+    assert payment_service.verify_click_sign(1, 1, "x", 100.0, 1, "t", "имзо") is False
+
+
+def test_click_signature_handles_missing_sign(monkeypatch):
+    monkeypatch.setattr(settings, "CLICK_SECRET_KEY", "sirkalit")
+    monkeypatch.setattr(settings, "CLICK_SERVICE_ID", "77")
+    assert payment_service.verify_click_sign(1, 1, "x", 100.0, 1, "t", None) is False
+
+
+@pytest.mark.asyncio
+async def test_telegram_webhook_rejects_wrong_secret(client, monkeypatch):
+    monkeypatch.setattr(settings, "TELEGRAM_WEBHOOK_SECRET", "to'g'ri-sir")
+    r = await client.post(
+        "/api/v1/telegram/webhook",
+        json={"message": {}},
+        headers={"X-Telegram-Bot-Api-Secret-Token": "boshqa-sir"},
+    )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_telegram_webhook_rejects_missing_secret(client, monkeypatch):
+    monkeypatch.setattr(settings, "TELEGRAM_WEBHOOK_SECRET", "to'g'ri-sir")
+    r = await client.post("/api/v1/telegram/webhook", json={"message": {}})
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_telegram_webhook_non_ascii_header_is_403_not_500(client, monkeypatch):
+    """ASCII bo'lmagan sarlavha 500 bermasin.
+
+    HTTP sarlavhalari latin-1: kirillcha umuman yuborilmaydi (mijozning o'zi
+    rad etadi), lekin 0x80-0xFF oralig'idagi bayt bemalol keladi va Starlette
+    uni ASCII bo'lmagan str qilib beradi. `compare_digest` str'da bunday
+    qiymatda TypeError beradi — shuning uchun baytlar bilan solishtiramiz.
+    """
+    monkeypatch.setattr(settings, "TELEGRAM_WEBHOOK_SECRET", "to'g'ri-sir")
+    r = await client.post(
+        "/api/v1/telegram/webhook",
+        json={"message": {}},
+        headers={"X-Telegram-Bot-Api-Secret-Token": "sécret".encode("latin-1")},
+    )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_telegram_webhook_closed_when_secret_not_set(client, monkeypatch):
+    """Sir sozlanmagan bo'lsa webhook umuman ochilmasin (fail-closed)."""
+    monkeypatch.setattr(settings, "TELEGRAM_WEBHOOK_SECRET", "")
+    r = await client.post(
+        "/api/v1/telegram/webhook",
+        json={"message": {}},
+        headers={"X-Telegram-Bot-Api-Secret-Token": ""},
+    )
+    assert r.status_code == 403

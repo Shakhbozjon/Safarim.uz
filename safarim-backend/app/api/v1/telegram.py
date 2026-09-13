@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +31,10 @@ async def telegram_webhook(
     # Sirsiz webhook ochiq eshik bo'lardi: istalgan odam soxta "kontakt ulashildi"
     # so'rovini yuborib, begona raqamni tasdiqlangan qilib qo'yishi mumkin edi.
     secret = settings.TELEGRAM_WEBHOOK_SECRET
-    if not secret or x_telegram_bot_api_secret_token != secret:
+    # Doimiy vaqtli solishtirish (baytlar bilan — sarlavha mijozdan keladi).
+    if not secret or not secrets.compare_digest(
+        (x_telegram_bot_api_secret_token or "").encode(), secret.encode()
+    ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ruxsat yo'q")
 
     update = await request.json()
