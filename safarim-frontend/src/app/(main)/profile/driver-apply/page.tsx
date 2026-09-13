@@ -341,7 +341,8 @@ function Step2Form({
           Hujjat tekshiruvi yo&apos;lovchi kim bilan ketayotganini bilishi uchun.
           Hozir yuklamasangiz ham safar e&apos;lon qilaverasiz — keyinroq
           profilingizdan yuklashingiz mumkin. Tekshirilgach ismingiz yonida
-          tasdiq belgisi turadi.
+          tasdiq belgisi turadi va bir vaqtda jo&apos;naydigan safarlar orasida
+          e&apos;loningiz qidiruvda yuqorida turadi.
         </p>
       </div>
 

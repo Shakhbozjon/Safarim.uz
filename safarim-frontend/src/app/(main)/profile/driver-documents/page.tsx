@@ -187,7 +187,8 @@ export default function DriverDocumentsPage() {
             <span className="inline-flex align-middle">
               <VerifiedBadge size={13} />
             </span>{" "}
-            tasdiq belgisi paydo bo&apos;ladi.
+            tasdiq belgisi paydo bo&apos;ladi va bir vaqtda jo&apos;naydigan
+            safarlar orasida e&apos;loningiz qidiruvda yuqorida turadi.
           </p>
         </div>
       )}
