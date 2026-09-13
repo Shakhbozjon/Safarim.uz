@@ -179,9 +179,9 @@ export default function DriverDocumentsPage() {
             Tekshiruv nima uchun kerak?
           </p>
           <p className="text-[13px] text-blue-700 leading-relaxed">
-            Yo&apos;lovchi kim bilan ketayotganini bilishi kerak. Hujjatingizni{" "}
-            <b>faqat admin ko&apos;radi</b> — yo&apos;lovchiga hech qachon
-            ko&apos;rsatilmaydi. Tekshirilgach profilingizda{" "}
+            Yo&apos;lovchi kim bilan ketayotganini bilishi kerak.
+            Hujjatingiz <b>maxfiy saqlanadi</b> va faqat tekshirish uchun
+            ishlatiladi. Tekshirilgach profilingizda{" "}
             {/* Tailwind preflight `svg { display: block }` qiladi — matn
                 ichida ishlatilganda o'z qatoriga tushib ketmasin. */}
             <span className="inline-flex align-middle">

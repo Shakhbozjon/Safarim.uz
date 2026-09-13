@@ -351,9 +351,9 @@ function Step2Form({
         docName="Guvohnoma"
         hint={
           <>
-            Guvohnomangizning old tomonini suratga oling. Suratni <b>faqat admin
-            ko&apos;radi</b> — yo&apos;lovchiga hech qachon ko&apos;rsatilmaydi,
-            hisobingizni o&apos;chirsangiz surat ham o&apos;chadi (JPEG/PNG, maks 5MB)
+            Guvohnomangizning old tomonini suratga oling. Surat <b>maxfiy
+            saqlanadi</b> va faqat tekshirish uchun ishlatiladi; hisobingizni
+            o&apos;chirsangiz surat ham o&apos;chadi (JPEG/PNG, maks 5MB)
           </>
         }
         tips={[
