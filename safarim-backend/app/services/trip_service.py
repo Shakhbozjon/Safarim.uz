@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func, true
+from sqlalchemy import select, and_, or_, func, true, case
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
@@ -378,6 +378,32 @@ def _route_condition(
     return or_(direct, via_waypoint)
 
 
+def _document_rank():
+    """Hujjat holati bo'yicha daraja — bir xil vaqtli safarlarni saralash uchun.
+
+    2 — hujjati tekshirilgan (yo'lovchi tasdiq belgisini ko'radi)
+    1 — guvohnoma yuklagan, lekin admin hali ko'rmagan
+    0 — hujjat yo'q
+
+    Maqsad: hujjat yuklash haydovchiga KO'RINADIGAN foyda bersin. Yuklamagan
+    haydovchi pastda qolishini ko'rsa, yuklashga sabab paydo bo'ladi.
+
+    ⚠️ Bu FAQAT teng vaqtlarni ajratadi — jo'nash vaqtidan ustun emas. Aks
+    holda yo'lovchi ertalabki safarni qidirib, kechqurungisini tepada ko'rardi.
+    """
+    return case(
+        (
+            and_(
+                DriverProfile.license_image.isnot(None),
+                DriverProfile.verified_by.isnot(None),
+            ),
+            2,
+        ),
+        (DriverProfile.license_image.isnot(None), 1),
+        else_=0,
+    )
+
+
 def _paused_driver_ids():
     """Jarima pauzasidagi haydovchilar e'lonlari qidiruvda ko'rinmaydi."""
     return select(DriverProfile.user_id).where(
@@ -423,6 +449,10 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
     query = (
         select(Trip)
         .options(*_load_options())
+        # Hujjat darajasi bo'yicha saralash uchun profil kerak. `outerjoin`:
+        # profili yo'q haydovchi (bo'lmasligi kerak, lekin) safarini
+        # ro'yxatdan butunlay tushirib qoldirmasin.
+        .outerjoin(DriverProfile, DriverProfile.user_id == Trip.driver_id)
         .where(
             Trip.status == TripStatus.active,
             Trip.departure_date == params.departure_date,
@@ -448,13 +478,21 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
     if params.max_price:
         query = query.where(Trip.price_per_seat <= params.max_price)
 
-    # Saralash
+    # ── Saralash ────────────────────────────────────────────────────────────
+    # Asosiy mezon foydalanuvchi tanlagani (vaqt yoki narx). Undan keyingi
+    # ikkitasi TENG qiymatlarni ajratadi:
+    #   1) hujjat darajasi — tekshirilgan → yuklagan → yuklamagan
+    #   2) qaysi safar avval e'lon qilingan
+    # Ilgari ikkinchi mezon umuman yo'q edi: bir vaqtda jo'naydigan safarlar
+    # baza xohlagan tartibda chiqardi va sahifa yangilanganda o'zgarardi.
+    tie_break = (_document_rank().desc(), Trip.created_at.asc())
+
     if params.sort == "price_asc":
-        query = query.order_by(Trip.price_per_seat.asc())
+        query = query.order_by(Trip.price_per_seat.asc(), *tie_break)
     elif params.sort == "price_desc":
-        query = query.order_by(Trip.price_per_seat.desc())
+        query = query.order_by(Trip.price_per_seat.desc(), *tie_break)
     else:  # time_asc (default)
-        query = query.order_by(Trip.departure_time.asc())
+        query = query.order_by(Trip.departure_time.asc(), *tie_break)
 
     result = await db.execute(query)
     return result.scalars().all()
