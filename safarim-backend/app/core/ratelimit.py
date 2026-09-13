@@ -83,3 +83,16 @@ async def limit_support(request: Request) -> None:
     """Saytdan adminga xabar — bitta IP soatiga 5 marta."""
     ip = _client_ip(request)
     await _hit(f"support:ip:{ip}", 5, 3600)
+
+async def limit_upload(request: Request, user_id: str) -> None:
+    """Rasm yuklaydigan endpointlar — hujjat, ariza, avatar.
+
+    Rasmni ochish protsessorni yeydigan amal (PIL to'liq dekod qiladi).
+    Ro'yxatdan o'tish esa bepul va ochiq, ya'ni istalgan odam hisob ochib
+    yuklashni ketma-ket chaqira olardi. Cheklov IP bo'yicha ham,
+    foydalanuvchi bo'yicha ham: bitta IP ortida ko'p odam bo'lishi mumkin
+    (CGNAT), bitta odam esa IP almashtira oladi.
+    """
+    ip = _client_ip(request)
+    await _hit(f"upload:ip:{ip}", settings.UPLOAD_RATELIMIT_IP_PER_HOUR, 3600)
+    await _hit(f"upload:user:{user_id}", settings.UPLOAD_RATELIMIT_USER_PER_HOUR, 3600)

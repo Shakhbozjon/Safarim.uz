@@ -35,6 +35,18 @@ _MAX_RATIO = 3.0
 # O'rtacha rang og'ishi shu qiymatdan past bo'lsa — rasm bo'sh/bir rangli deb hisoblanadi
 _MIN_STDDEV = 10.0
 
+# ⚠️ Maksimal piksel soni — «rasm bombasi»ga qarshi.
+# Siqilgan fayl kichik bo'lishi mumkin (9000x9000 tekis rangli PNG — bir necha
+# yuz KB, ya'ni nginx'ning 15MB chegarasidan bemalol o'tadi), lekin OCHILGANDA
+# xotirada ~250MB joy egallaydi. Bir nechta shunday so'rov 4GB serverni
+# yiqitadi. Shuning uchun rasmni ochishdan OLDIN o'lchamini tekshiramiz —
+# `Image.open` faqat sarlavhani o'qiydi, bu arzon amal.
+# 40 mln piksel ≈ 6300x6300: har qanday telefon suratidan ancha katta.
+_MAX_PIXELS = 40_000_000
+_TOO_LARGE = (
+    "Rasm juda katta o'lchamli. Telefonda olingan oddiy surat yetarli"
+)
+
 
 @dataclass(frozen=True)
 class _DocSpec:
@@ -97,10 +109,25 @@ async def _validate(file: UploadFile, spec: _DocSpec) -> None:
     if not content:
         raise HTTPException(status_code=400, detail="Rasm fayli bo'sh")
 
-    # 1) Haqiqiy rasm ekanini tekshirish (renomlangan/buzilgan fayl emas)
+    # 1) Haqiqiy rasm ekani va o'lchami — HALI ochmaymiz, faqat sarlavha
     try:
         with Image.open(io.BytesIO(content)) as probe:
+            width, height = probe.size
             probe.verify()  # struktura butunligini tekshiradi
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Yuklangan fayl haqiqiy rasm emas. JPEG yoki PNG rasm yuklang",
+        )
+
+    # 2) Piksel bombasi — ochishdan oldin. Bu tekshiruv `try` dan TASHQARIDA:
+    #    ichida bo'lsa, o'zimiz ko'targan 400 yuqoridagi `except` ga tushib,
+    #    "rasm emas" degan noto'g'ri xabarga aylanardi.
+    if width * height > _MAX_PIXELS:
+        raise HTTPException(status_code=400, detail=_TOO_LARGE)
+
+    # 3) Endi ochish xavfsiz
+    try:
         img = Image.open(io.BytesIO(content)).convert("RGB")
     except Exception:
         raise HTTPException(
@@ -108,24 +135,22 @@ async def _validate(file: UploadFile, spec: _DocSpec) -> None:
             detail="Yuklangan fayl haqiqiy rasm emas. JPEG yoki PNG rasm yuklang",
         )
 
-    width, height = img.size
-
-    # 2) Minimal o'lcham
+    # 4) Minimal o'lcham
     if width < _MIN_WIDTH or height < _MIN_HEIGHT:
         raise HTTPException(status_code=400, detail=spec.too_small)
 
-    # 3) Tomonlar nisbati
+    # 5) Tomonlar nisbati
     ratio = width / height
     if ratio < _MIN_RATIO or ratio > _MAX_RATIO:
         raise HTTPException(status_code=400, detail=spec.wrong_shape)
 
-    # 4) Bo'sh / bir rangli rasm emasligi (oq fon, bo'sh skrinshot)
+    # 6) Bo'sh / bir rangli rasm emasligi (oq fon, bo'sh skrinshot)
     stat = ImageStat.Stat(img)
     avg_stddev = sum(stat.stddev) / len(stat.stddev)
     if avg_stddev < _MIN_STDDEV:
         raise HTTPException(status_code=400, detail=spec.blank)
 
-    # 5) OCR — matn bo'yicha hujjat ekanini tasdiqlash (ixtiyoriy)
+    # 7) OCR — matn bo'yicha hujjat ekanini tasdiqlash (ixtiyoriy)
     if getattr(settings, "LICENSE_OCR_ENABLED", False):
         _verify_text(img, spec)
 

@@ -1,6 +1,6 @@
 import uuid as uuid_lib
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, field_validator
@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.enums import TalkLevel, Gender
 from app.schemas.user import UserResponse, UserPublicResponse
 from app.core.dependencies import get_current_user
+from app.core.ratelimit import limit_upload
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -95,9 +96,12 @@ async def update_profile(
 )
 async def upload_profile_photo(
     photo: UploadFile = File(..., description="Profil rasmi (JPEG/PNG, maks 5MB)"),
+    request: Request = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    await limit_upload(request, str(current_user.id))
+
     key = await storage_service.upload(photo, settings.MINIO_BUCKET_PHOTOS, folder="avatars")
     current_user.profile_photo = key
     await db.commit()

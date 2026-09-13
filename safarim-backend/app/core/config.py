@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     OTP_RATELIMIT_IP_PER_HOUR: int = 15      # bitta IP dan soatiga necha OTP
     LOGIN_RATELIMIT_PER_15MIN: int = 10      # bitta IP dan 15 daqiqada necha login urinishi
     REGISTER_RATELIMIT_IP_PER_HOUR: int = 10  # bitta IP/qurilmadan soatiga necha ro'yxat (CGNAT uchun saxiy)
+    # Rasm yuklash — PIL dekodi protsessorni yeydi, shuning uchun cheklanadi.
+    # Haqiqiy haydovchi soatiga 2-3 marta yuklaydi (guvohnoma + texpasport,
+    # xato chiqsa qayta urinish) — 20 ta saxiy chegara.
+    UPLOAD_RATELIMIT_USER_PER_HOUR: int = 20
+    UPLOAD_RATELIMIT_IP_PER_HOUR: int = 40
 
     # Monitoring — Sentry (bo'sh bo'lsa o'chiq)
     SENTRY_DSN: str = ""

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Form, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, Form, UploadFile, File, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, field_validator, ValidationError
 
@@ -19,6 +19,7 @@ from app.services import (
 from app.services.storage_service import storage_service
 from app.core.dependencies import get_current_user, get_current_driver
 from app.core.config import settings
+from app.core.ratelimit import limit_upload
 
 
 class TopupRequestBody(BaseModel):
@@ -68,10 +69,13 @@ async def apply_driver(
     vehicle_seats: int = Form(...),
     license_image: UploadFile | None = File(None, description="Haydovchilik guvohnomasi (ixtiyoriy, JPEG/PNG, maks 5MB)"),
     tech_passport_image: UploadFile | None = File(None, description="Texpasport (ixtiyoriy, JPEG/PNG, maks 5MB)"),
+    request: Request = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     from app.schemas.driver import DriverApplyRequest
+
+    await limit_upload(request, str(current_user.id))
 
     # Avtomobil ma'lumotlarini tekshirish (raqam O'zbekiston formatiga mosligi shu yerda)
     try:
@@ -119,6 +123,7 @@ async def apply_driver(
 async def upload_my_documents(
     license_image: UploadFile | None = File(None, description="Haydovchilik guvohnomasi (JPEG/PNG, maks 5MB)"),
     tech_passport_image: UploadFile | None = File(None, description="Texpasport (JPEG/PNG, maks 5MB)"),
+    request: Request = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -127,6 +132,8 @@ async def upload_my_documents(
     Haydovchining holati (`approved`/`pending`) o'zgarmaydi — faqat hujjat
     qo'shiladi va adminning tekshirish navbatiga tushadi.
     """
+    await limit_upload(request, str(current_user.id))
+
     if license_image is None and tech_passport_image is None:
         raise HTTPException(status_code=400, detail="Kamida bitta hujjat yuklang")
 
