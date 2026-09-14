@@ -502,3 +502,211 @@ async def _get_valid_token(
         query = query.where(TelegramLinkToken.chat_id == chat_id)
 
     return (await db.execute(query.limit(1))).scalar_one_or_none()
+
+
+# ─── Safar lentasi (guruhga avtomatik e'lon) ─────────────────────────────────
+#
+# Haydovchi safar e'lon qilganda u Telegram guruhiga ham tushadi. Maqsad ikki
+# tomonlama: yo'lovchi safarni saytga kirmasdan ko'radi, haydovchi esa e'loni
+# bepul reklama bo'lgani uchun saytda e'lon qilishdan manfaatdor bo'ladi.
+#
+# Ikki qoida qat'iy:
+#   1. Postda haydovchining TELEFON RAQAMI BO'LMAYDI. Bo'lsa, yo'lovchi
+#      to'g'ridan-to'g'ri qo'ng'iroq qiladi va platforma chetlab o'tiladi —
+#      guruh bepul e'lon taxtasiga aylanadi, komissiya esa hech qachon kelmaydi.
+#   2. Post eskirmaydi: o'rin tugasa yoki safar bekor qilinsa, o'sha xabar
+#      tahrirlanadi (yangi xabar yuborilmaydi).
+
+_MONTHS_UZ = (
+    "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+    "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
+)
+
+# Faol bo'lmagan safar posti shu yorliq bilan boshlanadi
+_TRIP_LABELS = {
+    "full": "✅ O'rinlar tugadi",
+    "cancelled": "❌ Bekor qilindi",
+    "started": "🚗 Yo'lga chiqdi",
+    "expired": "⌛ Yo'lovchi yig'ilmadi",
+    "completed": "🏁 Yakunlandi",
+}
+
+
+def trips_chat_configured() -> bool:
+    return bool(settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_TRIPS_CHAT_ID)
+
+
+def _money(amount: int) -> str:
+    """120000 → "120 000"."""
+    return f"{amount:,}".replace(",", " ")
+
+
+def _place(region, district) -> str:
+    """Tuman aniqroq: "Buvayda" "Farg'ona viloyati" dan foydaliroq."""
+    if district is not None:
+        return district.name_uz
+    return region.name_uz if region is not None else "—"
+
+
+def _trip_text(trip) -> str:
+    dp = getattr(trip.driver, "driver_profile", None)
+
+    # Ism to'liq yozilmaydi: guruh ochiq, familiya kerak emas
+    parts = (trip.driver.full_name or "").split()
+    name = parts[0] if parts else "Haydovchi"
+    if len(parts) > 1:
+        name = f"{parts[0]} {parts[1][:1]}."
+    if dp is not None and dp.documents_verified:
+        name += " ✅"
+
+    if dp is not None and dp.rating_count:
+        rating = f" ⭐ {dp.rating_avg:.1f}"
+    else:
+        rating = " · yangi"
+
+    car = " ".join(x for x in (getattr(dp, "vehicle_make", None), getattr(dp, "vehicle_model", None)) if x)
+
+    d = trip.departure_date
+    when = f"{d.day}-{_MONTHS_UZ[d.month - 1]}, {trip.departure_time:%H:%M}"
+
+    seats = trip.available_seats
+    seats_text = f"{seats} ta o'rin bor" if seats > 0 else "o'rin qolmadi"
+
+    label = _TRIP_LABELS.get(getattr(trip.status, "value", ""), "")
+    head = f"{_esc(label)}\n\n" if label else ""
+
+    lines = [
+        f"{head}🚗 <b>{_esc(_place(trip.from_region, trip.from_district))} → "
+        f"{_esc(_place(trip.to_region, trip.to_district))}</b>",
+        f"📅 {_esc(when)}",
+        f"💰 {_money(trip.price_per_seat)} so'm · {_esc(seats_text)}",
+    ]
+    if car:
+        lines.append(f"🚙 {_esc(car)} · {_esc(name)}{rating}")
+    else:
+        lines.append(f"👤 {_esc(name)}{rating}")
+
+    url = f"{settings.PUBLIC_SITE_URL.rstrip('/')}/trips/{trip.id}"
+    lines.append(f"\n<a href=\"{url}\">Band qilish →</a>")
+    return "\n".join(lines)
+
+
+async def send_trip_post(trip) -> int | None:
+    """Guruhga yangi e'lon tashlaydi, xabar ID sini qaytaradi.
+
+    Ovozsiz yuboriladi: kuniga o'nlab e'lon chiqsa, har biri uchun telefon
+    jiringlasa odam guruhni o'chiradi yoki chiqib ketadi.
+    """
+    if not trips_chat_configured():
+        return None
+    data = await _call("sendMessage", {
+        "chat_id": settings.TELEGRAM_TRIPS_CHAT_ID,
+        "text": _trip_text(trip),
+        "parse_mode": "HTML",
+        "disable_notification": True,
+        "link_preview_options": {"is_disabled": True},
+    })
+    if not data or not data.get("ok"):
+        return None
+    return (data.get("result") or {}).get("message_id")
+
+
+async def edit_trip_post(trip) -> bool:
+    if not trips_chat_configured() or not trip.telegram_message_id:
+        return False
+    data = await _call("editMessageText", {
+        "chat_id": settings.TELEGRAM_TRIPS_CHAT_ID,
+        "message_id": trip.telegram_message_id,
+        "text": _trip_text(trip),
+        "parse_mode": "HTML",
+        "link_preview_options": {"is_disabled": True},
+    })
+    return bool(data and data.get("ok"))
+
+
+# ─── Fon rejimi ──────────────────────────────────────────────────────────────
+# Telegramga murojaat so'rov yo'lida turmasligi kerak: bot javob bermasa
+# safar e'lon qilish ham osilib qolardi. Shuning uchun bildirishnomalardagi
+# kabi alohida vazifa sifatida ketadi va o'z sessiyasini ochadi.
+
+_PENDING_FEED: set = set()
+
+
+def _queue(coro_factory, *, delay: float = 2.0) -> None:
+    try:
+        import asyncio
+
+        async def _run() -> None:
+            try:
+                await asyncio.sleep(delay)   # caller commit qilib ulgursin
+                await coro_factory()
+            except Exception as exc:
+                logger.warning("Telegram lentasi: %s", exc)
+
+        task = asyncio.create_task(_run())
+        _PENDING_FEED.add(task)
+        task.add_done_callback(_PENDING_FEED.discard)
+    except RuntimeError:
+        logger.debug("Event loop yo'q — Telegram lentasi o'tkazib yuborildi")
+
+
+async def flush_pending(timeout: float = 20.0) -> int:
+    """Lentaga yuborilayotgan xabarlar tugashini kutadi (Celery vazifasi uchun)."""
+    import asyncio
+
+    pending = {t for t in _PENDING_FEED if not t.done()}
+    if not pending:
+        return 0
+    done, still_running = await asyncio.wait(pending, timeout=timeout)
+    for task in still_running:
+        task.cancel()
+    return len(done)
+
+
+async def _load_trip(db: AsyncSession, trip_id):
+    from app.models.trip import Trip
+    from app.services.trip_service import _load_options
+
+    return (await db.execute(
+        select(Trip).options(*_load_options()).where(Trip.id == uuid_lib.UUID(str(trip_id)))
+    )).scalar_one_or_none()
+
+
+async def _post_trip_now(trip_id) -> None:
+    from app.db.session import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        trip = await _load_trip(db, trip_id)
+        # Tranzaksiya orqaga qaytgan bo'lishi mumkin; ikki marta tashlanmasin
+        if trip is None or trip.telegram_message_id:
+            return
+        if getattr(trip.status, "value", "") != "active":
+            return
+        message_id = await send_trip_post(trip)
+        if message_id:
+            trip.telegram_message_id = message_id
+            await db.commit()
+
+
+async def _sync_trip_now(trip_id) -> None:
+    from app.db.session import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        trip = await _load_trip(db, trip_id)
+        if trip is None or not trip.telegram_message_id:
+            return
+        await edit_trip_post(trip)
+
+
+def queue_trip_post(trip_id) -> None:
+    """Yangi e'lonni guruhga tashlash (fon rejimida)."""
+    if not trips_chat_configured():
+        return
+    _queue(lambda: _post_trip_now(trip_id))
+
+
+def queue_trip_sync(trip_id) -> None:
+    """Guruhdagi e'lonni joriy holatga moslash (fon rejimida)."""
+    if not trips_chat_configured():
+        return
+    _queue(lambda: _sync_trip_now(trip_id))

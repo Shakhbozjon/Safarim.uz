@@ -19,6 +19,15 @@ from app.services import notification_service, wallet_service
 from app.services.storage_service import photo_url
 
 
+def _queue_feed_sync(trip_id) -> None:
+    """Telegram guruhidagi e'lonni joriy holatga moslaydi.
+
+    Aylanma import bo'lmasligi uchun funksiya ichida import qilinadi.
+    """
+    from app.services import telegram_service
+    telegram_service.queue_trip_sync(trip_id)
+
+
 def _load_options():
     """Trip uchun barcha kerakli ma'lumotlarni yuklash."""
     return [
@@ -281,6 +290,11 @@ async def create_trip(db: AsyncSession, user: User, data: TripCreate) -> Trip:
     if data.save_as_regular:
         from app.services import route_service  # aylanma importni oldini olish
         await route_service.upsert_from_trip(db, user, trip)
+
+    # Telegram guruhidagi lentaga tashlaymiz (fon rejimida — bot javob bermasa
+    # e'lon qilish so'rovi osilib qolmasin)
+    from app.services import telegram_service
+    telegram_service.queue_trip_post(trip.id)
 
     return trip
 
@@ -612,6 +626,7 @@ async def expire_due_trips(db: AsyncSession, driver_id=None) -> int:
 
         # Yo'lovchi yig'ilmadi → expired (jazosiz)
         trip.status = TripStatus.expired
+        _queue_feed_sync(trip.id)
         await notification_service.create(
             db,
             user_id=trip.driver_id,
@@ -690,6 +705,7 @@ async def cancel_trip(db: AsyncSession, trip_id: str, user: User, reason: str | 
     trip.status = TripStatus.cancelled
     trip.cancellation_reason = reason
     trip.cancelled_at = now
+    _queue_feed_sync(trip.id)
 
     # Haydovchi reytingiga ta'sir (bekor qilish uchun) — Sprint 6 da to'liq
     if bookings:
@@ -761,6 +777,7 @@ async def start_trip(db: AsyncSession, trip_id: str, user: User) -> Trip:
         )
 
     trip.status = TripStatus.started
+    _queue_feed_sync(trip.id)
     await db.commit()
 
     result = await db.execute(

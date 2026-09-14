@@ -83,6 +83,13 @@ class Settings(BaseSettings):
     # Bo'sh bo'lsa webhook umuman qabul qilinmaydi (soxta so'rov yuborib bo'lmasin).
     TELEGRAM_WEBHOOK_SECRET: str = ""
     TELEGRAM_LINK_TTL_MINUTES: int = 15
+    # E'lon qilingan safarlar avtomatik tashlanadigan guruh/kanal ID si
+    # (masalan "-1001234567890"). Bo'sh bo'lsa lenta umuman ishlamaydi —
+    # bot guruhda admin bo'lishi shart, aks holda yoza olmaydi.
+    TELEGRAM_TRIPS_CHAT_ID: str = ""
+
+    # Tashqariga ketadigan havolalar shu manzildan quriladi (Telegram lentasi).
+    PUBLIC_SITE_URL: str = "https://uzsafar.uz"
 
     # Click
     CLICK_SERVICE_ID: str = ""

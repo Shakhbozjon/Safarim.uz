@@ -44,13 +44,16 @@ def run_task(coro_factory: Callable[[], Awaitable[T]]) -> T:
 
 async def _run(coro_factory: Callable[[], Awaitable[T]]) -> T:
     from app.db.session import engine
-    from app.services import notification_service
+    from app.services import notification_service, telegram_service
 
     try:
         return await coro_factory()
     finally:
         try:
             await notification_service.flush_pending(PENDING_TIMEOUT)
+            # Guruh lentasi ham shu loop'da ketadi (masalan `expire_due_trips`
+            # eskirgan e'lonlarni tahrirlaydi) — loop yopilishidan oldin kutamiz
+            await telegram_service.flush_pending(PENDING_TIMEOUT)
         except Exception as exc:  # xabar yuborilmasa ham vazifa tugashi kerak
             logger.warning("Fon xabarlarini kutishda xato: %s", exc)
         try:

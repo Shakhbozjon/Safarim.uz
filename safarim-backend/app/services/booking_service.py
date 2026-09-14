@@ -139,6 +139,16 @@ def _booking_confirmed_body(trip: Trip, booking: Booking, from_wp=None, to_wp=No
     return "\n".join(lines)
 
 
+
+def _queue_feed_sync(trip_id) -> None:
+    """Telegram guruhidagi e'lonni joriy holatga moslaydi (bo'sh o'rin, holat).
+
+    Aylanma importni oldini olish uchun funksiya ichida import qilinadi.
+    """
+    from app.services import telegram_service
+    telegram_service.queue_trip_sync(trip_id)
+
+
 async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate) -> Booking:
     # Tasdiqlanmagan raqam bilan band qilib bo'lmaydi: haydovchi soxta raqamli
     # yo'lovchini kutib qolmasin.
@@ -266,6 +276,7 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
     trip.available_seats -= data.seats_count
     if trip.available_seats == 0:
         trip.status = TripStatus.full
+    _queue_feed_sync(trip.id)
 
     # ── Wallet operatsiyasi ──────────────────────────────────────────────────
     # Bepul davrda komissiya yo'q → depozit talab qilinmaydi, blok tekshirilmaydi
@@ -515,6 +526,7 @@ async def cancel_booking(
     trip.available_seats += booking.seats_count
     if trip.status == TripStatus.full:
         trip.status = TripStatus.active
+    _queue_feed_sync(trip.id)
 
     # Eslatma: komissiya faqat safar tugaganda (complete_booking) ushiladi.
     # Tugamagan (pending/confirmed) band qilish bekor qilinsa — ushlangan komissiya yo'q,
@@ -849,6 +861,7 @@ async def expire_stale_pending_bookings(db: AsyncSession) -> int:
         trip.available_seats += booking.seats_count
         if trip.status == TripStatus.full and trip.available_seats > 0:
             trip.status = TripStatus.active
+        _queue_feed_sync(trip.id)
 
         await notification_service.create(
             db,

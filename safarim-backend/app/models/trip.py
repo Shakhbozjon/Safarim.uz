@@ -54,6 +54,11 @@ class Trip(Base):
     cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # Telegram guruhidagi e'lon xabarining ID si. Holat o'zgarganda (o'rin
+    # tugadi, bekor qilindi, yo'lga chiqdi) o'sha post tahrirlanadi — aks holda
+    # guruhda eskirgan e'lon qolib, odam bosib kirib hech narsa topmaydi.
+    telegram_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
