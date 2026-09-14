@@ -155,6 +155,6 @@ async def test_other_user_cannot_read(
 
 @pytest.mark.asyncio
 async def test_notifications_requires_auth(client: AsyncClient):
-    """Token yo'q → 403."""
+    """Token yo'q → 401 (FastAPI `HTTPBearer` endi RFC ga mos)."""
     resp = await client.get("/api/v1/notifications")
-    assert resp.status_code == 403
+    assert resp.status_code == 401

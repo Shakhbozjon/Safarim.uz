@@ -13,9 +13,16 @@ from tests.conftest import auth_headers
 
 @pytest.mark.asyncio
 async def test_me_no_token(client: AsyncClient):
-    """/me — token yo'q → 403."""
+    """/me — token yo'q → 401.
+
+    Ilgari FastAPI `HTTPBearer` sarlavha umuman yo'q bo'lganda ham 403
+    qaytarardi. Bu RFC 7235 ga zid edi ("kim ekaningni bilmayman" = 401,
+    "kim ekaningni bilaman, lekin ruxsating yo'q" = 403) va FastAPI buni
+    tuzatdi. Frontend allaqachon 401 ni token yangilash signali sifatida
+    ushlaydi (`lib/api.ts`), shuning uchun o'zgarish foydali.
+    """
     resp = await client.get("/api/v1/auth/me")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
