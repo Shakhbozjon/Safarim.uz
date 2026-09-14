@@ -148,14 +148,16 @@ def bot_configured(monkeypatch):
 
 def _start(token: str, chat_id: int) -> dict:
     """Havola bosilganda Telegram yuboradigan `/start <token>` yangilanishi."""
-    return {"message": {"chat": {"id": chat_id}, "from": {"id": 42},
+    return {"message": {"chat": {"id": chat_id, "type": "private"}, "from": {"id": 42},
                         "text": f"/start {token}"}}
 
 
 def _contact(phone: str, chat_id: int, sender_id: int = 42) -> dict:
     return {
         "message": {
-            "chat": {"id": chat_id},
+            # `type` shart: bot faqat shaxsiy chatga javob beradi (guruhda
+            # turgani uchun — u yerdagi xabarlarga aralashmaydi)
+            "chat": {"id": chat_id, "type": "private"},
             "from": {"id": sender_id},
             "contact": {"phone_number": phone, "user_id": sender_id},
         }

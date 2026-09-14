@@ -98,13 +98,26 @@ step "5/5  Sozlama"
 setv TELEGRAM_TRIPS_CHAT_ID "$CHAT_ID"
 ok "$ENV ga yozildi"
 
-$DC up -d --force-recreate api >/dev/null 2>&1
-CONF=$($DC exec -T api python -c 'from app.services import telegram_service; print(int(telegram_service.trips_chat_configured()))' 2>/dev/null | tr -d '\r')
+# --build SHART: lenta kodi yangi, --force-recreate esa ESKI imijni qayta
+# ko'taradi xolos va konteynerda yangi funksiya topilmaydi.
+# Migratsiya konteyner ishga tushganda start-prod.sh orqali o'zi bajariladi.
+echo "   qayta build - bir necha daqiqa ketadi"
+$DC up -d --build api >/dev/null 2>&1
+
+# Migratsiya + gunicorn ko'tarilishini kutamiz (darrov exec qilinsa javob yoq)
+CONF=""
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  CONF=$($DC exec -T api python -c 'from app.services import telegram_service; print(int(telegram_service.trips_chat_configured()))' 2>/dev/null | tr -d '\r')
+  [ "$CONF" = "1" ] && break
+  sleep 5
+done
+
 if [ "$CONF" = "1" ]; then
-  ok "konteyner lentani ko'ryapti"
+  ok "konteyner lentani koryapti"
 else
   bad "konteynerda sozlama yetishmayapti (javob: ${CONF:-javob yoq})"
-  echo "          -> $DC up -d --force-recreate api"
+  echo "          -> $DC up -d --build api"
+  echo "          -> $DC logs api --tail 30"
 fi
 
 printf "\n== TAYYOR\n"
