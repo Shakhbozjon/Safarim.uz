@@ -217,6 +217,13 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
     if not chat_id:
         return
 
+    # Faqat shaxsiy chat. Bot safar lentasi uchun guruhda ham turadi va u
+    # yerdagi har bir xabarga javob berib, e'lonlar orasiga "raqamni
+    # tasdiqlang" yo'riqnomasini tashlardi. Kontakt ulashish ham baribir
+    # faqat shaxsiy chatda ishlaydi.
+    if chat.get("type") != "private":
+        return
+
     sender = message.get("from") or {}
     contact = message.get("contact")
     text = (message.get("text") or "").strip()

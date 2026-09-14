@@ -56,7 +56,7 @@ def _contact_update(phone: str, chat_id: int = CHAT, sender_id: int = 42) -> dic
     """Foydalanuvchi «Raqamni ulashish» tugmasini bosgandagi yangilanish."""
     return {
         "message": {
-            "chat": {"id": chat_id},
+            "chat": {"id": chat_id, "type": "private"},
             "from": {"id": sender_id},
             "contact": {"phone_number": phone, "user_id": sender_id},
         }
@@ -181,3 +181,41 @@ async def test_change_phone_same_number_just_verifies(
     await db.refresh(user)
     assert user.phone == "+998901111111"
     assert user.is_phone_verified is True
+
+
+# ─── Guruh chatlari ───────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_guruhdagi_xabarga_javob_bermaydi(db: AsyncSession, user: User, sent: list):
+    """Bot safar lentasi uchun guruhda turadi — u yerda javob yozmasligi kerak.
+
+    Aks holda e'lonlar orasiga "raqamingizni tasdiqlang" yo'riqnomasi
+    tushib, guruh axlatga to'lardi.
+    """
+    update = {
+        "message": {
+            "chat": {"id": -1001234567890, "type": "supergroup"},
+            "from": {"id": 42},
+            "text": "/start",
+        }
+    }
+
+    await telegram_service.handle_update(db, update)
+
+    assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_guruhda_kontakt_ulashish_ishlamaydi(db: AsyncSession, user: User, sent: list):
+    """Guruhga tashlangan kontakt bilan raqam tasdiqlab bo'lmasin."""
+    user.is_phone_verified = False
+    await _token(db, user, TelegramLinkPurpose.verify)
+
+    update = _contact_update(user.phone)
+    update["message"]["chat"]["type"] = "supergroup"
+
+    await telegram_service.handle_update(db, update)
+
+    await db.refresh(user)
+    assert user.is_phone_verified is False
+    assert sent == []
