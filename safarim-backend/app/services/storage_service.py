@@ -6,10 +6,26 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from fastapi import UploadFile, HTTPException
-from PIL import Image
+from PIL import Image, ImageOps
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# Saqlashdan oldin rasm shu tomonga kichraytiriladi.
+# Avatar 80px doirachada ko'rsatiladi — 512px Retina uchun ham ortig'i bilan
+# yetadi. Ilgari asl fayl (5MB gacha) saqlanardi va o'sha holicha yo'lovchining
+# telefoniga ketardi: safarlar ro'yxatida o'nta haydovchi = o'nlab megabayt.
+AVATAR_MAX_SIDE = 512
+# Hujjatni ADMIN O'QIYDI — guvohnomadagi yozuv va davlat raqami ko'rinishi
+# kerak, shuning uchun chegara ancha saxiy.
+DOCUMENT_MAX_SIDE = 2400
+
+# Ochishdan oldingi piksel chegarasi — `image_validation` dagidek.
+# ⚠️ Ilgari bu fayl rasmni OCHMASDI (faqat `verify()`), shuning uchun «rasm
+# bombasi» unga tegmasdi. Endi kichraytirish uchun ochamiz, demak o'sha
+# himoya bu yerda ham kerak.
+_MAX_PIXELS = 40_000_000
 
 
 class StorageService:
@@ -63,7 +79,34 @@ class StorageService:
         "WEBP": ("image/webp", "webp"),
     }
 
-    async def upload(self, file: UploadFile, bucket: str, folder: str = "") -> str:
+    @staticmethod
+    def _shrink(content: bytes, fmt: str, max_side: int) -> bytes:
+        """Rasmni saqlashdan oldin kichraytiradi.
+
+        Chegaradan kichik bo'lsa — ORIGINALGA TEGILMAYDI: keraksiz qayta
+        kodlash sifatni yo'qotadi va hech narsa yutdirmaydi.
+        """
+        with Image.open(io.BytesIO(content)) as img:
+            if max(img.size) <= max_side:
+                return content
+
+            # ⚠️ Telefon surati ko'pincha «burilgan» deb EXIF'da belgilanadi,
+            # pikselda esa yonboshlab turadi. Qayta kodlaganda EXIF yo'qoladi —
+            # shuning uchun burilishni pikselga TATBIQ QILAMIZ, aks holda
+            # kichraytirilgan surat yonboshlab qoladi.
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((max_side, max_side), Image.LANCZOS)
+
+            buf = io.BytesIO()
+            opts = {"optimize": True}
+            if fmt == "JPEG":
+                opts["quality"] = 85
+            img.save(buf, format=fmt, **opts)
+            return buf.getvalue()
+
+    async def upload(
+        self, file: UploadFile, bucket: str, folder: str = "", max_side: int | None = None
+    ) -> str:
         max_size = 5 * 1024 * 1024  # 5 MB
         content = await file.read()
         if len(content) > max_size:
@@ -76,6 +119,7 @@ class StorageService:
         try:
             with Image.open(io.BytesIO(content)) as probe:
                 fmt = (probe.format or "").upper()
+                width, height = probe.size
                 probe.verify()
         except Exception:
             raise HTTPException(status_code=400, detail="Bu fayl rasm emas yoki buzilgan")
@@ -83,6 +127,14 @@ class StorageService:
         if fmt not in self._FORMATS:
             raise HTTPException(status_code=400, detail="Faqat JPEG, PNG yoki WEBP rasm yuklang")
         content_type, ext = self._FORMATS[fmt]
+
+        if max_side:
+            if width * height > _MAX_PIXELS:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Rasm juda katta o'lchamli. Telefonda olingan oddiy surat yetarli",
+                )
+            content = self._shrink(content, fmt, max_side)
 
         key = f"{folder}/{uuid.uuid4()}.{ext}".lstrip("/")
 

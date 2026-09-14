@@ -42,7 +42,7 @@ def _no_minio(monkeypatch):
     uploaded: list[str] = []
     deleted: list[str] = []
 
-    async def _fake_upload(file, bucket, folder=""):
+    async def _fake_upload(file, bucket, folder="", max_side=None):
         await file.read()
         await file.seek(0)
         key = f"{folder}/{len(uploaded)}.jpg"

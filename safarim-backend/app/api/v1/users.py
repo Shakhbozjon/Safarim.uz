@@ -17,6 +17,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.services import storage_service as storage
 from app.services.storage_service import storage_service
 from app.core.config import settings
 
@@ -102,7 +103,12 @@ async def upload_profile_photo(
 ):
     await limit_upload(request, str(current_user.id))
 
-    key = await storage_service.upload(photo, settings.MINIO_BUCKET_PHOTOS, folder="avatars")
+    key = await storage_service.upload(
+        photo,
+        settings.MINIO_BUCKET_PHOTOS,
+        folder="avatars",
+        max_side=storage.AVATAR_MAX_SIDE,
+    )
     current_user.profile_photo = key
     await db.commit()
     await db.refresh(current_user)

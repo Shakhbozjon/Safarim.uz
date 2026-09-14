@@ -39,7 +39,7 @@ def _jpeg(w=800, h=500) -> bytes:
 
 @pytest.fixture(autouse=True)
 def _no_minio(monkeypatch):
-    async def _fake_upload(file, bucket, folder=""):
+    async def _fake_upload(file, bucket, folder="", max_side=None):
         await file.read()
         await file.seek(0)
         return f"{folder}/test.jpg"

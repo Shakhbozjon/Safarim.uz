@@ -112,7 +112,7 @@ async def _two_regions(db):
 @pytest.mark.asyncio
 async def test_full_journey_registration_to_completion(client, db, admin_user, monkeypatch):
     # MinIO'siz: fayl yuklashni mock qilamiz
-    async def _fake_upload(file, bucket, folder=""):
+    async def _fake_upload(file, bucket, folder="", max_side=None):
         await file.read()
         await file.seek(0)
         return f"{folder}/e2e-license.jpg"

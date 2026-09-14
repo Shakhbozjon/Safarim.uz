@@ -101,12 +101,18 @@ async def apply_driver(
     license_key = None
     if license_image is not None:
         license_key = await storage_service.upload(
-            license_image, settings.MINIO_BUCKET_DOCUMENTS, folder="licenses"
+            license_image,
+            settings.MINIO_BUCKET_DOCUMENTS,
+            folder="licenses",
+            max_side=stor.DOCUMENT_MAX_SIDE,
         )
     tech_passport_key = None
     if tech_passport_image is not None:
         tech_passport_key = await storage_service.upload(
-            tech_passport_image, settings.MINIO_BUCKET_DOCUMENTS, folder="tech-passports"
+            tech_passport_image,
+            settings.MINIO_BUCKET_DOCUMENTS,
+            folder="tech-passports",
+            max_side=stor.DOCUMENT_MAX_SIDE,
         )
 
     driver = await driver_service.apply_driver(
@@ -148,12 +154,18 @@ async def upload_my_documents(
     license_key = None
     if license_image is not None:
         license_key = await storage_service.upload(
-            license_image, settings.MINIO_BUCKET_DOCUMENTS, folder="licenses"
+            license_image,
+            settings.MINIO_BUCKET_DOCUMENTS,
+            folder="licenses",
+            max_side=stor.DOCUMENT_MAX_SIDE,
         )
     tech_passport_key = None
     if tech_passport_image is not None:
         tech_passport_key = await storage_service.upload(
-            tech_passport_image, settings.MINIO_BUCKET_DOCUMENTS, folder="tech-passports"
+            tech_passport_image,
+            settings.MINIO_BUCKET_DOCUMENTS,
+            folder="tech-passports",
+            max_side=stor.DOCUMENT_MAX_SIDE,
         )
 
     driver, replaced = await driver_service.upload_documents(
