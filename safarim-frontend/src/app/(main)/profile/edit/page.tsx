@@ -29,7 +29,6 @@ export default function ProfileEditPage() {
   const [email, setEmail]         = useState(user?.email ?? "");
   const [talkLevel, setTalkLevel] = useState<TalkLevel>(user?.talk_level ?? "normal");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   const [saving, setSaving]       = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -45,12 +44,47 @@ export default function ProfileEditPage() {
     }
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-  }, []);
+  /** Rasm TANLANGAN ZAHOTI yuklanadi — «Saqlash» kutilmaydi.
+   *
+   *  Ilgari rasm faqat «Saqlash» bosilganda ketardi, lekin ekranda
+   *  oldindan ko'rish darrov almashardi. Foydalanuvchi rasm o'rnatildi deb
+   *  o'ylab sahifadan chiqib ketardi va eski rasm qaytardi. Bu aynan
+   *  shundan shikoyat keldi.
+   */
+  const handlePhotoChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      // Bo'shatmasak, o'chirib qayta O'SHA faylni tanlaganda `change` otilmaydi
+      e.target.value = "";
+      if (!file) return;
+
+      const localPreview = URL.createObjectURL(file);
+      setPreviewUrl(localPreview);
+      setErrors({});
+      setUploading(true);
+      try {
+        const form = new FormData();
+        form.append("photo", file);
+        const { data } = await api.post<UserType>("/users/me/photo", form, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        // Server qaytargan rasm bilan keshni yangilaymiz — shundan keyin
+        // sahifadan chiqib ketsa ham rasm joyida qoladi.
+        qc.setQueryData(["me"], data);
+        setPreviewUrl(null);   // endi haqiqiy rasm ko'rsatiladi
+      } catch (err: any) {
+        const detail = err?.response?.data?.detail;
+        setErrors({
+          general: typeof detail === "string" ? detail : "Rasmni yuklab bo'lmadi",
+        });
+        setPreviewUrl(null);   // muvaffaqiyatsiz — eski rasm qaytsin
+      } finally {
+        setUploading(false);
+        URL.revokeObjectURL(localPreview);
+      }
+    },
+    [qc]
+  );
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -67,25 +101,14 @@ export default function ProfileEditPage() {
     setErrors({});
     setSaving(true);
     try {
-      // 1. Rasm yuklash (agar yangi tanlangan bo'lsa)
-      if (photoFile) {
-        setUploading(true);
-        const form = new FormData();
-        form.append("photo", photoFile);
-        await api.post("/users/me/photo", form, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        setUploading(false);
-      }
-
-      // 2. Profil ma'lumotlarini yangilash
+      // Rasm bu yerda yuklanmaydi — u tanlangan zahoti ketgan (yuqoriga qara)
       const { data } = await api.put<UserType>("/users/me", {
         full_name: fullName.trim(),
         email: email.trim() || null,
         talk_level: talkLevel,
       });
 
-      // 3. Cache yangilash
+      // Cache yangilash
       qc.setQueryData(["me"], data);
       setSuccess(true);
       setTimeout(() => router.push("/profile"), 1200);
@@ -134,9 +157,17 @@ export default function ProfileEditPage() {
       <div className="flex flex-col items-center mb-8">
         <div className="relative">
           <Avatar src={avatarSrc} name={user.full_name} size="xl" />
+          {/* Yuklanish ko'rinib tursin: ilgari rasm jimgina ketardi va
+              foydalanuvchi tugaganini bilmasdi. */}
+          {uploading && (
+            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+              <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
           <button
             onClick={() => fileRef.current?.click()}
-            className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary-500 rounded-xl flex items-center justify-center shadow-md hover:bg-primary-600 transition-colors"
+            disabled={uploading}
+            className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary-500 rounded-xl flex items-center justify-center shadow-md hover:bg-primary-600 disabled:opacity-60 transition-colors"
           >
             <Camera size={14} className="text-white" />
           </button>
@@ -150,10 +181,15 @@ export default function ProfileEditPage() {
         />
         <button
           onClick={() => fileRef.current?.click()}
-          className="mt-3 text-sm text-primary-600 font-medium hover:text-primary-700"
+          disabled={uploading}
+          className="mt-3 text-sm text-primary-600 font-medium hover:text-primary-700 disabled:opacity-60"
         >
-          Rasm o'zgartirish
+          {uploading ? "Yuklanmoqda..." : "Rasm o'zgartirish"}
         </button>
+        {/* Rasm darrov saqlanadi — «Saqlash» faqat pastdagi maydonlar uchun */}
+        <p className="mt-1.5 text-xs text-gray-400">
+          Rasm tanlangan zahoti saqlanadi
+        </p>
       </div>
 
       <div className="space-y-5">
@@ -236,7 +272,7 @@ export default function ProfileEditPage() {
           disabled={saving}
           loading={saving}
         >
-          {uploading ? "Rasm yuklanmoqda..." : "Saqlash"}
+          Saqlash
         </Button>
       </div>
     </div>
