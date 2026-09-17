@@ -53,7 +53,7 @@ Har biri: `file:line` — muammo — tuzatish. Har fixdan keyin lokal test + `gi
 - [ ] **`initiate_payment` naqd bronда ham ishlaydi** — `payment_service.py:162-212`. **Fix:** `payment_method==cash` bo'lsа rad.
 - [ ] **No-show online'да 0% qoidаси buzilgan** — `booking_service.py:318-331` — online no-show `refund=total_price`. **Fix:** "safar bo'lmadi"(to'liq) vs "no-show"(0%) ajrat.
 - [ ] **Withdraw pulни yo'qotadi (payout yo'q)** — `drivers.py:270-285`. **Fix:** pending withdrawal-request + admin bildirishnoma; admin tasdiqлаganда deduct.
-- [ ] **Real bronli safar hech qachon `completed` bo'lmaydi** — hech joyда `TripStatus.completed` qo'yilmaydi. **Fix:** o'tган safarnینг barcha bronlari terminal bo'lса → `completed`.
+- [x] **Real bronli safar hech qachon `completed` bo'lmaydi** — ✅ (2026-09-18, `0cf0368`) `booking_service._close_trip_if_done()`: oxirgi bron yakuniy holatga o'tganda safar `completed` bo'ladi — hech joyда `TripStatus.completed` qo'yilmaydi. **Fix:** o'tган safarnینг barcha bronlari terminal bo'lса → `completed`.
 - [ ] **Frontend refresh-fail redirect noto'g'ri** — `lib/api.ts:38` `/auth/login` → 404. **Fix:** `/login`.
 - [ ] **Forgot-password oqimi yo'q** — `users.py:92-104` — faqat login bilan. **Fix:** unauth `POST /auth/reset-password` (phone+OTP+yangi parol).
 - [ ] **Reyting auto-block butun akkauntни bloklaydi + warning_count shishadi + AdminAction.admin_id noto'g'ri** — `review_service.py:144-162`. **Fix:** userни emas, driver profilни pauza; warning bir marta; system admin id.
