@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
@@ -193,6 +193,15 @@ async def create_booking(db: AsyncSession, passenger: User, data: BookingCreate)
 
     if trip.status != TripStatus.active:
         raise HTTPException(status_code=400, detail="Bu safar aktiv emas")
+
+    # Jo'nab ketgan safarni band qilib bo'lmaydi. Status bu yerda yetarli emas:
+    # safar yakunlanmaguncha `active` bo'lib turadi, ya'ni ertalab ketgan
+    # mashinani kechqurun ham band qilish mumkin edi.
+    if now_tashkent_naive() >= datetime.combine(trip.departure_date, trip.departure_time):
+        raise HTTPException(
+            status_code=400,
+            detail="Bu safar allaqachon jo'nab ketgan",
+        )
 
     # Haydovchi o'z safariga band qila olmaydi
     if trip.driver_id == passenger.id:
@@ -592,6 +601,8 @@ async def _apply_completion(db: AsyncSession, booking: Booking, driver_id) -> No
             )
             await _update_monthly_commission(db, driver_id, booking.commission_amount)
 
+    await _close_trip_if_done(db, booking.trip_id)
+
 
 async def _apply_not_happened(db: AsyncSession, booking: Booking) -> None:
     """Safar bo'lmadi → komissiya yo'q (tugamadi). Online to'langan bo'lsa yo'lovchiga qaytarma."""
@@ -612,6 +623,48 @@ async def _apply_not_happened(db: AsyncSession, booking: Booking) -> None:
     booking.refund_amount = refund
     await flag_refund_due(db, booking, refund)
     # Komissiya ushilmaydi — safar tugamadi
+
+    await _close_trip_if_done(db, booking.trip_id)
+
+
+# Tasdiq oqimi hali tugamagan holatlar — bittasi qolsa safar yopilmaydi
+_OPEN_BOOKING = (
+    BookingStatus.pending,
+    BookingStatus.confirmed,
+    BookingStatus.awaiting_confirmation,
+    BookingStatus.disputed,
+)
+
+
+async def _close_trip_if_done(db: AsyncSession, trip_id) -> None:
+    """Barcha band qilishlar yakunlangach safarni `completed` qiladi.
+
+    Busiz safar MANGU `active` bo'lib qolardi: `expire_due_trips` real bron
+    bori safarga ataylab tegmaydi («tasdiq oqimi orqali yakunlanadi»), tasdiq
+    oqimi esa faqat BRONni yopib, safarga tegmasdi. Natijada yo'lovchi safarni
+    tasdiqlagandan keyin ham o'sha safar qidiruvda turaverardi.
+    """
+    await db.flush()   # shu bron statusi hisobga kirsin
+
+    still_open = await db.scalar(
+        select(func.count()).select_from(Booking).where(
+            Booking.trip_id == trip_id,
+            Booking.status.in_(_OPEN_BOOKING),
+        )
+    )
+    if still_open:
+        return
+
+    trip = (await db.execute(
+        select(Trip).where(Trip.id == trip_id).with_for_update(of=Trip)
+    )).scalar_one_or_none()
+    if trip is None or trip.status not in (
+        TripStatus.active, TripStatus.full, TripStatus.started
+    ):
+        return
+
+    trip.status = TripStatus.completed
+    _queue_feed_sync(trip.id)
 
 
 async def _record_fake_confirmation(db: AsyncSession, driver_id) -> None:

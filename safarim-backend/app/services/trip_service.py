@@ -460,6 +460,11 @@ async def nearest_dates(
 
 
 async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]:
+    # Sana ham, vaqt ham Toshkent bo'yicha. `date.today()` server (UTC) kunini
+    # berardi — soat 19:00 dan yarim tungacha u kechagi kunni ko'rsatib turadi.
+    now_local = now_tashkent_naive()
+    today = now_local.date()
+
     query = (
         select(Trip)
         .options(*_load_options())
@@ -470,7 +475,7 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
         .where(
             Trip.status == TripStatus.active,
             Trip.departure_date == params.departure_date,
-            Trip.departure_date >= date.today(),   # o'tib ketgan safar chiqmasin
+            Trip.departure_date >= today,   # o'tib ketgan safar chiqmasin
             Trip.available_seats >= params.seats,
             Trip.driver_id.notin_(_paused_driver_ids()),
             _route_condition(
@@ -481,6 +486,12 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
             ),
         )
     )
+
+    # Jo'nab ketgan safar bugungi qidiruvda turmasin. Ilgari faqat SANA
+    # solishtirilardi: soat 10:55 da ketgan mashina o'sha kuni yarim tungacha
+    # ro'yxatda turaverar va uni band qilib ham bo'lardi.
+    if params.departure_date == today:
+        query = query.where(Trip.departure_time > now_local.time())
 
     # Filtrlar
     if params.payment_type and params.payment_type != PaymentType.any:
