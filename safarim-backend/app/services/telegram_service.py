@@ -233,6 +233,10 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
         parts = text.split(maxsplit=1)
         payload = parts[1].strip() if len(parts) > 1 else ""
         if not payload:
+            # Raqami tasdiqlangan haydovchi uchun bu bot ish quroli — unga
+            # yo'riqnoma emas, menyu kerak.
+            if await _driver_menu(db, chat_id):
+                return
             await send_message(chat_id, (
                 "Bu — <b>UzSafar</b> tasdiqlash boti.\n\n"
                 "Raqamni tasdiqlash uchun saytdagi <b>«Telegram orqali tasdiqlash»</b> "
@@ -254,6 +258,12 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
         await db.commit()
         await _ask_for_contact(chat_id, link.user.full_name, link.purpose)
         return
+
+    # 1.5) Menyu tugmasi bosildi (safar e'lon qilish / safarlarim)
+    if text:
+        from app.services import telegram_driver_bot
+        if await telegram_driver_bot.handle_text(db, chat_id, text):
+            return
 
     # 2) Kontakt ulashildi
     if contact:
@@ -304,12 +314,27 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
             "Endi saytga qaytishingiz mumkin. Yangi buyurtma va safar xabarlari "
             "shu yerga keladi."
         ), remove_keyboard=True)
+        # Haydovchi bo'lsa — kontakt tugmasi o'rniga ish menyusi chiqadi
+        await _driver_menu(db, chat_id)
+        return
+
+    if await _driver_menu(db, chat_id):
         return
 
     await send_message(chat_id, (
         "Raqamni tasdiqlash uchun saytdagi <b>«Telegram orqali tasdiqlash»</b> "
         "tugmasi orqali qayting."
     ))
+
+
+async def _driver_menu(db: AsyncSession, chat_id) -> bool:
+    """Chat tasdiqlangan haydovchiniki bo'lsa menyuni ko'rsatadi."""
+    from app.services import telegram_driver_bot
+
+    user = await telegram_driver_bot.user_for_chat(db, chat_id)
+    if user is None:
+        return False
+    return await telegram_driver_bot.show_menu(db, user, chat_id)
 
 
 async def _bind_chat(db: AsyncSession, user: User, chat_id: int | str) -> None:
@@ -454,6 +479,12 @@ async def _handle_callback(db: AsyncSession, cq: dict) -> None:
     msg = cq.get("message") or {}
     chat_id = (msg.get("chat") or {}).get("id")
     message_id = msg.get("message_id")
+
+    # Haydovchi boti (safar e'lon qilish, bekor qilish) — alohida modulda
+    if data.startswith(("pb:", "mt:")):
+        from app.services import telegram_driver_bot
+        await telegram_driver_bot.handle_callback(db, cq, data)
+        return
 
     if data.startswith(CONFIRM_YES_PREFIX):
         booking_id, confirmed = data[len(CONFIRM_YES_PREFIX):], True
