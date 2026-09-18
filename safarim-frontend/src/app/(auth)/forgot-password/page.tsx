@@ -8,6 +8,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import api from "@/lib/api";
 import { saveTokens, formatPhone, getApiError } from "@/lib/auth";
+import { normalizePhoneInput, isCompletePhone, PHONE_ERROR } from "@/lib/phone";
 
 type Step = "phone" | "code";
 
@@ -54,8 +55,8 @@ export default function ForgotPasswordPage() {
 
   async function sendCode(resend = false) {
     if (resend && countdown > 0) return;
-    if (phone.replace(/\D/g, "").length < 9) {
-      setErrors({ phone: "Telefon raqamni to'liq kiriting" });
+    if (!isCompletePhone(phone)) {
+      setErrors({ phone: PHONE_ERROR });
       return;
     }
     setErrors({});
@@ -126,6 +127,8 @@ export default function ForgotPasswordPage() {
           <Input
             label="Telefon raqam"
             type="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
             placeholder="901234567"
             prefix={
               <span className="flex items-center gap-1.5 text-gray-500">
@@ -134,7 +137,7 @@ export default function ForgotPasswordPage() {
               </span>
             }
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(normalizePhoneInput(e.target.value))}
             error={errors.phone}
           />
 

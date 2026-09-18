@@ -12,22 +12,14 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import api from "@/lib/api";
 import { saveTokens, formatPhone, getApiError } from "@/lib/auth";
+import { normalizePhoneInput, isCompletePhone, prettyPhone, PHONE_ERROR } from "@/lib/phone";
 
-const onlyDigits = (s: string) => s.replace(/\D/g, "");
-
-/** "901234567" → "+998 90 123-45-67". To'liq bo'lmasa null.
- *
- *  Raqamni guruhlab qaytarib ko'rsatish xatoni bir qarashda ko'rsatadi —
- *  shu sabab "takrorlang" maydoni olib tashlandi: qayta terish ham xatoni
- *  takrorlashi mumkin, ko'z bilan tekshirish esa arzonroq va ishonchliroq. */
-function prettyPhone(raw: string): string | null {
-  const d = onlyDigits(raw).replace(/^998/, "");
-  if (d.length !== 9) return null;
-  return `+998 ${d.slice(0, 2)} ${d.slice(2, 5)}-${d.slice(5, 7)}-${d.slice(7, 9)}`;
-}
+/*  Raqamni guruhlab qaytarib ko'rsatish (`prettyPhone`) xatoni bir qarashda
+ *  ko'rsatadi — shu sabab "takrorlang" maydoni olib tashlandi: qayta terish
+ *  ham xatoni takrorlashi mumkin, ko'z bilan tekshirish esa arzonroq. */
 
 const schema = z.object({
-  phone: z.string().min(9, "9 raqam kiriting").max(13),
+  phone: z.string().refine(isCompletePhone, PHONE_ERROR),
   full_name: z.string().min(3, "Kamida 3 ta harf"),
   password: z.string().min(6, "Kamida 6 ta belgi"),
   confirm_password: z.string(),
@@ -60,6 +52,7 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
+  const phoneField = form.register("phone");
 
   async function onSubmit(data: FormData) {
     setApiError("");
@@ -129,6 +122,8 @@ export default function RegisterPage() {
             <Input
               label="Telefon raqam"
               type="tel"
+              inputMode="numeric"
+              autoComplete="tel-national"
               placeholder="901234567"
               prefix={
                 <span className="flex items-center gap-1.5 text-gray-500">
@@ -139,7 +134,13 @@ export default function RegisterPage() {
               hint="Safardoshingiz shu raqam orqali bog'lanadi"
               error={form.formState.errors.phone?.message}
               autoFocus
-              {...form.register("phone")}
+              {...phoneField}
+              onChange={(e) => {
+                // Kodni ham yozgan yoki Android avtoto'ldirgan bo'lsa
+                // ("+998 99 123 45 67") — maydonda 9 xonali qismi qoladi.
+                e.target.value = normalizePhoneInput(e.target.value);
+                phoneField.onChange(e);
+              }}
             />
 
             {prettyPhone(form.watch("phone") ?? "") && (

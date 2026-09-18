@@ -1,6 +1,7 @@
 import Cookies from "js-cookie";
 import api from "./api";
 import type { User } from "@/types";
+import { toE164 } from "./phone";
 
 // Token cookie'lari `tokens.ts` da — import halqasi bo'lmasin uchun
 export { saveTokens, clearTokens, getAccessToken } from "./tokens";
@@ -15,10 +16,9 @@ export async function getMe(): Promise<User> {
 }
 
 export function formatPhone(raw: string): string {
-  // 901234567 → +998901234567
-  const digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("998")) return `+${digits}`;
-  return `+998${digits}`;
+  // 901234567 → +998901234567. Kod, bo'sh joy, "0"/"8" prefiksi — hammasi
+  // `normalizePhoneInput` da tozalanadi (qarang: lib/phone.ts).
+  return toE164(raw);
 }
 
 export function getApiError(error: any): string {

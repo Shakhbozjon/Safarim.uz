@@ -133,3 +133,50 @@ async def test_profile_photo_none_stays_none(
     """Rasm yo'q bo'lsa null qoladi — bo'sh manzil yasalmaydi."""
     resp = await client.get("/api/v1/auth/me", headers=auth_headers(user))
     assert resp.json()["profile_photo"] is None
+
+
+# ─── Telefon raqam formati ───────────────────────────────────────────────────
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "+998991234567",
+        "998991234567",
+        "991234567",
+        "+998 99 123 45 67",   # Android avtoto'ldirishi shunday qo'yadi
+        "+998-99-123-45-67",
+        "0991234567",
+        "8991234567",
+    ],
+)
+@pytest.mark.asyncio
+async def test_phone_formats_accepted(client: AsyncClient, raw: str):
+    """Raqam qanday yozilishidan qat'i nazar bitta hisobga tushadi.
+
+    Ilgari faqat `+998XXXXXXXXX` o'tardi: foydalanuvchi maydonda "+998" ni
+    ko'rib turib 9 ta raqam yozsa ham, Android avtoto'ldirgan bo'sh joyli
+    variant ham "noto'g'ri format" deb rad etilardi.
+    """
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={"phone": raw, "full_name": "Test Foydalanuvchi", "password": "Test1234!"},
+    )
+    assert resp.status_code == 201, resp.text
+
+    # Aynan shu hisobga endi qisqa format bilan ham kiriladi
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"phone": "991234567", "password": "Test1234!"},
+    )
+    assert login.status_code == 200, login.text
+
+
+@pytest.mark.parametrize("raw", ["12345", "", "abc", "+99899123456789"])
+@pytest.mark.asyncio
+async def test_phone_bad_formats_rejected(client: AsyncClient, raw: str):
+    """9 xonaga keltirib bo'lmaydigan raqam baribir rad etiladi."""
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={"phone": raw, "full_name": "Test Foydalanuvchi", "password": "Test1234!"},
+    )
+    assert resp.status_code == 422

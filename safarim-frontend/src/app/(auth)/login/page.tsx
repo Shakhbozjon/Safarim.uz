@@ -11,12 +11,10 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import api from "@/lib/api";
 import { saveTokens, formatPhone, getApiError } from "@/lib/auth";
+import { normalizePhoneInput, isCompletePhone, PHONE_ERROR } from "@/lib/phone";
 
 const schema = z.object({
-  phone: z
-    .string()
-    .min(9, "Telefon raqam to'liq kiriting")
-    .max(13, "Telefon raqam noto'g'ri"),
+  phone: z.string().refine(isCompletePhone, PHONE_ERROR),
   password: z.string().min(1, "Parolni kiriting"),
 });
 
@@ -34,6 +32,7 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const phoneField = register("phone");
 
   async function onSubmit(data: FormData) {
     setApiError("");
@@ -69,6 +68,8 @@ export default function LoginPage() {
         <Input
           label="Telefon raqam"
           type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
           placeholder="901234567"
           prefix={
             <span className="flex items-center gap-1.5 text-gray-500">
@@ -77,7 +78,11 @@ export default function LoginPage() {
             </span>
           }
           error={errors.phone?.message}
-          {...register("phone")}
+          {...phoneField}
+          onChange={(e) => {
+            e.target.value = normalizePhoneInput(e.target.value);
+            phoneField.onChange(e);
+          }}
         />
 
         <Input
