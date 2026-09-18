@@ -14,7 +14,7 @@ from app.models.enums import (
     PaymentType, PaymentMethod, NotificationRefType,
 )
 from app.schemas.trip import TripCreate, TripSearchParams, TripDriverInfo, TripResponse, WaypointResponse, LocationBrief
-from app.core.timeutils import now_tashkent_naive
+from app.core.timeutils import format_day_uz, now_tashkent_naive
 from app.services import notification_service, wallet_service
 from app.services.storage_service import photo_url
 
@@ -152,8 +152,13 @@ async def _day_conflict(
     qo'ymaymiz — qisqa yo'nalishlarda (Farg'ona → Qo'qon) bu haqiqatan mumkin,
     shuning uchun faqat tasdiq so'raymiz.
 
+    Ayni shu yo'nalishda (A→B) o'sha kunga safar bo'lsa ham ogohlantiriladi:
+    haydovchi bir kunda Farg'onadan Toshkentga ikki marta bora olmaydi, ya'ni
+    bu ko'pincha tasodifiy takror e'lon. To'sib qo'ymaymiz — qisqa yo'lda
+    (Farg'ona → Qo'qon) ikki reys haqiqatan bo'ladi.
+
     Ogohlantirish YO'Q, agar yangi safar:
-      * o'sha kungi safar bilan bir xil yo'nalishda bo'lsa (borish yoki qaytish), yoki
+      * qaytish yo'nalishi bo'lsa (B→A — odatdagi hol), yoki
       * oldingi safar tugagan viloyatdan boshlansa (zanjir: A→B, keyin B→C).
     """
     result = await db.execute(
@@ -167,10 +172,22 @@ async def _day_conflict(
     if not day_trips:
         return None
 
+    # Aynan shu yo'nalishda (borish tomoni bir xil) o'sha kunga safar bormi?
+    # Vaqti boshqa bo'lsa `_duplicate_trip_exists` uni dublikat deb hisoblamaydi,
+    # shuning uchun ogohlantirish shu yerda beriladi.
+    same_way = [t for t in day_trips
+                if t.from_region_id == from_region_id and t.to_region_id == to_region_id]
+    if same_way:
+        earliest = min(same_way, key=lambda t: t.departure_time)
+        return (
+            f"{format_day_uz(dep_date)} kuni shu yo'nalishda sizda allaqachon "
+            f"{earliest.departure_time:%H:%M} dagi safar bor. Yana bittasini qo'shasizmi?"
+        )
+
     new_pair = {from_region_id, to_region_id}
     for t in day_trips:
         if {t.from_region_id, t.to_region_id} == new_pair:
-            return None
+            return None      # qaytish yo'nalishi — odatdagi hol
         if t.to_region_id == from_region_id:
             return None
 
