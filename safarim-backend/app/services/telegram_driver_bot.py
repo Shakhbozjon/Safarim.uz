@@ -29,7 +29,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.timeutils import now_tashkent_naive
+from app.core.timeutils import format_day_uz, now_tashkent_naive
 from app.models.driver import DriverProfile
 from app.models.enums import DriverStatus, TripStatus
 from app.models.user import User
@@ -48,16 +48,10 @@ MT = "mt:"   # safarlarim
 
 # Kun tanlash — bugundan boshlab shuncha kun ko'rsatiladi
 _DAYS = 3
-_DAY_NAMES = ("Bugun", "Ertaga", "Indinga")
 
 # Soat panjarasi. Yarim soatlar yo'q: shablondagi aniq vaqt alohida birinchi
 # tugma bo'lib chiqadi, qolganlari uchun sayt bor.
 _HOURS = tuple(range(5, 22))
-
-_MONTHS_UZ = (
-    "yanvar", "fevral", "mart", "aprel", "may", "iyun",
-    "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
-)
 
 
 def menu_keyboard() -> dict:
@@ -129,9 +123,7 @@ def _route_line(route) -> str:
 
 
 def _day_label(offset: int) -> str:
-    d = now_tashkent_naive().date() + timedelta(days=offset)
-    name = _DAY_NAMES[offset] if offset < len(_DAY_NAMES) else ""
-    return f"{name}, {d.day}-{_MONTHS_UZ[d.month - 1]}"
+    return format_day_uz(now_tashkent_naive().date() + timedelta(days=offset))
 
 
 def _money(amount: int) -> str:
@@ -276,7 +268,7 @@ async def _publish(
         lines.append(
             f"\n🚗 {tg._esc(_place(t.from_region, t.from_district))} → "
             f"{tg._esc(_place(t.to_region, t.to_district))}\n"
-            f"📅 {t.departure_date.day}-{_MONTHS_UZ[t.departure_date.month - 1]}, "
+            f"📅 {tg._esc(format_day_uz(t.departure_date))}, "
             f"{t.departure_time:%H:%M} · {_money(t.price_per_seat)} so'm · "
             f"{t.total_seats} o'rin"
         )
@@ -304,7 +296,7 @@ async def _my_trips(db: AsyncSession, user: User, chat_id, message_id=None) -> N
     else:
         text = "📋 <b>Ochiq safarlaringiz</b>\n\nBekor qilish uchun tugmani bosing:"
         buttons = [[{
-            "text": (f"{t.departure_date.day}-{_MONTHS_UZ[t.departure_date.month - 1]} "
+            "text": (f"{format_day_uz(t.departure_date)} "
                      f"{t.departure_time:%H:%M} · "
                      f"{_place(t.from_region, t.from_district)} → "
                      f"{_place(t.to_region, t.to_district)}"),
@@ -337,7 +329,7 @@ async def _ask_cancel(db: AsyncSession, user: User, chat_id, message_id, trip_id
         f"Shu safarni bekor qilamizmi?\n\n"
         f"🚗 {tg._esc(_place(trip.from_region, trip.from_district))} → "
         f"{tg._esc(_place(trip.to_region, trip.to_district))}\n"
-        f"📅 {trip.departure_date.day}-{_MONTHS_UZ[trip.departure_date.month - 1]}, "
+        f"📅 {tg._esc(format_day_uz(trip.departure_date))}, "
         f"{trip.departure_time:%H:%M}{warn}"
     )
     await _edit(chat_id, message_id, text, [[

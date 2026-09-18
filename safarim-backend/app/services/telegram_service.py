@@ -25,6 +25,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.timeutils import format_day_uz
 from app.models.enums import TelegramLinkPurpose
 from app.models.telegram import TelegramLinkToken
 from app.models.user import User
@@ -555,11 +556,6 @@ async def _get_valid_token(
 #   2. Post eskirmaydi: o'rin tugasa yoki safar bekor qilinsa, o'sha xabar
 #      tahrirlanadi (yangi xabar yuborilmaydi).
 
-_MONTHS_UZ = (
-    "yanvar", "fevral", "mart", "aprel", "may", "iyun",
-    "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
-)
-
 # Faol bo'lmagan safar posti shu yorliq bilan boshlanadi
 _TRIP_LABELS = {
     "full": "✅ O'rinlar tugadi",
@@ -604,8 +600,7 @@ def _trip_text(trip) -> str:
 
     car = " ".join(x for x in (getattr(dp, "vehicle_make", None), getattr(dp, "vehicle_model", None)) if x)
 
-    d = trip.departure_date
-    when = f"{d.day}-{_MONTHS_UZ[d.month - 1]}, {trip.departure_time:%H:%M}"
+    when = f"{format_day_uz(trip.departure_date)}, {trip.departure_time:%H:%M}"
 
     seats = trip.available_seats
     seats_text = f"{seats} ta o'rin bor" if seats > 0 else "o'rin qolmadi"

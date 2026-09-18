@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.core.timeutils import now_tashkent_naive
 from app.models.enums import LuggageSize, PaymentType, TripStatus
 from app.models.location import District, Region
 from app.models.trip import Trip
@@ -228,3 +229,42 @@ async def test_guruh_sozlanmagan_bolsa_jim_turadi(db, driver_user, monkeypatch):
     telegram_service.queue_trip_post(trip.id)     # navbatga ham qo'yilmasin
     telegram_service.queue_trip_sync(trip.id)
     assert calls == []
+
+
+# ─── Sana yorlig'i ───────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_ertangi_safar_ertaga_deb_yoziladi(db, driver_user, sent):
+    await _locations(db)
+    trip = await _trip(db, driver_user)          # TOMORROW
+
+    text = telegram_service._trip_text(trip)
+
+    assert "Ertaga" in text
+    # Nisbiy yorliq bilan birga aniq sana ham qoladi: post guruhda abadiy
+    # turadi va yarim tun o'tganda o'z-o'zidan yangilanmaydi
+    assert f"{TOMORROW.day}-" in text
+
+
+@pytest.mark.asyncio
+async def test_bugungi_safar_bugun_deb_yoziladi(db, driver_user, sent):
+    await _locations(db)
+    trip = await _trip(db, driver_user)
+    trip.departure_date = now_tashkent_naive().date()
+
+    text = telegram_service._trip_text(trip)
+
+    assert "Bugun" in text
+    assert "Ertaga" not in text
+
+
+@pytest.mark.asyncio
+async def test_uzoq_sanada_nisbiy_yorliq_yoq(db, driver_user, sent):
+    await _locations(db)
+    trip = await _trip(db, driver_user)
+    trip.departure_date = now_tashkent_naive().date() + timedelta(days=5)
+
+    text = telegram_service._trip_text(trip)
+
+    assert "Bugun" not in text and "Ertaga" not in text
+    assert f"{trip.departure_date.day}-" in text
