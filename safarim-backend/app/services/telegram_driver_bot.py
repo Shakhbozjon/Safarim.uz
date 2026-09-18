@@ -7,9 +7,15 @@ yerdagi ishqalanish haydovchini bir hafta ichida yo'qotadi. Shuning uchun
 avval kundalik harakat botga ko'chiriladi.
 
 **Oqim ataylab sehrgar emas.** Haydovchining «doimiy yo'nalishi»
-(`route_service`) shablon bo'lib turadi — yo'nalish, narx, o'rin soni va
-afzalliklar o'sha yerdan olinadi. Botdan faqat *qachon*, *soat nechada* va
-*qaytish ham kerakmi* so'raladi. Ko'p holatda uch bosish.
+(`route_service`) shablon bo'lib turadi — yo'nalish, o'rin soni va afzalliklar
+o'sha yerdan olinadi. Botdan so'raladigani:
+
+    qachon → soat → narx → qaytish ham kerakmi → tasdiq
+
+Narx alohida so'raladi, chunki u kundan-kunga o'zgaradi; shablon narxi
+tugmalar uchun boshlang'ich qiymat bo'lib xizmat qiladi. Oxirgi ekranda
+hammasi qayta ko'rsatiladi — e'lon qilingach uni faqat bekor qilish mumkin,
+bekor qilish esa yo'lovchiga noqulaylik.
 
 **Holat saqlanmaydi.** Har bosishning natijasi `callback_data` ichida keyingi
 tugmaga o'tadi (Telegram chegarasi 64 bayt, bizda eng uzuni ~45). Shuning
@@ -23,6 +29,7 @@ Bot faqat so'rov yig'adi va xatoni odam tushunadigan qilib ko'rsatadi.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, timedelta
 
 from fastapi import HTTPException
@@ -70,16 +77,27 @@ async def _send(chat_id, text: str, keyboard: dict | None = None) -> None:
 
 
 async def _edit(chat_id, message_id, text: str, buttons: list | None = None) -> None:
-    payload: dict = {
+    """Oqim bitta xabar ichida boradi — chat qadamlar bilan to'lib ketmasin.
+
+    `message_id` bo'lmasa (masalan haydovchi narxni yozib yuborgan, ya'ni
+    tahrirlanadigan xabar yo'q) — yangi xabar yuboriladi.
+    """
+    # Bo'sh ro'yxat ham yuboriladi: oqim tugagach tugmalar olib tashlansin,
+    # aks holda haydovchi o'sha tugmani yana bosaveradi.
+    markup = {"inline_keyboard": buttons or []}
+    if not message_id:
+        await tg._call("sendMessage", {
+            "chat_id": str(chat_id), "text": text,
+            "parse_mode": "HTML", "reply_markup": markup,
+        })
+        return
+    await tg._call("editMessageText", {
         "chat_id": str(chat_id),
         "message_id": message_id,
         "text": text,
         "parse_mode": "HTML",
-    }
-    # Bo'sh ro'yxat ham yuboriladi: oqim tugagach tugmalar olib tashlansin,
-    # aks holda haydovchi o'sha tugmani yana bosaveradi.
-    payload["reply_markup"] = {"inline_keyboard": buttons or []}
-    await tg._call("editMessageText", payload)
+        "reply_markup": markup,
+    })
 
 
 # ─── Kim kirishi mumkin ──────────────────────────────────────────────────────
@@ -184,40 +202,130 @@ async def _ask_time(db: AsyncSession, user: User, chat_id, message_id, day: int)
     buttons: list[dict] = []
     if usual and route.departure_time.minute != 0:
         # Odatdagi vaqti butun soat emas — uni alohida birinchi qilib qo'yamiz
-        buttons.append({"text": f"{usual} ✓", "callback_data": f"{PB}r:{day}:{usual.replace(':', '')}"})
+        buttons.append({"text": f"{usual} ✓", "callback_data": f"{PB}p:{day}:{usual.replace(':', '')}"})
     for h in _HOURS:
         label = f"{h:02d}:00"
         if usual == label:
             label += " ✓"
-        buttons.append({"text": label, "callback_data": f"{PB}r:{day}:{h:02d}00"})
+        buttons.append({"text": label, "callback_data": f"{PB}p:{day}:{h:02d}00"})
 
     text = f"📅 {tg._esc(_day_label(day))}\n\nSoat nechada jo'naysiz?"
     await _edit(chat_id, message_id, text, _rows(buttons, 4))
 
 
-# ─── 3-qadam: qaytish ────────────────────────────────────────────────────────
+# ─── 3-qadam: narx ───────────────────────────────────────────────────────────
+# Narx kundan-kunga o'zgaradi (talab, yoqilg'i, bayram), shuning uchun shablon
+# narxi faqat BOSHLANG'ICH qiymat. Tayyor tugmalar terishdan tez va holat ham
+# talab qilmaydi; grid ichiga tushmaydigan summa uchun «Boshqa narx» bor.
+
+_PRICE_STEPS = (-20_000, -10_000, -5_000, 0, 5_000, 10_000, 20_000, 30_000)
+_MIN_PRICE = 1_000                  # `TripCreate.validate_price` bilan bir xil
+_PRICE_MARK = "#p"                  # javobdan kontekstni topish uchun belgi
+
+
+async def _ask_price(
+    db: AsyncSession, user: User, chat_id, message_id, day: int, hhmm: str
+) -> None:
+    from app.services import route_service
+
+    route = await route_service.get_route(db, user)
+    if route is None:
+        await _ask_day(db, user, chat_id, message_id)
+        return
+
+    base = route.price_per_seat
+    buttons: list[dict] = []
+    for step in _PRICE_STEPS:
+        value = base + step
+        if value < _MIN_PRICE:
+            continue
+        label = _money(value) + (" ✓" if step == 0 else "")
+        buttons.append({"text": label, "callback_data": f"{PB}r:{day}:{hhmm}:{value}"})
+
+    rows = _rows(buttons, 4)
+    rows.append([{"text": "✏️ Boshqa narx", "callback_data": f"{PB}other:{day}:{hhmm}"}])
+
+    text = f"📅 {tg._esc(_day_label(day))}, {_fmt(hhmm)}\n\nBitta o'rin qancha turadi?"
+    await _edit(chat_id, message_id, text, rows)
+
+
+async def _ask_price_text(chat_id, day: int, hhmm: str) -> None:
+    """Narxni qo'lda yozish. Kontekst shu xabarning OXIRIDA turadi.
+
+    Haydovchi javob berganda Telegram asl xabarni `reply_to_message` ichida
+    qaytaradi — kun va soatni o'sha yerdan o'qiymiz. Shu sababli bu yerda ham
+    sessiya jadvali kerak emas.
+    """
+    await tg._call("sendMessage", {
+        "chat_id": str(chat_id),
+        "text": (
+            "💰 Bitta o'rin narxini yozing\n\n"
+            f"{_day_label(day)}, {_fmt(hhmm)}\n"
+            "Faqat raqam, masalan: 155000\n\n"
+            f"{_PRICE_MARK}{day}-{hhmm}"
+        ),
+        "reply_markup": {"force_reply": True, "input_field_placeholder": "155000"},
+    })
+
+
+# ─── 4-qadam: qaytish ────────────────────────────────────────────────────────
 
 async def _ask_return(
-    db: AsyncSession, user: User, chat_id, message_id, day: int, hhmm: str
+    db: AsyncSession, user: User, chat_id, message_id,
+    day: int, hhmm: str, price: int,
 ) -> None:
     from app.services import route_service
 
     route = await route_service.get_route(db, user)
     # Shablonda qaytish vaqti yo'q bo'lsa savol ham bermaymiz — ortiqcha bosish
     if route is None or route.return_time is None:
-        await _publish(db, user, chat_id, message_id, day, hhmm, want_return=False)
+        await _confirm(db, user, chat_id, message_id, day, hhmm, price, want_return=False)
         return
 
     ret = route.return_time.strftime("%H:%M")
     text = (
-        f"📅 {tg._esc(_day_label(day))}, {_fmt(hhmm)}\n\n"
+        f"📅 {tg._esc(_day_label(day))}, {_fmt(hhmm)} · {_money(price)} so'm\n\n"
         f"Qaytish safarini ham e'lon qilaymizmi?"
     )
     buttons = [[
-        {"text": f"Ha, {ret} da", "callback_data": f"{PB}go:{day}:{hhmm}:1"},
-        {"text": "Yo'q", "callback_data": f"{PB}go:{day}:{hhmm}:0"},
+        {"text": f"Ha, {ret} da", "callback_data": f"{PB}c:{day}:{hhmm}:{price}:1"},
+        {"text": "Yo'q", "callback_data": f"{PB}c:{day}:{hhmm}:{price}:0"},
     ]]
     await _edit(chat_id, message_id, text, buttons)
+
+
+# ─── 5-qadam: tasdiq ─────────────────────────────────────────────────────────
+# E'lon qilingach uni faqat bekor qilish mumkin (va bekor qilish yo'lovchiga
+# noqulaylik) — shuning uchun oxirida hamma narsa bir ekranda ko'rsatiladi.
+
+async def _confirm(
+    db: AsyncSession, user: User, chat_id, message_id,
+    day: int, hhmm: str, price: int, want_return: bool,
+) -> None:
+    from app.services import route_service
+
+    route = await route_service.get_route(db, user)
+    if route is None:
+        await _ask_day(db, user, chat_id, message_id)
+        return
+
+    lines = [
+        "Tekshiring:",
+        "",
+        f"🚗 <b>{tg._esc(_route_line(route))}</b>",
+        f"📅 {tg._esc(_day_label(day))}, {_fmt(hhmm)}",
+        f"💰 {_money(price)} so'm · {route.total_seats} o'rin",
+    ]
+    if want_return and route.return_time:
+        lines.append(f"🔄 Qaytish: {route.return_time:%H:%M}")
+    lines += ["", "Hammasi to'g'rimi?"]
+
+    buttons = [[
+        {"text": "✅ Ha, e'lon qil",
+         "callback_data": f"{PB}go:{day}:{hhmm}:{price}:{int(want_return)}"},
+        {"text": "❌ Bekor", "callback_data": f"{PB}cancel"},
+    ]]
+    await _edit(chat_id, message_id, "\n".join(lines), buttons)
 
 
 def _fmt(hhmm: str) -> str:
@@ -228,7 +336,7 @@ def _fmt(hhmm: str) -> str:
 
 async def _publish(
     db: AsyncSession, user: User, chat_id, message_id,
-    day: int, hhmm: str, want_return: bool, force: bool = False,
+    day: int, hhmm: str, price: int, want_return: bool, force: bool = False,
 ) -> None:
     from app.schemas.route import RoutePublishRequest
     from app.services import route_service
@@ -245,6 +353,7 @@ async def _publish(
         trips, warning = await route_service.publish(db, user, RoutePublishRequest(
             departure_date=dep_date,
             departure_time=_fmt(hhmm),
+            price_per_seat=price,
             include_return=bool(want_return and ret_time),
             return_time=ret_time if want_return else None,
             confirm_day_conflict=force,
@@ -255,7 +364,7 @@ async def _publish(
             # «Bu kunga mos kelmaydigan yo'nalish» — to'siq emas, tasdiq so'raladi
             await _edit(chat_id, message_id, f"⚠️ {tg._esc(detail)}", [[
                 {"text": "Ha, baribir e'lon qil",
-                 "callback_data": f"{PB}go:{day}:{hhmm}:{int(want_return)}:1"},
+                 "callback_data": f"{PB}go:{day}:{hhmm}:{price}:{int(want_return)}:1"},
                 {"text": "Bekor qilish", "callback_data": f"{PB}cancel"},
             ]])
             return
@@ -351,9 +460,42 @@ async def _do_cancel(db: AsyncSession, user: User, chat_id, message_id, trip_id:
 
 # ─── Kiruvchi hodisalar ──────────────────────────────────────────────────────
 
-async def handle_text(db: AsyncSession, chat_id, text: str) -> bool:
-    """Menyu tugmasi bosildimi? Ha bo'lsa — bajaradi va True qaytaradi."""
-    if text not in (MENU_PUBLISH, MENU_MY):
+def _price_context(replied_text: str) -> tuple[int, str] | None:
+    """Narx so'ralgan xabardan kun va soatni ajratadi (`#p1-0800`)."""
+    match = re.search(rf"{re.escape(_PRICE_MARK)}(\d+)-(\d{{4}})", replied_text or "")
+    if match is None:
+        return None
+    return int(match.group(1)), match.group(2)
+
+
+async def _accept_price(
+    db: AsyncSession, user: User, chat_id, typed: str, day: int, hhmm: str
+) -> None:
+    # "155 000", "155000 so'm" — hammasidan raqamni ajratib olamiz
+    digits = re.sub(r"\D", "", typed or "")
+    if not digits:
+        await _send(chat_id, "Narxni faqat raqam bilan yozing, masalan: 155000")
+        return
+
+    price = int(digits)
+    if price < _MIN_PRICE:
+        await _send(chat_id, f"Narx kamida {_money(_MIN_PRICE)} so'm bo'lishi kerak.")
+        return
+    # Nol ortiqcha bosilgan holat — tasdiq ekranida ham ko'rinadi, lekin bu
+    # yerda darrov to'xtatgan ma'qul
+    if price > 10_000_000:
+        await _send(chat_id, "Narx juda katta ko'rinyapti — qaytadan yozing.")
+        return
+
+    await _ask_return(db, user, chat_id, None, day, hhmm, price)
+
+
+async def handle_text(db: AsyncSession, chat_id, text: str, message: dict | None = None) -> bool:
+    """Menyu tugmasi yoki narx javobimi? Ha bo'lsa — bajaradi va True qaytaradi."""
+    replied = ((message or {}).get("reply_to_message") or {}).get("text") or ""
+    price_ctx = _price_context(replied)
+
+    if price_ctx is None and text not in (MENU_PUBLISH, MENU_MY):
         return False
 
     user = await user_for_chat(db, chat_id)
@@ -364,7 +506,9 @@ async def handle_text(db: AsyncSession, chat_id, text: str) -> bool:
         ))
         return True
 
-    if text == MENU_PUBLISH:
+    if price_ctx is not None:
+        await _accept_price(db, user, chat_id, text, *price_ctx)
+    elif text == MENU_PUBLISH:
         await _ask_day(db, user, chat_id)
     else:
         await _my_trips(db, user, chat_id)
@@ -392,14 +536,27 @@ async def handle_callback(db: AsyncSession, cq: dict, data: str) -> None:
             await _edit(chat_id, message_id, "Bekor qilindi.")
         elif parts[1] == "t":                       # pb:t:<day>
             await _ask_time(db, user, chat_id, message_id, int(parts[2]))
-        elif parts[1] == "r":                       # pb:r:<day>:<hhmm>
-            await _ask_return(db, user, chat_id, message_id, int(parts[2]), parts[3])
-        elif parts[1] == "go":                      # pb:go:<day>:<hhmm>:<ret>[:1]
+        elif parts[1] == "p":                       # pb:p:<day>:<hhmm>
+            await _ask_price(db, user, chat_id, message_id, int(parts[2]), parts[3])
+        elif parts[1] == "other":                   # pb:other:<day>:<hhmm>
+            await _ask_price_text(chat_id, int(parts[2]), parts[3])
+        elif parts[1] == "r":                       # pb:r:<day>:<hhmm>:<price>
+            await _ask_return(
+                db, user, chat_id, message_id,
+                int(parts[2]), parts[3], int(parts[4]),
+            )
+        elif parts[1] == "c":                       # pb:c:<day>:<hhmm>:<price>:<ret>
+            await _confirm(
+                db, user, chat_id, message_id,
+                day=int(parts[2]), hhmm=parts[3], price=int(parts[4]),
+                want_return=parts[5] == "1",
+            )
+        elif parts[1] == "go":                      # pb:go:<day>:<hhmm>:<price>:<ret>[:1]
             await _publish(
                 db, user, chat_id, message_id,
-                day=int(parts[2]), hhmm=parts[3],
-                want_return=parts[4] == "1",
-                force=len(parts) > 5 and parts[5] == "1",
+                day=int(parts[2]), hhmm=parts[3], price=int(parts[4]),
+                want_return=parts[5] == "1",
+                force=len(parts) > 6 and parts[6] == "1",
             )
         elif data == f"{MT}list":
             await _my_trips(db, user, chat_id, message_id)

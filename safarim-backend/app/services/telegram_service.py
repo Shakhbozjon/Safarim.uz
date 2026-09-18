@@ -263,7 +263,7 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
     # 1.5) Menyu tugmasi bosildi (safar e'lon qilish / safarlarim)
     if text:
         from app.services import telegram_driver_bot
-        if await telegram_driver_bot.handle_text(db, chat_id, text):
+        if await telegram_driver_bot.handle_text(db, chat_id, text, message):
             return
 
     # 2) Kontakt ulashildi
