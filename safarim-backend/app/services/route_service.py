@@ -203,8 +203,12 @@ def _waypoints_for_trip(route: DriverRoute) -> list[WaypointCreate] | None:
     ]
 
 
-def _default_return_date(dep_date: date, dep_time: time, ret_time: time) -> date:
-    """Qaytish vaqti borish vaqtidan kichik bo'lsa — ertasi kuni (17:00 → 06:00)."""
+def default_return_date(dep_date: date, dep_time: time, ret_time: time) -> date:
+    """Qaytish vaqti borish vaqtidan kichik bo'lsa — ertasi kuni (17:00 → 06:00).
+
+    Telegram bot ham shu qoidani ishlatadi (tasdiq ekranida qaytish sanasini
+    ko'rsatish uchun) — qoida ikki joyda takrorlanmasin.
+    """
     return dep_date + timedelta(days=1) if ret_time <= dep_time else dep_date
 
 
@@ -257,7 +261,7 @@ async def publish(
         raise HTTPException(status_code=400, detail="Qaytish vaqtini kiriting")
     ret_time = time.fromisoformat(data.return_time)
 
-    ret_date = data.return_date or _default_return_date(data.departure_date, dep_time, ret_time)
+    ret_date = data.return_date or default_return_date(data.departure_date, dep_time, ret_time)
 
     # Borish safari allaqachon yaratilgan — qaytish rad etilsa butun amalni
     # xatoga chiqarmaymiz, sababini ogohlantirish sifatida qaytaramiz.

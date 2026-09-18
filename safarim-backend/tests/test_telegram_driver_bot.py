@@ -200,7 +200,7 @@ async def test_qolda_yozilgan_narx_qabul_qilinadi(db, driver_user, sent):
     # Shablonda qaytish vaqti yo'q → to'g'ridan-to'g'ri tasdiq ekraniga
     assert "155 000" in _texts(sent)
     btns = _buttons(sent)
-    assert btns[0]["callback_data"] == "pb:go:1:0800:155000:0", btns
+    assert btns[0]["callback_data"] == "pb:go:1:0800:155000:0:_", btns
 
 
 @pytest.mark.asyncio
@@ -240,7 +240,7 @@ async def test_qaytish_vaqti_yoq_bolsa_togri_tasdiqqa_otadi(db, driver_user, sen
 
     assert "Tekshiring" in _texts(sent)
     btns = _buttons(sent)
-    assert btns[0]["callback_data"] == f"pb:go:1:0800:{PRICE}:0"
+    assert btns[0]["callback_data"] == f"pb:go:1:0800:{PRICE}:0:_"
     assert await _open_trips(db, user) == [], "tasdiqsiz e'lon qilinmasin"
 
 
@@ -252,7 +252,7 @@ async def test_qaytish_vaqti_bor_bolsa_soraydi(db, driver_user, sent):
 
     btns = _buttons(sent)
     assert [b["callback_data"] for b in btns] == [
-        f"pb:c:1:0800:{PRICE}:1", f"pb:c:1:0800:{PRICE}:0",
+        f"pb:c:1:0800:{PRICE}:1:_", f"pb:c:1:0800:{PRICE}:0:_",
     ]
     assert "16:00" in btns[0]["text"]
 
@@ -268,9 +268,8 @@ async def test_tasdiq_ekranida_hammasi_korinadi(db, driver_user, sent):
     assert "Ertaga" in text and "08:00" in text
     assert "155 000" in text
     assert "16:00" in text          # qaytish
-    btns = _buttons(sent)
-    assert btns[0]["callback_data"] == "pb:go:1:0800:155000:1"
-    assert btns[1]["callback_data"] == "pb:cancel"
+    codes = [b["callback_data"] for b in _buttons(sent)]
+    assert codes == ["pb:qp:1:0800:155000", "pb:go:1:0800:155000:1:_", "pb:cancel"]
 
 
 @pytest.mark.asyncio
@@ -489,3 +488,92 @@ async def test_boshlash_xatosi_korinadi(db, driver_user, sent):
     assert "yo'lovchi yo'q" in _texts(sent).lower()
     await db.refresh(trip)
     assert trip.status == TripStatus.active
+
+
+# ─── Qaytish narxi ───────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_tasdiqda_qaytish_safari_toliq_korinadi(db, driver_user, sent):
+    """Qaytish yo'nalishi, SANASI va narxi ham ko'rsatilsin — u ham e'lon qilinadi."""
+    await _setup(db, driver_user, return_time=time(16, 0))
+
+    await telegram_service.handle_update(db, _cq("pb:c:1:0800:155000:1:_"))
+
+    text = _texts(sent)
+    assert "Qaytish safari" in text
+    assert "Toshkent shahri → Buvayda" in text, "teskari yo'nalish ko'rsatilsin"
+    assert text.count("155 000") == 2, "qaytish narxi ham yozilsin"
+
+
+@pytest.mark.asyncio
+async def test_qaytish_ertaga_tushsa_sanasi_korinadi(db, driver_user, sent):
+    """Qaytish vaqti borishdan kichik → ertangi kun. Haydovchi buni bilsin."""
+    await _setup(db, driver_user, return_time=time(6, 0))
+
+    await telegram_service.handle_update(db, _cq("pb:c:0:1800:150000:1:_"))
+
+    text = _texts(sent)
+    # Borish bugun, qaytish esa ertaga
+    assert "Bugun" in text and "Ertaga" in text
+
+
+@pytest.mark.asyncio
+async def test_qaytish_narxini_ozgartirish_mumkin(db, driver_user, sent):
+    await _setup(db, driver_user, return_time=time(16, 0))
+
+    await telegram_service.handle_update(db, _cq("pb:qp:1:0800:150000"))
+    btns = _buttons(sent)
+    marked = [b for b in btns if "✓" in b["text"]]
+    assert marked[0]["callback_data"] == "pb:c:1:0800:150000:1:150000"
+    assert any(b["callback_data"] == "pb:qo:1:0800:150000" for b in btns)
+
+    sent.clear()
+    await telegram_service.handle_update(db, _cq("pb:c:1:0800:150000:1:130000"))
+
+    text = _texts(sent)
+    assert "150 000" in text and "130 000" in text
+    codes = [b["callback_data"] for b in _buttons(sent)]
+    assert "pb:go:1:0800:150000:1:130000" in codes
+
+
+@pytest.mark.asyncio
+async def test_qolda_yozilgan_qaytish_narxi(db, driver_user, sent):
+    await _setup(db, driver_user, return_time=time(16, 0))
+
+    await telegram_service.handle_update(db, _cq("pb:qo:1:0800:150000"))
+    prompt = sent[-1]
+    assert prompt["reply_markup"]["force_reply"] is True
+    sent.clear()
+
+    await telegram_service.handle_update(db, _msg("135 000", reply_to=prompt["text"]))
+
+    assert "135 000" in _texts(sent)
+    codes = [b["callback_data"] for b in _buttons(sent)]
+    assert "pb:go:1:0800:150000:1:135000" in codes
+
+
+@pytest.mark.asyncio
+async def test_qaytish_narxi_safarga_yetib_boradi(db, driver_user, sent):
+    """Tanlangan qaytish narxi haqiqatan qaytish safariga yoziladi."""
+    user, _ = driver_user
+    await _setup(db, driver_user, return_time=time(16, 0))
+
+    await telegram_service.handle_update(db, _cq("pb:go:1:0800:150000:1:130000"))
+
+    trips = await _open_trips(db, user)
+    assert len(trips) == 2
+    forward = next(t for t in trips if t.from_region_id == FARGONA)
+    backward = next(t for t in trips if t.from_region_id == TOSHKENT)
+    assert forward.price_per_seat == 150000
+    assert backward.price_per_seat == 130000
+
+
+@pytest.mark.asyncio
+async def test_qaytish_narxi_berilmasa_borish_narxi_qolladi(db, driver_user, sent):
+    user, _ = driver_user
+    await _setup(db, driver_user, return_time=time(16, 0))
+
+    await telegram_service.handle_update(db, _cq("pb:go:1:0800:150000:1:_"))
+
+    trips = await _open_trips(db, user)
+    assert {t.price_per_seat for t in trips} == {150000}
