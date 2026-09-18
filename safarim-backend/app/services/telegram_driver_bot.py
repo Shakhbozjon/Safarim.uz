@@ -1,4 +1,4 @@
-"""Telegram bot — haydovchi safarni shu yerdan e'lon qiladi va bekor qiladi.
+"""Telegram bot — haydovchi safarni shu yerdan e'lon qiladi, boshlaydi va bekor qiladi.
 
 **Nega kerak:** dala sinovida ko'p haydovchi saytdan ro'yxatdan o'tish va safar
 e'lon qilishni uddalay olmadi. Ro'yxatdan o'tish — bir martalik to'siq, unga
@@ -33,7 +33,7 @@ import re
 from datetime import date, timedelta
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.timeutils import format_day_uz, now_tashkent_naive
@@ -403,23 +403,117 @@ async def _my_trips(db: AsyncSession, user: User, chat_id, message_id=None) -> N
         text = "Hozircha ochiq safaringiz yo'q."
         buttons = [[{"text": MENU_PUBLISH, "callback_data": f"{PB}day"}]]
     else:
-        text = "📋 <b>Ochiq safarlaringiz</b>\n\nBekor qilish uchun tugmani bosing:"
+        text = "📋 <b>Ochiq safarlaringiz</b>\n\nBoshqarish uchun tugmani bosing:"
         buttons = [[{
-            "text": (f"{format_day_uz(t.departure_date)} "
+            "text": (("🚗 " if t.status == TripStatus.started else "")
+                     + f"{format_day_uz(t.departure_date)} "
                      f"{t.departure_time:%H:%M} · "
                      f"{_place(t.from_region, t.from_district)} → "
                      f"{_place(t.to_region, t.to_district)}"),
-            "callback_data": f"{MT}x:{t.id}",
+            "callback_data": f"{MT}v:{t.id}",
         }] for t in trips[:8]]
 
-    if message_id:
-        await _edit(chat_id, message_id, text, buttons)
-    else:
-        await tg._call("sendMessage", {
-            "chat_id": str(chat_id), "text": text, "parse_mode": "HTML",
-            "reply_markup": {"inline_keyboard": buttons},
-        })
+    await _edit(chat_id, message_id, text, buttons)
 
+
+async def _confirmed_seats(db: AsyncSession, trip_id) -> int:
+    """Tasdiqlangan yo'lovchilar soni — «boshlash» aynan shunga bog'liq."""
+    from app.models.booking import Booking
+    from app.models.enums import BookingStatus
+
+    return await db.scalar(
+        select(func.count()).select_from(Booking).where(
+            Booking.trip_id == trip_id,
+            Booking.status == BookingStatus.confirmed,
+        )
+    ) or 0
+
+
+async def _trip_card(db: AsyncSession, chat_id, message_id, trip_id: str) -> None:
+    """Bitta safar: holati va mumkin bo'lgan amallar."""
+    from app.services import trip_service
+
+    try:
+        trip = await trip_service.get_trip(db, trip_id)
+    except HTTPException:
+        await _edit(chat_id, message_id, "Safar topilmadi.")
+        return
+
+    booked = trip.total_seats - trip.available_seats
+    confirmed = await _confirmed_seats(db, trip.id)
+
+    lines = [
+        f"🚗 <b>{tg._esc(_place(trip.from_region, trip.from_district))} → "
+        f"{tg._esc(_place(trip.to_region, trip.to_district))}</b>",
+        f"📅 {tg._esc(format_day_uz(trip.departure_date))}, {trip.departure_time:%H:%M}",
+        f"💰 {_money(trip.price_per_seat)} so'm · {trip.available_seats} bo'sh o'rin",
+    ]
+    if booked:
+        lines.append(f"👥 {booked} ta yo'lovchi")
+
+    buttons: list[list[dict]] = []
+
+    if trip.status == TripStatus.started:
+        lines.append("\n🚗 <b>Yo'ldasiz</b> — safar boshlangan.")
+    else:
+        if confirmed:
+            buttons.append([{"text": "▶️ Safarni boshlash",
+                             "callback_data": f"{MT}s:{trip.id}"}])
+        else:
+            lines.append("\nYo'lovchi bo'lmagani uchun safarni boshlab bo'lmaydi.")
+        buttons.append([{"text": "❌ Safarni bekor qilish",
+                         "callback_data": f"{MT}x:{trip.id}"}])
+
+    buttons.append([{"text": "← Orqaga", "callback_data": f"{MT}list"}])
+    await _edit(chat_id, message_id, "\n".join(lines), buttons)
+
+
+# ─── Safarni boshlash ────────────────────────────────────────────────────────
+
+async def _ask_start(db: AsyncSession, chat_id, message_id, trip_id: str) -> None:
+    from app.services import trip_service
+
+    try:
+        trip = await trip_service.get_trip(db, trip_id)
+    except HTTPException:
+        await _edit(chat_id, message_id, "Safar topilmadi.")
+        return
+
+    # Saytdagi tasdiq oynasi bilan bir xil ogohlantirish — haydovchi ikki
+    # joyda ikki xil gap eshitmasin
+    text = (
+        f"Safarni boshlaysizmi?\n\n"
+        f"🚗 {tg._esc(_place(trip.from_region, trip.from_district))} → "
+        f"{tg._esc(_place(trip.to_region, trip.to_district))}\n"
+        f"📅 {tg._esc(format_day_uz(trip.departure_date))}, "
+        f"{trip.departure_time:%H:%M}\n\n"
+        "Safar <b>qidiruvdan olib tashlanadi</b> — yangi buyurtma qabul "
+        "qilinmaydi (o'rin bo'sh bo'lsa ham). Tasdiqlangan yo'lovchilar qoladi, "
+        "tasdiqlanmagan buyurtmalar bekor qilinadi."
+    )
+    await _edit(chat_id, message_id, text, [[
+        {"text": "Ha, boshlash", "callback_data": f"{MT}ss:{trip.id}"},
+        {"text": "Yo'q", "callback_data": f"{MT}v:{trip.id}"},
+    ]])
+
+
+async def _do_start(db: AsyncSession, user: User, chat_id, message_id, trip_id: str) -> None:
+    from app.services import trip_service
+
+    try:
+        await trip_service.start_trip(db, trip_id, user)
+    except HTTPException as err:
+        await _edit(chat_id, message_id, f"❌ {tg._esc(str(err.detail))}", [[
+            {"text": "← Orqaga", "callback_data": f"{MT}list"},
+        ]])
+        return
+    await _edit(chat_id, message_id, (
+        "✅ Safar boshlandi — yaxshi yo'l!\n\n"
+        "Safar tugagach «bo'ldimi?» degan savol shu yerga keladi."
+    ))
+
+
+# ─── Bekor qilish ────────────────────────────────────────────────────────────
 
 async def _ask_cancel(db: AsyncSession, user: User, chat_id, message_id, trip_id: str) -> None:
     from app.services import trip_service
@@ -443,7 +537,7 @@ async def _ask_cancel(db: AsyncSession, user: User, chat_id, message_id, trip_id
     )
     await _edit(chat_id, message_id, text, [[
         {"text": "Ha, bekor qil", "callback_data": f"{MT}xx:{trip.id}"},
-        {"text": "Yo'q", "callback_data": f"{MT}list"},
+        {"text": "Yo'q", "callback_data": f"{MT}v:{trip.id}"},
     ]])
 
 
@@ -453,7 +547,9 @@ async def _do_cancel(db: AsyncSession, user: User, chat_id, message_id, trip_id:
     try:
         await trip_service.cancel_trip(db, trip_id, user, "Haydovchi bekor qildi")
     except HTTPException as err:
-        await _edit(chat_id, message_id, f"❌ {tg._esc(str(err.detail))}")
+        await _edit(chat_id, message_id, f"❌ {tg._esc(str(err.detail))}", [[
+            {"text": "← Orqaga", "callback_data": f"{MT}list"},
+        ]])
         return
     await _edit(chat_id, message_id, "✅ Safar bekor qilindi.")
 
@@ -560,6 +656,12 @@ async def handle_callback(db: AsyncSession, cq: dict, data: str) -> None:
             )
         elif data == f"{MT}list":
             await _my_trips(db, user, chat_id, message_id)
+        elif parts[1] == "v":                       # mt:v:<trip_id>
+            await _trip_card(db, chat_id, message_id, parts[2])
+        elif parts[1] == "s":                       # mt:s:<trip_id>
+            await _ask_start(db, chat_id, message_id, parts[2])
+        elif parts[1] == "ss":                      # mt:ss:<trip_id>
+            await _do_start(db, user, chat_id, message_id, parts[2])
         elif parts[1] == "x":                       # mt:x:<trip_id>
             await _ask_cancel(db, user, chat_id, message_id, parts[2])
         elif parts[1] == "xx":                      # mt:xx:<trip_id>

@@ -338,7 +338,7 @@ async def test_safarlarim_royxati(db, driver_user, sent):
 
     btns = _buttons(sent)
     assert len(btns) == 1
-    assert btns[0]["callback_data"].startswith("mt:x:")
+    assert btns[0]["callback_data"].startswith("mt:v:")
     assert "Buvayda" in btns[0]["text"]
 
 
@@ -352,7 +352,7 @@ async def test_bekor_qilish_tasdiq_soraydi_va_bajaradi(db, driver_user, sent):
 
     await telegram_service.handle_update(db, _cq(f"mt:x:{trip.id}"))
     btns = _buttons(sent)
-    assert [b["callback_data"] for b in btns] == [f"mt:xx:{trip.id}", "mt:list"]
+    assert [b["callback_data"] for b in btns] == [f"mt:xx:{trip.id}", f"mt:v:{trip.id}"]
 
     sent.clear()
     await telegram_service.handle_update(db, _cq(f"mt:xx:{trip.id}"))
@@ -377,8 +377,113 @@ async def test_callback_data_64_baytdan_oshmaydi(db, driver_user, sent):
 
     for update in (_msg(bot.MENU_PUBLISH), _cq("pb:t:1"), _cq("pb:p:1:0800"),
                    _cq(f"pb:r:1:0800:{PRICE}"), _cq(f"pb:c:1:0800:{PRICE}:1"),
-                   _msg(bot.MENU_MY), _cq(f"mt:x:{trip.id}")):
+                   _msg(bot.MENU_MY), _cq(f"mt:v:{trip.id}"),
+                   _cq(f"mt:x:{trip.id}"), _cq(f"mt:s:{trip.id}")):
         sent.clear()
         await telegram_service.handle_update(db, update)
         for b in _buttons(sent):
             assert len(b["callback_data"].encode()) <= 64, b["callback_data"]
+
+
+# ─── Safarni boshlash ────────────────────────────────────────────────────────
+
+async def _book_one(db, passenger, trip) -> None:
+    """Bitta tasdiqlangan yo'lovchi — «boshlash» aynan shunga bog'liq."""
+    from app.schemas.booking import BookingCreate
+    from app.models.enums import PaymentMethod
+    from app.services import booking_service
+
+    await booking_service.create_booking(db, passenger, BookingCreate(
+        trip_id=trip.id, seats_count=1,
+        payment_method=PaymentMethod.cash, pickup_address="Buvayda markazi",
+    ))
+
+
+@pytest.mark.asyncio
+async def test_yolovchisiz_safarda_boshlash_tugmasi_yoq(db, driver_user, sent):
+    user, _ = driver_user
+    await _setup(db, driver_user)
+    await telegram_service.handle_update(db, _cq(f"pb:go:1:0800:{PRICE}:0"))
+    trip = (await _open_trips(db, user))[0]
+    sent.clear()
+
+    await telegram_service.handle_update(db, _cq(f"mt:v:{trip.id}"))
+
+    codes = [b["callback_data"] for b in _buttons(sent)]
+    assert f"mt:s:{trip.id}" not in codes
+    assert f"mt:x:{trip.id}" in codes
+    assert "boshlab bo'lmaydi" in _texts(sent)
+
+
+@pytest.mark.asyncio
+async def test_yolovchi_bor_safarda_boshlash_tugmasi_chiqadi(db, user, driver_user, sent):
+    driver, _ = driver_user
+    await _setup(db, driver_user)
+    await telegram_service.handle_update(db, _cq(f"pb:go:1:0800:{PRICE}:0"))
+    trip = (await _open_trips(db, driver))[0]
+    await _book_one(db, user, trip)
+    sent.clear()
+
+    await telegram_service.handle_update(db, _cq(f"mt:v:{trip.id}"))
+
+    text = _texts(sent)
+    assert "1 ta yo'lovchi" in text
+    codes = [b["callback_data"] for b in _buttons(sent)]
+    assert codes[0] == f"mt:s:{trip.id}"
+
+
+@pytest.mark.asyncio
+async def test_boshlashdan_oldin_ogohlantiradi_va_bajaradi(db, user, driver_user, sent):
+    driver, _ = driver_user
+    await _setup(db, driver_user)
+    await telegram_service.handle_update(db, _cq(f"pb:go:1:0800:{PRICE}:0"))
+    trip = (await _open_trips(db, driver))[0]
+    await _book_one(db, user, trip)
+    sent.clear()
+
+    await telegram_service.handle_update(db, _cq(f"mt:s:{trip.id}"))
+    # Saytdagi tasdiq oynasi bilan bir xil ogohlantirish
+    assert "qidiruvdan olib tashlanadi" in _texts(sent)
+    codes = [b["callback_data"] for b in _buttons(sent)]
+    assert codes == [f"mt:ss:{trip.id}", f"mt:v:{trip.id}"]
+
+    sent.clear()
+    await telegram_service.handle_update(db, _cq(f"mt:ss:{trip.id}"))
+
+    assert "boshlandi" in _texts(sent).lower()
+    await db.refresh(trip)
+    assert trip.status == TripStatus.started
+
+
+@pytest.mark.asyncio
+async def test_boshlangan_safarda_amallar_yopiladi(db, user, driver_user, sent):
+    """Yo'lga chiqqan safarni bekor qilib ham, qayta boshlab ham bo'lmaydi."""
+    driver, _ = driver_user
+    await _setup(db, driver_user)
+    await telegram_service.handle_update(db, _cq(f"pb:go:1:0800:{PRICE}:0"))
+    trip = (await _open_trips(db, driver))[0]
+    await _book_one(db, user, trip)
+    await telegram_service.handle_update(db, _cq(f"mt:ss:{trip.id}"))
+    sent.clear()
+
+    await telegram_service.handle_update(db, _cq(f"mt:v:{trip.id}"))
+
+    assert "Yo'ldasiz" in _texts(sent)
+    codes = [b["callback_data"] for b in _buttons(sent)]
+    assert codes == ["mt:list"]
+
+
+@pytest.mark.asyncio
+async def test_boshlash_xatosi_korinadi(db, driver_user, sent):
+    """Yo'lovchisiz boshlashga urinilsa sabab ko'rsatiladi (tugma o'tkazib yuborilgan holat)."""
+    driver, _ = driver_user
+    await _setup(db, driver_user)
+    await telegram_service.handle_update(db, _cq(f"pb:go:1:0800:{PRICE}:0"))
+    trip = (await _open_trips(db, driver))[0]
+    sent.clear()
+
+    await telegram_service.handle_update(db, _cq(f"mt:ss:{trip.id}"))
+
+    assert "yo'lovchi yo'q" in _texts(sent).lower()
+    await db.refresh(trip)
+    assert trip.status == TripStatus.active
