@@ -113,6 +113,51 @@ async def upsert_from_trip(db: AsyncSession, user: User, trip: Trip) -> DriverRo
     return await _reload(db, route.id)
 
 
+async def set_route(
+    db: AsyncSession,
+    user: User,
+    *,
+    from_region_id: int,
+    to_region_id: int,
+    total_seats: int,
+    price_per_seat: int,
+    from_district_id: int | None = None,
+    to_district_id: int | None = None,
+    departure_time: time | None = None,
+    return_time: time | None = None,
+) -> DriverRoute:
+    """Yo'nalishni maydonlardan yaratadi yoki almashtiradi (Telegram bot uchun).
+
+    `upsert_from_trip` safardan nusxa oladi — botda esa safar yo'q, haydovchi
+    yo'nalishni noldan tanlaydi. Tekshiruv shu yerda: bot qoidalarni
+    takrorlamasin.
+    """
+    if from_region_id == to_region_id and from_district_id == to_district_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Qayerdan va qayerga bir xil bo'lishi mumkin emas",
+        )
+
+    route = await get_route(db, user)
+    if route is None:
+        route = DriverRoute(driver_id=user.id)
+        db.add(route)
+
+    route.from_region_id = from_region_id
+    route.from_district_id = from_district_id
+    route.to_region_id = to_region_id
+    route.to_district_id = to_district_id
+    route.departure_time = departure_time
+    route.return_time = return_time
+    route.total_seats = total_seats
+    route.price_per_seat = price_per_seat
+    # Yo'nalish almashsa oraliq to'xtashlar eskiradi
+    route.waypoints = None
+
+    await db.commit()
+    return await _reload(db, route.id)
+
+
 async def update_route(db: AsyncSession, user: User, data: DriverRouteUpdate) -> DriverRoute:
     route = await get_route(db, user)
     if not route:

@@ -128,13 +128,15 @@ async def test_start_haydovchiga_menyu_beradi(db, driver_user, sent):
 # ─── E'lon qilish oqimi ──────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_doimiy_yonalish_yoq_bolsa_yol_korsatadi(db, driver_user, sent):
+async def test_doimiy_yonalish_yoq_bolsa_belgilashni_taklif_qiladi(db, driver_user, sent):
+    """Ilgari bu yerda «saytga kiring» deb yozilardi — endi shu yerda belgilanadi."""
     await _setup(db, driver_user, with_route=False)
 
     await telegram_service.handle_update(db, _msg(bot.MENU_PUBLISH))
 
     assert "doimiy yo'nalish" in _texts(sent)
-    assert "uzsafar.uz" in _texts(sent)
+    assert "uzsafar.uz" not in _texts(sent)
+    assert [b["callback_data"] for b in _buttons(sent)] == ["rt:new"]
 
 
 @pytest.mark.asyncio

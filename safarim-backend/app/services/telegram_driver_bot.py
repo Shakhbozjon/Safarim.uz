@@ -49,9 +49,11 @@ logger = logging.getLogger(__name__)
 # ekran pastidagi tugmani ko'radi.
 MENU_PUBLISH = "🚗 Safar e'lon qilish"
 MENU_MY = "📋 Safarlarim"
+MENU_ROUTE = "📍 Yo'nalishim"
 
 PB = "pb:"   # e'lon qilish oqimi
 MT = "mt:"   # safarlarim
+RT = "rt:"   # doimiy yo'nalish (telegram_route_setup)
 
 # Kun tanlash — bugundan boshlab shuncha kun ko'rsatiladi
 _DAYS = 3
@@ -63,7 +65,7 @@ _HOURS = tuple(range(5, 22))
 
 def menu_keyboard() -> dict:
     return {
-        "keyboard": [[{"text": MENU_PUBLISH}], [{"text": MENU_MY}]],
+        "keyboard": [[{"text": MENU_PUBLISH}], [{"text": MENU_MY}, {"text": MENU_ROUTE}]],
         "resize_keyboard": True,
         "is_persistent": True,
     }
@@ -159,16 +161,11 @@ async def _ask_day(db: AsyncSession, user: User, chat_id, message_id=None) -> No
 
     route = await route_service.get_route(db, user)
     if route is None:
-        text = (
+        await _edit(chat_id, message_id, (
             "Sizda <b>doimiy yo'nalish</b> belgilanmagan.\n\n"
-            "Bir marta saytda safar e'lon qilib, «Bu mening doimiy yo'nalishim» "
-            "ni belgilang — shundan keyin bu yerdan uch bosishda e'lon qilasiz.\n\n"
-            "uzsafar.uz"
-        )
-        if message_id:
-            await _edit(chat_id, message_id, text)
-        else:
-            await _send(chat_id, text)
+            "Bir marta belgilab qo'ysangiz, keyin har kuni uch bosishda safar "
+            "e'lon qilasiz."
+        ), [[{"text": "Yo'nalishni belgilash", "callback_data": f"{RT}new"}]])
         return
 
     text = (
@@ -588,10 +585,14 @@ async def _accept_price(
 
 async def handle_text(db: AsyncSession, chat_id, text: str, message: dict | None = None) -> bool:
     """Menyu tugmasi yoki narx javobimi? Ha bo'lsa — bajaradi va True qaytaradi."""
-    replied = ((message or {}).get("reply_to_message") or {}).get("text") or ""
-    price_ctx = _price_context(replied)
+    from app.services import telegram_route_setup as rt
 
-    if price_ctx is None and text not in (MENU_PUBLISH, MENU_MY):
+    replied = ((message or {}).get("reply_to_message") or {}).get("text") or ""
+    price_ctx = _price_context(replied)          # e'lon qilishdagi narx
+    route_ctx = rt.price_context(replied)        # yo'nalish belgilashdagi narx
+
+    if (price_ctx is None and route_ctx is None
+            and text not in (MENU_PUBLISH, MENU_MY, MENU_ROUTE)):
         return False
 
     user = await user_for_chat(db, chat_id)
@@ -602,10 +603,14 @@ async def handle_text(db: AsyncSession, chat_id, text: str, message: dict | None
         ))
         return True
 
-    if price_ctx is not None:
+    if route_ctx is not None:
+        await rt.accept_price(db, chat_id, text, route_ctx)
+    elif price_ctx is not None:
         await _accept_price(db, user, chat_id, text, *price_ctx)
     elif text == MENU_PUBLISH:
         await _ask_day(db, user, chat_id)
+    elif text == MENU_ROUTE:
+        await rt.show_route(db, user, chat_id)
     else:
         await _my_trips(db, user, chat_id)
     return True
@@ -626,7 +631,10 @@ async def handle_callback(db: AsyncSession, cq: dict, data: str) -> None:
     parts = data.split(":")
 
     try:
-        if data == f"{PB}day":
+        if data.startswith(RT):
+            from app.services import telegram_route_setup
+            await telegram_route_setup.handle_callback(db, user, chat_id, message_id, data)
+        elif data == f"{PB}day":
             await _ask_day(db, user, chat_id, message_id)
         elif data == f"{PB}cancel":
             await _edit(chat_id, message_id, "Bekor qilindi.")

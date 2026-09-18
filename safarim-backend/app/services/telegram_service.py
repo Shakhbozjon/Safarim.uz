@@ -481,8 +481,8 @@ async def _handle_callback(db: AsyncSession, cq: dict) -> None:
     chat_id = (msg.get("chat") or {}).get("id")
     message_id = msg.get("message_id")
 
-    # Haydovchi boti (safar e'lon qilish, bekor qilish) — alohida modulda
-    if data.startswith(("pb:", "mt:")):
+    # Haydovchi boti (safar e'lon qilish, bekor qilish, yo'nalish) — alohida modulda
+    if data.startswith(("pb:", "mt:", "rt:")):
         from app.services import telegram_driver_bot
         await telegram_driver_bot.handle_callback(db, cq, data)
         return
