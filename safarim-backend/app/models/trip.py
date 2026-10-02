@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 import secrets
 from datetime import datetime, date, time
-from sqlalchemy import String, Boolean, Integer, Text, DateTime, Date, Time, Enum, ForeignKey
+from sqlalchemy import String, Boolean, Integer, Text, DateTime, Date, Time, Enum, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.db.base import Base
@@ -90,3 +90,28 @@ class TripWaypoint(Base):
     trip: Mapped[Trip] = relationship("Trip", back_populates="waypoints")
     region: Mapped[Region] = relationship("Region", foreign_keys=[region_id])
     district: Mapped[District | None] = relationship("District", foreign_keys=[district_id])
+
+
+class TripGroupPost(Base):
+    """Safar e'loni qaysi guruhda, qaysi xabar bo'lib turganini saqlaydi.
+
+    `trips.telegram_message_id` bitta guruh uchun yetardi. Bir nechta guruhga
+    tashlaganda har birida boshqa xabar ID si bo'ladi: safar to'lganda yoki
+    bekor qilinganda HAMMASI tahrirlanishi kerak, aks holda qolgan guruhlarda
+    "2 o'rin bor" deb turaveradi va odam bekorga qo'ng'iroq qiladi.
+    """
+    __tablename__ = "trip_group_posts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trip_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Guruh ID si manfiy va uzun ("-1001234567890") — matn sifatida saqlanadi,
+    # chunki Telegram uni kelajakda kengaytirishi mumkin.
+    chat_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    message_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("trip_id", "chat_id", name="uq_trip_group_post"),
+    )

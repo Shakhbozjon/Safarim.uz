@@ -50,12 +50,14 @@ def normalize_phone(raw: str) -> str:
     return "+" + digits
 
 
-async def _call(method: str, payload: dict) -> dict | None:
-    if not settings.TELEGRAM_BOT_TOKEN:
+async def _call(method: str, payload: dict, token: str | None = None) -> dict | None:
+    """`token` berilmasa asosiy bot ishlatiladi; lenta o'z tokeni bilan chaqiradi."""
+    token = token or settings.TELEGRAM_BOT_TOKEN
+    if not token:
         return None
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(API.format(token=settings.TELEGRAM_BOT_TOKEN, method=method), json=payload)
+            r = await client.post(API.format(token=token, method=method), json=payload)
             if r.status_code != 200:
                 logger.warning("Telegram %s xatosi: %s %s", method, r.status_code, r.text[:200])
                 return None
@@ -566,8 +568,23 @@ _TRIP_LABELS = {
 }
 
 
+def _feed_token() -> str:
+    """Lenta boti tokeni. Sozlanmagan bo'lsa asosiy bot (eski xatti-harakat)."""
+    return settings.TELEGRAM_FEED_BOT_TOKEN or settings.TELEGRAM_BOT_TOKEN
+
+
+def trips_chat_ids() -> list[str]:
+    """E'lon tashlanadigan guruhlar ro'yxati.
+
+    Yangi `TELEGRAM_TRIPS_CHAT_IDS` ustun turadi; bo'sh bo'lsa eski bitta
+    ID li sozlama ishlatiladi — shunda joriy o'rnatmalar o'zgarishsiz ishlaydi.
+    """
+    raw = settings.TELEGRAM_TRIPS_CHAT_IDS or settings.TELEGRAM_TRIPS_CHAT_ID
+    return [c.strip() for c in raw.split(",") if c.strip()]
+
+
 def trips_chat_configured() -> bool:
-    return bool(settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_TRIPS_CHAT_ID)
+    return bool(_feed_token() and trips_chat_ids())
 
 
 def _money(amount: int) -> str:
@@ -624,37 +641,62 @@ def _trip_text(trip) -> str:
     return "\n".join(lines)
 
 
-async def send_trip_post(trip) -> int | None:
-    """Guruhga yangi e'lon tashlaydi, xabar ID sini qaytaradi.
+async def send_trip_post(trip) -> list[tuple[str, int]]:
+    """Barcha sozlangan guruhlarga e'lon tashlaydi.
+
+    `[(chat_id, message_id), ...]` qaytaradi — keyin tahrirlash uchun har
+    guruhning xabar ID si alohida kerak.
 
     Ovozsiz yuboriladi: kuniga o'nlab e'lon chiqsa, har biri uchun telefon
     jiringlasa odam guruhni o'chiradi yoki chiqib ketadi.
+
+    Bitta guruhdagi xato qolganlarini to'xtatmaydi: bot bitta guruhdan
+    chiqarilgan bo'lsa ham boshqalariga e'lon ketaveradi.
     """
     if not trips_chat_configured():
-        return None
-    data = await _call("sendMessage", {
-        "chat_id": settings.TELEGRAM_TRIPS_CHAT_ID,
-        "text": _trip_text(trip),
-        "parse_mode": "HTML",
-        "disable_notification": True,
-        "link_preview_options": {"is_disabled": True},
-    })
-    if not data or not data.get("ok"):
-        return None
-    return (data.get("result") or {}).get("message_id")
+        return []
+    text = _trip_text(trip)
+    token = _feed_token()
+    posted: list[tuple[str, int]] = []
+    for chat_id in trips_chat_ids():
+        data = await _call("sendMessage", {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_notification": True,
+            "link_preview_options": {"is_disabled": True},
+        }, token=token)
+        if data and data.get("ok"):
+            message_id = (data.get("result") or {}).get("message_id")
+            if message_id:
+                posted.append((chat_id, int(message_id)))
+        else:
+            logger.warning("Lenta: %s guruhiga e'lon tashlanmadi", chat_id)
+    return posted
 
 
-async def edit_trip_post(trip) -> bool:
-    if not trips_chat_configured() or not trip.telegram_message_id:
-        return False
-    data = await _call("editMessageText", {
-        "chat_id": settings.TELEGRAM_TRIPS_CHAT_ID,
-        "message_id": trip.telegram_message_id,
-        "text": _trip_text(trip),
-        "parse_mode": "HTML",
-        "link_preview_options": {"is_disabled": True},
-    })
-    return bool(data and data.get("ok"))
+async def edit_trip_posts(posts) -> int:
+    """Guruhlardagi e'lonlarni joriy holatga moslaydi, nechtasi yangilanganini qaytaradi.
+
+    `posts` — `(chat_id, message_id)` juftliklari. Telegram bot faqat O'ZI
+    yuborgan xabarni tahrirlay oladi, shuning uchun lenta boti almashtirilsa
+    eski postlar yangilanmay qoladi — bu xato emas, shunchaki o'tkazib yuboriladi.
+    """
+    if not posts:
+        return 0
+    token = _feed_token()
+    done = 0
+    for chat_id, message_id, text in posts:
+        data = await _call("editMessageText", {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "link_preview_options": {"is_disabled": True},
+        }, token=token)
+        if data and data.get("ok"):
+            done += 1
+    return done
 
 
 # ─── Fon rejimi ──────────────────────────────────────────────────────────────
@@ -707,6 +749,7 @@ async def _load_trip(db: AsyncSession, trip_id):
 
 async def _post_trip_now(trip_id) -> None:
     from app.db.session import AsyncSessionLocal
+    from app.models.trip import TripGroupPost
 
     async with AsyncSessionLocal() as db:
         trip = await _load_trip(db, trip_id)
@@ -715,20 +758,41 @@ async def _post_trip_now(trip_id) -> None:
             return
         if getattr(trip.status, "value", "") != "active":
             return
-        message_id = await send_trip_post(trip)
-        if message_id:
-            trip.telegram_message_id = message_id
-            await db.commit()
+        posted = await send_trip_post(trip)
+        if not posted:
+            return
+        for chat_id, message_id in posted:
+            db.add(TripGroupPost(trip_id=trip.id, chat_id=chat_id, message_id=message_id))
+        # Eski ustun "umuman tashlanganmi" belgisi bo'lib qoladi — shu tufayli
+        # takror tashlash tekshiruvi va eski kod o'zgarishsiz ishlayveradi.
+        trip.telegram_message_id = posted[0][1]
+        await db.commit()
 
 
 async def _sync_trip_now(trip_id) -> None:
+    from sqlalchemy import select as _select
     from app.db.session import AsyncSessionLocal
+    from app.models.trip import TripGroupPost
 
     async with AsyncSessionLocal() as db:
         trip = await _load_trip(db, trip_id)
         if trip is None or not trip.telegram_message_id:
             return
-        await edit_trip_post(trip)
+        rows = (await db.execute(
+            _select(TripGroupPost).where(TripGroupPost.trip_id == trip.id)
+        )).scalars().all()
+
+        text = _trip_text(trip)
+        if rows:
+            posts = [(r.chat_id, r.message_id, text) for r in rows]
+        else:
+            # Yangi jadval to'ldirilmasdan oldin tashlangan e'lonlar: eski
+            # ustundagi ID va birinchi guruh bilan ishlaymiz.
+            ids = trips_chat_ids()
+            if not ids:
+                return
+            posts = [(ids[0], trip.telegram_message_id, text)]
+        await edit_trip_posts(posts)
 
 
 def queue_trip_post(trip_id) -> None:

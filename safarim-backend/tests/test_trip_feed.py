@@ -32,7 +32,7 @@ def sent(monkeypatch) -> list[dict]:
     calls: list[dict] = []
     counter = {"n": 0}
 
-    async def _fake_call(method: str, payload: dict):
+    async def _fake_call(method: str, payload: dict, token: str | None = None):
         calls.append({"method": method, **payload})
         counter["n"] += 1
         return {"ok": True, "result": {"message_id": 5000 + counter["n"]}}
@@ -146,9 +146,9 @@ async def test_yangi_elon_ovozsiz_yuboriladi(db, driver_user, sent):
     await _locations(db)
     trip = await _trip(db, driver_user)
 
-    message_id = await telegram_service.send_trip_post(trip)
+    posted = await telegram_service.send_trip_post(trip)
 
-    assert message_id == 5001
+    assert posted == [(CHAT, 5001)]
     assert len(sent) == 1
     assert sent[0]["method"] == "sendMessage"
     assert sent[0]["chat_id"] == CHAT
@@ -215,7 +215,7 @@ async def test_guruh_sozlanmagan_bolsa_jim_turadi(db, driver_user, monkeypatch):
     """`TELEGRAM_TRIPS_CHAT_ID` bo'sh — sayt oddiy ishlayveradi, xato bermaydi."""
     calls: list = []
 
-    async def _fake_call(method: str, payload: dict):
+    async def _fake_call(method: str, payload: dict, token: str | None = None):
         calls.append(method)
         return {"ok": True}
 
@@ -225,7 +225,7 @@ async def test_guruh_sozlanmagan_bolsa_jim_turadi(db, driver_user, monkeypatch):
     trip = await _trip(db, driver_user)
 
     assert telegram_service.trips_chat_configured() is False
-    assert await telegram_service.send_trip_post(trip) is None
+    assert await telegram_service.send_trip_post(trip) == []
     telegram_service.queue_trip_post(trip.id)     # navbatga ham qo'yilmasin
     telegram_service.queue_trip_sync(trip.id)
     assert calls == []
@@ -268,3 +268,97 @@ async def test_uzoq_sanada_nisbiy_yorliq_yoq(db, driver_user, sent):
 
     assert "Bugun" not in text and "Ertaga" not in text
     assert f"{trip.departure_date.day}-" in text
+
+
+# ─── Ko'p guruh va alohida lenta boti ────────────────────────────────────────
+
+CHAT2 = "-1009876543210"
+
+
+@pytest.mark.asyncio
+async def test_elon_barcha_guruhlarga_ketadi(db, driver_user, sent, monkeypatch):
+    """Ro'yxatdagi har bir guruhga alohida xabar ketadi."""
+    monkeypatch.setattr(settings, "TELEGRAM_TRIPS_CHAT_IDS", f"{CHAT}, {CHAT2}")
+    await _locations(db)
+    trip = await _trip(db, driver_user)
+
+    posted = await telegram_service.send_trip_post(trip)
+
+    assert posted == [(CHAT, 5001), (CHAT2, 5002)]
+    assert [c["chat_id"] for c in sent] == [CHAT, CHAT2]
+
+
+@pytest.mark.asyncio
+async def test_bitta_guruh_yiqilsa_qolgani_ketaveradi(db, driver_user, monkeypatch):
+    """Bot bitta guruhdan chiqarilgan bo'lsa ham boshqalariga e'lon ketadi.
+
+    Ilgari bitta `chat_id` bo'lgani uchun bu holat umuman yo'q edi; endi eng
+    ehtimolli nosozlik shu — adminlardan biri botni chiqarib yuboradi.
+    """
+    counter = {"n": 0}
+
+    async def _fake_call(method: str, payload: dict, token: str | None = None):
+        counter["n"] += 1
+        if payload.get("chat_id") == CHAT:
+            return {"ok": False, "description": "bot was kicked"}
+        return {"ok": True, "result": {"message_id": 7000 + counter["n"]}}
+
+    monkeypatch.setattr(telegram_service, "_call", _fake_call)
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "test-token")
+    monkeypatch.setattr(settings, "TELEGRAM_TRIPS_CHAT_IDS", f"{CHAT},{CHAT2}")
+    monkeypatch.setattr(settings, "PUBLIC_SITE_URL", "https://uzsafar.uz")
+    await _locations(db)
+    trip = await _trip(db, driver_user)
+
+    posted = await telegram_service.send_trip_post(trip)
+
+    assert posted == [(CHAT2, 7002)]
+
+
+@pytest.mark.asyncio
+async def test_lenta_boti_alohida_token_bilan_yuboradi(db, driver_user, monkeypatch):
+    """E'lon lenta boti tokeni bilan ketadi, asosiy bot tokeni bilan emas.
+
+    Ajratishning butun maqsadi shu: lenta boti cheklansa ham bron tasdiqlash
+    va telefon tekshiruvi asosiy bot orqali ishlayveradi.
+    """
+    tokens: list[str | None] = []
+
+    async def _fake_call(method: str, payload: dict, token: str | None = None):
+        tokens.append(token)
+        return {"ok": True, "result": {"message_id": 9001}}
+
+    monkeypatch.setattr(telegram_service, "_call", _fake_call)
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "asosiy-token")
+    monkeypatch.setattr(settings, "TELEGRAM_FEED_BOT_TOKEN", "lenta-token")
+    monkeypatch.setattr(settings, "TELEGRAM_TRIPS_CHAT_IDS", CHAT)
+    monkeypatch.setattr(settings, "PUBLIC_SITE_URL", "https://uzsafar.uz")
+    await _locations(db)
+    trip = await _trip(db, driver_user)
+
+    await telegram_service.send_trip_post(trip)
+
+    assert tokens == ["lenta-token"]
+
+
+@pytest.mark.asyncio
+async def test_lenta_boti_sozlanmasa_asosiy_bot_ishlatiladi(monkeypatch):
+    """Orqaga moslik: yangi sozlama bo'sh bo'lsa hech narsa o'zgarmaydi."""
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "asosiy-token")
+    monkeypatch.setattr(settings, "TELEGRAM_FEED_BOT_TOKEN", "")
+    assert telegram_service._feed_token() == "asosiy-token"
+
+
+@pytest.mark.asyncio
+async def test_eski_bitta_id_sozlamasi_ishlayveradi(monkeypatch):
+    """`TELEGRAM_TRIPS_CHAT_IDS` bo'sh bo'lsa eski sozlama kuchda qoladi."""
+    monkeypatch.setattr(settings, "TELEGRAM_TRIPS_CHAT_IDS", "")
+    monkeypatch.setattr(settings, "TELEGRAM_TRIPS_CHAT_ID", CHAT)
+    assert telegram_service.trips_chat_ids() == [CHAT]
+
+
+@pytest.mark.asyncio
+async def test_royxatdagi_bosh_qiymatlar_tashlab_ketiladi(monkeypatch):
+    """Qo'lda tahrirlashda ortiqcha vergul qolib ketadi — bo'sh ID yuborilmasin."""
+    monkeypatch.setattr(settings, "TELEGRAM_TRIPS_CHAT_IDS", f" {CHAT}, ,{CHAT2} ,")
+    assert telegram_service.trips_chat_ids() == [CHAT, CHAT2]

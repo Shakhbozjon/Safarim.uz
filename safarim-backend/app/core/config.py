@@ -87,6 +87,14 @@ class Settings(BaseSettings):
     # (masalan "-1001234567890"). Bo'sh bo'lsa lenta umuman ishlamaydi —
     # bot guruhda admin bo'lishi shart, aks holda yoza olmaydi.
     TELEGRAM_TRIPS_CHAT_ID: str = ""
+    # Bir nechta guruh: vergul bilan ("-100111,-100222"). To'ldirilsa yuqoridagi
+    # bitta ID o'rniga shu ro'yxat ishlatiladi; bo'sh bo'lsa eskisi kuchda qoladi.
+    TELEGRAM_TRIPS_CHAT_IDS: str = ""
+    # Lenta uchun ALOHIDA bot. Sababi: e'lonlar begona guruhlarga tushadi va
+    # kimdir shikoyat qilsa Telegram botni cheklashi mumkin. Bo'linmagan holda
+    # u bilan birga bron tasdiqlash va telefon tekshiruvi ham to'xtardi.
+    # Bo'sh bo'lsa asosiy bot ishlatiladi (eski xatti-harakat).
+    TELEGRAM_FEED_BOT_TOKEN: str = ""
 
     # Tashqariga ketadigan havolalar shu manzildan quriladi (Telegram lentasi).
     PUBLIC_SITE_URL: str = "https://uzsafar.uz"

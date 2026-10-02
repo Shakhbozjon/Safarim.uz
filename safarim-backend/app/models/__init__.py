@@ -2,7 +2,7 @@ from app.models.user import User
 from app.models.otp import OtpCode
 from app.models.location import Region, District
 from app.models.driver import DriverProfile
-from app.models.trip import Trip, TripWaypoint
+from app.models.trip import Trip, TripWaypoint, TripGroupPost
 from app.models.route import DriverRoute
 from app.models.booking import Booking
 from app.models.message import Message
@@ -15,7 +15,7 @@ from app.models.telegram import TelegramLinkToken
 
 __all__ = [
     "User", "OtpCode", "Region", "District", "DriverProfile",
-    "Trip", "TripWaypoint", "DriverRoute", "Booking", "Message", "Review",
+    "Trip", "TripWaypoint", "TripGroupPost", "DriverRoute", "Booking", "Message", "Review",
     "Payment", "DriverMonthlyCommission", "Notification", "AdminAction",
     "DriverWallet", "WalletTransaction", "WalletTopupPayment",
     "TelegramLinkToken",
