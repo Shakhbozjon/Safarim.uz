@@ -1,5 +1,6 @@
 import io
 import logging
+import time
 import uuid
 
 import boto3
@@ -27,6 +28,9 @@ DOCUMENT_MAX_SIDE = 2400
 # himoya bu yerda ham kerak.
 _MAX_PIXELS = 40_000_000
 
+# Imzolangan havolalar keshi shundan oshsa eskirganlari tozalanadi
+_URL_CACHE_MAX = 5000
+
 
 class StorageService:
     """MinIO orqali fayl saqlash."""
@@ -34,6 +38,8 @@ class StorageService:
     def __init__(self):
         self._client = None
         self._public_client = None
+        # (bucket, key, expires_in) → (havola, yaratilgan vaqt)
+        self._url_cache: dict[tuple[str, str, int], tuple[str, float]] = {}
 
     @property
     def client(self):
@@ -165,15 +171,33 @@ class StorageService:
             return False
 
     def get_url(self, key: str, bucket: str, expires_in: int = 3600) -> str:
+        # Imzolangan havola ichida imzo vaqti bor, ya'ni har chaqiruvda manzil
+        # boshqacha chiqardi. Shuning uchun brauzer ham, Next optimizatori ham
+        # bir xil avatarni har sahifada qaytadan yuklab olardi. Endi havola
+        # yarim muddatigacha qayta ishlatiladi: berilgan havolaning kamida
+        # yarmi amal qilib turadi, keshlash esa ishlaydi.
+        now = time.monotonic()
+        cache_key = (bucket, key, expires_in)
+        hit = self._url_cache.get(cache_key)
+        if hit is not None and now - hit[1] < expires_in / 2:
+            return hit[0]
+
         # Presigned URL public klient (brauzer ko'radigan host) bilan imzolanadi
         try:
-            return self.public_client.generate_presigned_url(
+            url = self.public_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": bucket, "Key": key},
                 ExpiresIn=expires_in,
             )
         except Exception:
             return ""
+
+        if len(self._url_cache) >= _URL_CACHE_MAX:
+            self._url_cache = {
+                k: v for k, v in self._url_cache.items() if now - v[1] < k[2] / 2
+            }
+        self._url_cache[cache_key] = (url, now)
+        return url
 
 
 storage_service = StorageService()
