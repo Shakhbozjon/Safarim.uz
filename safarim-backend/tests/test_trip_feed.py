@@ -137,7 +137,8 @@ async def test_holat_yorligi_qoshiladi(db, driver_user, sent):
     trip.available_seats = 0
     text = telegram_service._trip_text(trip)
     assert "O'rinlar tugadi" in text
-    assert "O'rin qolmadi" in text
+    # O'rinlar qatori faol bo'lmagan safarda chiqmaydi — tepadagi yorliq yetarli
+    assert "O'rin qolmadi" not in text
 
 
 # ─── Yuborish va tahrirlash ──────────────────────────────────────────────────
@@ -418,3 +419,69 @@ async def test_narx_qalin_yoziladi(db, driver_user, sent, monkeypatch):
     trip = await _trip(db, driver_user)
 
     assert "<b>120 000 so'm</b>" in telegram_service._trip_text(trip)
+
+
+# ─── Band qilish havolasi qachon ko'rinadi ───────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_faol_safarda_havola_bor(db, driver_user, sent):
+    await _locations(db)
+    trip = await _trip(db, driver_user, available_seats=3)
+
+    assert "Joy band qilish" in telegram_service._trip_text(trip)
+
+
+@pytest.mark.parametrize("status", [
+    TripStatus.cancelled, TripStatus.full, TripStatus.started,
+    TripStatus.completed, TripStatus.expired,
+])
+@pytest.mark.asyncio
+async def test_faol_bolmagan_safarda_havola_yoq(db, driver_user, sent, status):
+    """Bekor qilingan/to'lgan/yo'lga chiqqan safarda havola bo'lmasin.
+
+    Havola bosilsa sahifa ochilardi, lekin band qilib bo'lmasdi — odam
+    boshi berk ko'chaga tushardi. Sababi postning tepasida yozilgan.
+    """
+    await _locations(db)
+    trip = await _trip(db, driver_user, status=status, available_seats=3)
+
+    assert "Joy band qilish" not in telegram_service._trip_text(trip)
+
+
+@pytest.mark.asyncio
+async def test_orin_tugaganda_havola_yoq(db, driver_user, sent):
+    """Status hali `active` bo'lsa ham, o'rin qolmagan bo'lsa havola kerak emas."""
+    await _locations(db)
+    trip = await _trip(db, driver_user, available_seats=0)
+
+    text = telegram_service._trip_text(trip)
+    assert "O'rin qolmadi" in text
+    assert "Joy band qilish" not in text
+
+
+@pytest.mark.parametrize("status", [
+    TripStatus.cancelled, TripStatus.started, TripStatus.completed, TripStatus.expired,
+])
+@pytest.mark.asyncio
+async def test_faol_bolmagan_safarda_orinlar_yozilmaydi(db, driver_user, sent, status):
+    """Bekor qilingan safarda "3 ta o'rin bor" deyish yolg'on bo'ladi.
+
+    Havolani olib tashlagan bilan kifoya qilmaydi: matn hali ham "joy bor"
+    deb chaqirib tursa, odam baribir yozadi va javob ololmaydi.
+    """
+    await _locations(db)
+    trip = await _trip(db, driver_user, status=status, available_seats=3)
+
+    text = telegram_service._trip_text(trip)
+    assert "o'rin bor" not in text
+    assert "Oxirgi" not in text
+    # Narx qoladi — safar qancha turgani ma'lumot sifatida foydali
+    assert "120 000 so'm" in text
+
+
+@pytest.mark.asyncio
+async def test_faol_safarda_orinlar_yoziladi(db, driver_user, sent):
+    await _locations(db)
+    trip = await _trip(db, driver_user, available_seats=3)
+
+    assert "3 ta o'rin bor" in telegram_service._trip_text(trip)

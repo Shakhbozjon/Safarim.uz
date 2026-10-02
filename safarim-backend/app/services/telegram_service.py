@@ -635,7 +635,8 @@ def _trip_text(trip) -> str:
     else:
         seats_line = f"💺 {seats} ta o'rin bor"
 
-    label = _TRIP_LABELS.get(getattr(trip.status, "value", ""), "")
+    status_value = getattr(trip.status, "value", "")
+    label = _TRIP_LABELS.get(status_value, "")
     head = f"{_esc(label)}\n\n" if label else ""
 
     lines = [
@@ -644,8 +645,12 @@ def _trip_text(trip) -> str:
         f"🕚 {_esc(when)}",
         "",
         f"💰 <b>{_money(trip.price_per_seat)} so'm</b>",
-        seats_line,
     ]
+    # O'rinlar soni faqat safar faol bo'lgandagina ma'noga ega. Bekor qilingan
+    # yoki yo'lga chiqqan safarda "2 o'rin bor" deb yozish yolg'on bo'ladi —
+    # tepadagi yorliq allaqachon hammasini tushuntirgan.
+    if status_value == "active":
+        lines.append(seats_line)
     # "Faqat ayollar" — raqobatchilarda yo'q ustunlik, ko'rinib tursin
     if getattr(trip, "women_only", False):
         lines.append("👩 Faqat ayollar")
@@ -654,8 +659,13 @@ def _trip_text(trip) -> str:
         lines.append(f"🚙 {_esc(car)}")
     lines.append(f"👤 {_esc(name)}{rating}")
 
-    url = f"{settings.PUBLIC_SITE_URL.rstrip('/')}/trips/{trip.id}"
-    lines.append(f"\n👉 <a href=\"{url}\">Joy band qilish</a>")
+    # Band qilish havolasi faqat band qilish MUMKIN bo'lganda chiqadi.
+    # Bekor qilingan, to'lgan, yo'lga chiqqan yoki tugagan safarda havola
+    # odamni boshi berk ko'chaga olib borardi: bosadi, sahifa ochiladi, lekin
+    # band qilib bo'lmaydi. Sababi esa guruhdagi postning tepasida yozilgan.
+    if status_value == "active" and seats > 0:
+        url = f"{settings.PUBLIC_SITE_URL.rstrip('/')}/trips/{trip.id}"
+        lines.append(f"\n👉 <a href=\"{url}\">Joy band qilish</a>")
     return "\n".join(lines)
 
 
