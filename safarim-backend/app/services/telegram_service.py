@@ -600,6 +600,12 @@ def _place(region, district) -> str:
 
 
 def _trip_text(trip) -> str:
+    """Guruhga chiqadigan karta.
+
+    Uch blokka bo'lingan: qayerdan-qachon → narx-o'rin → kim olib boradi.
+    Guruhni tez aylantirayotgan odam bir sakrashda kerakli ma'lumotni topsin
+    uchun shunday — hammasi bir qatorga tiqilsa o'qilmay o'tib ketiladi.
+    """
     dp = getattr(trip.driver, "driver_profile", None)
 
     # Ism to'liq yozilmaydi: guruh ochiq, familiya kerak emas
@@ -617,10 +623,17 @@ def _trip_text(trip) -> str:
 
     car = " ".join(x for x in (getattr(dp, "vehicle_make", None), getattr(dp, "vehicle_model", None)) if x)
 
-    when = f"{format_day_uz(trip.departure_date)}, {trip.departure_time:%H:%M}"
+    when = f"{format_day_uz(trip.departure_date)} · {trip.departure_time:%H:%M}"
 
+    # O'rin kam qolganda shoshilish hissi beriladi: "4 ta o'rin bor" va
+    # "oxirgi 1 o'rin" qaror qilish tezligiga boshqacha ta'sir qiladi.
     seats = trip.available_seats
-    seats_text = f"{seats} ta o'rin bor" if seats > 0 else "o'rin qolmadi"
+    if seats <= 0:
+        seats_line = "🚫 O'rin qolmadi"
+    elif seats <= 2:
+        seats_line = f"⚡️ <b>Oxirgi {seats} o'rin</b>"
+    else:
+        seats_line = f"💺 {seats} ta o'rin bor"
 
     label = _TRIP_LABELS.get(getattr(trip.status, "value", ""), "")
     head = f"{_esc(label)}\n\n" if label else ""
@@ -628,16 +641,21 @@ def _trip_text(trip) -> str:
     lines = [
         f"{head}🚗 <b>{_esc(_place(trip.from_region, trip.from_district))} → "
         f"{_esc(_place(trip.to_region, trip.to_district))}</b>",
-        f"📅 {_esc(when)}",
-        f"💰 {_money(trip.price_per_seat)} so'm · {_esc(seats_text)}",
+        f"🕚 {_esc(when)}",
+        "",
+        f"💰 <b>{_money(trip.price_per_seat)} so'm</b>",
+        seats_line,
     ]
+    # "Faqat ayollar" — raqobatchilarda yo'q ustunlik, ko'rinib tursin
+    if getattr(trip, "women_only", False):
+        lines.append("👩 Faqat ayollar")
+    lines.append("")
     if car:
-        lines.append(f"🚙 {_esc(car)} · {_esc(name)}{rating}")
-    else:
-        lines.append(f"👤 {_esc(name)}{rating}")
+        lines.append(f"🚙 {_esc(car)}")
+    lines.append(f"👤 {_esc(name)}{rating}")
 
     url = f"{settings.PUBLIC_SITE_URL.rstrip('/')}/trips/{trip.id}"
-    lines.append(f"\n<a href=\"{url}\">Band qilish →</a>")
+    lines.append(f"\n👉 <a href=\"{url}\">Joy band qilish</a>")
     return "\n".join(lines)
 
 

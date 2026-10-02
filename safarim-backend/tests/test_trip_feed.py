@@ -71,6 +71,7 @@ async def _trip(db, driver_user, **kw) -> Trip:
         payment_type=PaymentType.cash,
         luggage_size=LuggageSize.medium,
         status=kw.get("status", TripStatus.active),
+        women_only=kw.get("women_only", False),
         telegram_message_id=kw.get("telegram_message_id"),
     )
     db.add(trip)
@@ -136,7 +137,7 @@ async def test_holat_yorligi_qoshiladi(db, driver_user, sent):
     trip.available_seats = 0
     text = telegram_service._trip_text(trip)
     assert "O'rinlar tugadi" in text
-    assert "o'rin qolmadi" in text
+    assert "O'rin qolmadi" in text
 
 
 # ─── Yuborish va tahrirlash ──────────────────────────────────────────────────
@@ -362,3 +363,58 @@ async def test_royxatdagi_bosh_qiymatlar_tashlab_ketiladi(monkeypatch):
     """Qo'lda tahrirlashda ortiqcha vergul qolib ketadi — bo'sh ID yuborilmasin."""
     monkeypatch.setattr(settings, "TELEGRAM_TRIPS_CHAT_IDS", f" {CHAT}, ,{CHAT2} ,")
     assert telegram_service.trips_chat_ids() == [CHAT, CHAT2]
+
+
+# ─── Karta ko'rinishi ────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_orin_kam_qolsa_shoshilinch_korinadi(db, driver_user, sent, monkeypatch):
+    """2 va undan kam o'rin qolganda "oxirgi N o'rin" deb qalin yoziladi.
+
+    "4 ta o'rin bor" va "oxirgi 1 o'rin" qaror qilish tezligiga boshqacha
+    ta'sir qiladi — guruhda e'lon bir marta ko'riladi, ikkinchi imkon yo'q.
+    """
+    await _locations(db)
+    trip = await _trip(db, driver_user, total_seats=4, available_seats=2)
+
+    text = telegram_service._trip_text(trip)
+
+    assert "<b>Oxirgi 2 o'rin</b>" in text
+    assert "ta o'rin bor" not in text
+
+
+@pytest.mark.asyncio
+async def test_orin_kop_bolsa_oddiy_yoziladi(db, driver_user, sent, monkeypatch):
+    await _locations(db)
+    trip = await _trip(db, driver_user, total_seats=4, available_seats=4)
+
+    text = telegram_service._trip_text(trip)
+
+    assert "4 ta o'rin bor" in text
+    assert "Oxirgi" not in text
+
+
+@pytest.mark.asyncio
+async def test_faqat_ayollar_belgisi_chiqadi(db, driver_user, sent, monkeypatch):
+    """Raqobatchilarda yo'q ustunlik — kartada ko'rinib tursin."""
+    await _locations(db)
+    trip = await _trip(db, driver_user, women_only=True)
+
+    assert "Faqat ayollar" in telegram_service._trip_text(trip)
+
+
+@pytest.mark.asyncio
+async def test_oddiy_safarda_ayollar_belgisi_yoq(db, driver_user, sent, monkeypatch):
+    await _locations(db)
+    trip = await _trip(db, driver_user)
+
+    assert "Faqat ayollar" not in telegram_service._trip_text(trip)
+
+
+@pytest.mark.asyncio
+async def test_narx_qalin_yoziladi(db, driver_user, sent, monkeypatch):
+    """Narx — asosiy qaror omili, shuning uchun ajralib tursin."""
+    await _locations(db)
+    trip = await _trip(db, driver_user)
+
+    assert "<b>120 000 so'm</b>" in telegram_service._trip_text(trip)
