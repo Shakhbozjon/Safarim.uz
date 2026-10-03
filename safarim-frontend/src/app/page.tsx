@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import MobileBottomNav from "@/components/layout/MobileBottomNav";
 import MemberStrip from "@/components/layout/MemberStrip";
 import HeroSearchCard from "@/components/trips/HeroSearchCard";
 import PopularRoutes from "@/components/trips/PopularRoutes";
@@ -58,7 +59,8 @@ export default async function HomePage() {
   const EARNINGS = earnings(commissionFree);
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden">
+    // Kirgan foydalanuvchida pastki menyu bor — u footerni yopib qo'ymasin
+    <div className={`min-h-screen flex flex-col overflow-x-hidden ${signedIn ? "pb-20 md:pb-0" : ""}`}>
       <Navbar transparent={!signedIn} />
       {signedIn && <MemberStrip />}
 
@@ -308,6 +310,11 @@ export default async function HomePage() {
       </section>
 
       <Footer />
+      {/* Bosh sahifa (main) guruhidan tashqarida, shuning uchun u yerdagi
+          layout'ning pastki menyusi bu yerga tushmasdi — kirgan yo'lovchi
+          bosh sahifada boshqa bo'limlarga o'tish yo'lini yo'qotardi.
+          Mehmonga qo'shilmaydi: «Xabarlar» va «Profil» login'ga olib boradi. */}
+      {signedIn && <MobileBottomNav />}
     </div>
   );
 }
