@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   Car, Plus, MapPin, Users, ChevronRight, ChevronDown,
   Calendar, Banknote, AlertCircle, AlertTriangle,
@@ -21,6 +21,14 @@ import { clsx } from "clsx";
 import type { TripResponse, BookingResponse, DriverReviewsResponse, DriverProfileResponse, DriverRouteResponse } from "@/types";
 import { formatPrice } from "@/lib/format";
 import { isoOf, shortDate as formatDate } from "@/lib/date";
+
+// «Ko'proq ko'rsatish» har bosilganda shuncha tugagan safar qo'shiladi
+const PAST_PAGE = 30;
+
+interface DriverSummary {
+  total_earnings: number;
+  completed_this_month: number;
+}
 
 interface EarningsRecord {
   month: string;
@@ -178,6 +186,10 @@ export default function DriverDashboardPage() {
 
   // Safarlar + ochilgan safar (yo'lovchilar) + depozit tarixi
   const [showAllTrips, setShowAllTrips]  = useState(false);
+  // Tugagan safarlardan nechtasi yuklanadi — «Ko'proq ko'rsatish» oshiradi.
+  // Safarlar va bronlar BIR XIL qiymat bilan so'raladi: panel safar ostida
+  // uning yo'lovchilarini chizadi, ikkala ro'yxat mos kelishi kerak.
+  const [pastLimit, setPastLimit] = useState(PAST_PAGE);
   const [expandedTrip, setExpandedTrip] = useState<string | null>(null);
   const [showTx, setShowTx]             = useState(false);
 
@@ -194,13 +206,19 @@ export default function DriverDashboardPage() {
     if (!user.is_driver) { router.replace("/profile"); return; }
   }, [user, authLoading, router]);
 
-  const { data: trips = [], isLoading: tripsLoading } = useQuery<TripResponse[]>({
-    queryKey: ["driver-trips"],
+  const {
+    data: trips = [],
+    isLoading: tripsLoading,
+    isFetching: tripsFetching,
+  } = useQuery<TripResponse[]>({
+    queryKey: ["driver-trips", pastLimit],
     queryFn: async () => {
-      const { data } = await api.get("/trips/my");
+      const { data } = await api.get("/trips/my", { params: { past_limit: pastLimit } });
       return data;
     },
     enabled: !!user?.is_driver,
+    // Ko'proq yuklanganda ro'yxat bir lahza bo'shab qolmasin
+    placeholderData: keepPreviousData,
   });
 
   // Doimiy yo'nalish — safar e'lon qilishda "doimiy yo'nalishim" belgilangan bo'lsa
@@ -214,11 +232,20 @@ export default function DriverDashboardPage() {
   });
 
   const { data: bookings = [] } = useQuery<BookingResponse[]>({
-    queryKey: ["driver-bookings"],
+    queryKey: ["driver-bookings", pastLimit],
     queryFn: async () => {
-      const { data } = await api.get("/bookings/driver");
+      const { data } = await api.get("/bookings/driver", { params: { past_limit: pastLimit } });
       return data;
     },
+    enabled: !!user?.is_driver,
+    placeholderData: keepPreviousData,
+  });
+
+  // Daromad butun tarix bo'yicha serverda sanaladi — ro'yxat endi faqat
+  // oxirgi safarlarni beradi va undan yig'ilgan summa noto'g'ri chiqardi
+  const { data: summary } = useQuery<DriverSummary>({
+    queryKey: ["driver-summary"],
+    queryFn: async () => (await api.get("/bookings/driver/summary")).data,
     enabled: !!user?.is_driver,
   });
 
@@ -283,6 +310,7 @@ export default function DriverDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["driver-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
       queryClient.invalidateQueries({ queryKey: ["driver-wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-summary"] });
     },
     onError: (err) => setActionError(getApiError(err)),
   });
@@ -482,9 +510,7 @@ export default function DriverDashboardPage() {
 
   // ─── Hisob-kitob ─────────────────────────────────────────────────────────
   const todayStr = isoOf(new Date());
-  const now = new Date();
 
-  const completedBkgs = bookings.filter(b => b.status === "completed");
   // Safar bo'lib o'tdi — haydovchidan javob kutilmoqda. Safar sanasi o'tgani
   // uchun bu buyurtmalar "o'tgan safarlar" ichida yashirinib qolmasin.
   const needConfirm   = bookings.filter(b => b.needs_my_confirmation);
@@ -537,19 +563,20 @@ export default function DriverDashboardPage() {
   const pastTrips      = trips.filter(t => t.status === "expired" || (isLive(t.status) && t.departure_date < todayStr));
   const cancelledTrips = trips.filter(t => t.status === "cancelled");
   const hasMoreTrips   = pastTrips.length > 0 || cancelledTrips.length > 0;
+  // Server tugaganlardan aynan `pastLimit` tasini qaytargan bo'lsa — eskirog'i
+  // bo'lishi mumkin. (Yakunlanganlar ham sanaladi, ro'yxatda ko'rinmasa ham.)
+  const finishedLoaded = trips.filter(t => !isLive(t.status)).length;
+  const canLoadMore    = finishedLoaded >= pastLimit;
 
   const todayTrips = upcomingTrips.filter(t => t.departure_date === todayStr);
 
   // Lifetime statistika
   const totalTrips      = reviewData?.total_trips ?? profile?.total_trips ?? 0;
-  const totalEarnings   = completedBkgs.reduce((s, b) => s + b.driver_amount, 0);
+  const totalEarnings   = summary?.total_earnings ?? 0;
   const ratingAvg       = reviewData?.rating_avg ?? profile?.rating_avg ?? 0;
   const ratingCount     = reviewData?.rating_count ?? profile?.rating_count ?? 0;
   const visibleReviews  = (reviewData?.reviews ?? []).slice(0, 3);
-  const tripsThisMonth  = completedBkgs.filter(b => {
-    const d = new Date(b.completed_at ?? b.created_at);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
+  const tripsThisMonth  = summary?.completed_this_month ?? 0;
 
   // Depozit (hamyon) holati
   const balance     = wallet?.balance ?? 0;
@@ -922,6 +949,15 @@ export default function DriverDashboardPage() {
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide pt-2">Bekor qilingan</p>
             )}
             {showAllTrips && cancelledTrips.map(t => renderTrip(t))}
+            {showAllTrips && canLoadMore && (
+              <button
+                onClick={() => setPastLimit(n => n + PAST_PAGE)}
+                disabled={tripsFetching}
+                className="w-full py-2.5 rounded-xl text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors disabled:opacity-60"
+              >
+                {tripsFetching ? "Yuklanmoqda…" : "Eskiroq safarlarni ko'rsatish"}
+              </button>
+            )}
           </div>
         )}
 

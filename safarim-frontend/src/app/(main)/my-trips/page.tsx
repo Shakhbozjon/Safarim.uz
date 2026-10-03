@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   Clock, CheckCircle, XCircle, AlertCircle, Star, Car,
   Phone, MessageCircle, User as UserIcon, Mail, MapPin,
@@ -49,6 +49,18 @@ function fmtDate(d?: string) {
 }
 const METHOD_LABEL: Record<string, string> = { cash: "Naqd", click: "Click", payme: "Payme" };
 
+// Yopilgan bronlardan shuncha yuklanadi; «Eskiroqlarini ko'rsatish» yana shuncha qo'shadi
+const PAST_PAGE = 30;
+// Hali hal bo'lmagan bron — server ularni doim to'liq beradi
+const OPEN_STATUSES: BookingStatus[] = ["pending", "confirmed", "awaiting_confirmation", "disputed"];
+
+interface PassengerSummary {
+  completed_count: number;
+  completed_this_year: number;
+  total_paid: number;
+  favorite_route: { from_region: string; to_region: string; count: number } | null;
+}
+
 export default function MyTripsPage() {
   const qc = useQueryClient();
   const router = useRouter();
@@ -66,6 +78,7 @@ export default function MyTripsPage() {
   const [cancelError, setCancelError] = useState("");
   const [reviewError, setReviewError] = useState("");
   const [showAllPast, setShowAllPast] = useState(false);
+  const [pastLimit, setPastLimit] = useState(PAST_PAGE);
 
   // Olib ketish manzilini tahrirlash — yo'lovchi band qilishda ishxonasida
   // bo'lib, ertalab boshqa joydan chiqishi mumkin
@@ -87,9 +100,18 @@ export default function MyTripsPage() {
     setPickupError("");
   }
 
-  const { data: bookings = [], isLoading } = useQuery<BookingResponse[]>({
-    queryKey: ["my-bookings"],
-    queryFn: async () => (await api.get("/bookings/my")).data,
+  const { data: bookings = [], isLoading, isFetching } = useQuery<BookingResponse[]>({
+    queryKey: ["my-bookings", pastLimit],
+    queryFn: async () => (await api.get("/bookings/my", { params: { past_limit: pastLimit } })).data,
+    // Ko'proq yuklanganda ro'yxat bir lahza bo'shab qolmasin
+    placeholderData: keepPreviousData,
+  });
+
+  // Raqamlar butun tarix bo'yicha serverda sanaladi — ro'yxat endi faqat
+  // oxirgi bronlarni beradi va undan sanalsa «jami» 30 da to'xtab qolardi
+  const { data: summary } = useQuery<PassengerSummary>({
+    queryKey: ["my-bookings-summary"],
+    queryFn: async () => (await api.get("/bookings/my/summary")).data,
   });
 
   const { data: myReviews = [] } = useQuery<ReviewResponse[]>({
@@ -99,7 +121,11 @@ export default function MyTripsPage() {
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => { await api.post(`/bookings/${id}/cancel`); },
-    onSuccess: () => { setCancelModal(null); qc.invalidateQueries({ queryKey: ["my-bookings"] }); },
+    onSuccess: () => {
+      setCancelModal(null);
+      qc.invalidateQueries({ queryKey: ["my-bookings"] });
+      qc.invalidateQueries({ queryKey: ["my-bookings-summary"] });
+    },
     onError: (err: any) => setCancelError(getApiError(err)),
   });
 
@@ -119,7 +145,10 @@ export default function MyTripsPage() {
     mutationFn: async ({ id, confirmed }: { id: string; confirmed: boolean }) => {
       await api.post(`/bookings/${id}/confirm`, { confirmed });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-bookings"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-bookings"] });
+      qc.invalidateQueries({ queryKey: ["my-bookings-summary"] });
+    },
   });
 
   const reviewMutation = useMutation({
@@ -135,7 +164,6 @@ export default function MyTripsPage() {
   });
 
   // ─── Hisob-kitob ─────────────────────────────────────────────────────────
-  const thisYear = new Date().getFullYear();
   const active = bookings.filter(b => b.status === "confirmed" || b.status === "pending");
   const completed = bookings.filter(b => b.status === "completed");
   // Safar o'tdi — yo'lovchidan tasdiq kutilmoqda
@@ -143,18 +171,17 @@ export default function MyTripsPage() {
 
   const reviewedIds = new Set(myReviews.map(r => r.booking_id));
 
-  const jamiSafarlar = completed.filter(b => new Date(b.completed_at ?? b.created_at).getFullYear() === thisYear).length;
-  const jamiTolov = completed.reduce((s, b) => s + b.total_price, 0);
+  const completedTotal = summary?.completed_count ?? completed.length;
+  const jamiSafarlar = summary?.completed_this_year ?? 0;
+  const jamiTolov = summary?.total_paid ?? 0;
+  const fav = summary?.favorite_route;
+  const favRoute: [string, number] | undefined = fav
+    ? [`${fav.from_region}–${fav.to_region}`, fav.count]
+    : undefined;
 
-  // Sevimli yo'nalish
-  const routeCounts: Record<string, number> = {};
-  bookings.forEach(b => {
-    if (b.trip) {
-      const key = `${b.trip.from_region.name_uz}–${b.trip.to_region.name_uz}`;
-      routeCounts[key] = (routeCounts[key] ?? 0) + 1;
-    }
-  });
-  const favRoute = Object.entries(routeCounts).sort((a, b) => b[1] - a[1])[0];
+  // Server yopilganlardan aynan `pastLimit` tasini qaytargan bo'lsa — eskirog'i bo'lishi mumkin
+  const closedLoaded = bookings.filter(b => !OPEN_STATUSES.includes(b.status)).length;
+  const canLoadMore = closedLoaded >= pastLimit;
 
   // To'lovlar tarixi (bekor qilinganlar qaytarma sifatida)
   const payments = bookings
@@ -307,7 +334,7 @@ export default function MyTripsPage() {
                 </span>
               )}
               <span className="text-gray-400">·</span>
-              <span>{completed.length} ta safar</span>
+              <span>{completedTotal} ta safar</span>
               {!user?.is_blocked && (
                 <span className="text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full font-medium">Faol</span>
               )}
@@ -405,7 +432,7 @@ export default function MyTripsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 mb-1">Jami safarlar</p>
-          <p className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{completed.length}</p>
+          <p className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{completedTotal}</p>
           <p className="text-xs text-gray-400 mt-1.5">{jamiSafarlar} bu yil</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -437,7 +464,7 @@ export default function MyTripsPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-gray-900">O'tgan safarlar</h2>
-                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{completed.length} ta</span>
+                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{completedTotal} ta</span>
               </div>
               <div className="divide-y divide-gray-50">
                 {(showAllPast ? completed : completed.slice(0, 3)).map((b) => {
@@ -468,12 +495,21 @@ export default function MyTripsPage() {
                   );
                 })}
               </div>
+              {showAllPast && canLoadMore && (
+                <button
+                  onClick={() => setPastLimit(n => n + PAST_PAGE)}
+                  disabled={isFetching}
+                  className="w-full mt-3 py-2.5 rounded-xl text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors disabled:opacity-60"
+                >
+                  {isFetching ? "Yuklanmoqda…" : "Eskiroq safarlarni ko'rsatish"}
+                </button>
+              )}
               {completed.length > 3 && (
                 <button
                   onClick={() => setShowAllPast(v => !v)}
                   className="w-full mt-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                 >
-                  {showAllPast ? "Kamroq ko'rsatish" : `Barchasini ko'rish (${completed.length})`}
+                  {showAllPast ? "Kamroq ko'rsatish" : `Barchasini ko'rish (${completedTotal})`}
                 </button>
               )}
             </div>

@@ -90,10 +90,12 @@ async def nearest_dates(
     summary="Mening safarlarim (haydovchi)",
 )
 async def get_my_trips(
+    past_limit: int = Query(trip_service.DEFAULT_PAST_LIMIT, ge=1, le=trip_service.MAX_PAST_LIMIT,
+                            description="Tugagan safarlardan nechtasi (faollari doim to'liq)"),
     current_user: User = Depends(get_current_driver),
     db: AsyncSession = Depends(get_db),
 ):
-    trips = await trip_service.get_my_trips(db, current_user)
+    trips = await trip_service.get_my_trips(db, current_user, past_limit)
     return [trip_service.serialize_trip(t) for t in trips]
 
 

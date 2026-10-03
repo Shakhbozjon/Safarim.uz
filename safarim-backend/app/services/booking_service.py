@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
@@ -1040,26 +1040,139 @@ async def resolve_due_confirmations(db: AsyncSession) -> int:
     return resolved
 
 
-async def get_my_bookings(db: AsyncSession, passenger: User) -> list[Booking]:
+# Hali hal bo'lmagan bron — kimdandir harakat kutilmoqda, ro'yxatdan tushmasin
+OPEN_BOOKING_STATUSES = (
+    BookingStatus.pending,
+    BookingStatus.confirmed,
+    BookingStatus.awaiting_confirmation,
+    BookingStatus.disputed,
+)
+
+
+async def get_my_bookings(
+    db: AsyncSession, passenger: User, past_limit: int | None = None
+) -> list[Booking]:
+    """Hamma ochiq bronlar + oxirgi `past_limit` ta yopilgani.
+
+    Ilgari butun tarix kelardi — bu ro'yxat bosh sahifada ham (salomlashish
+    qatori) so'raladi, ya'ni har kirishda yuklanardi.
+    """
+    from app.services.trip_service import DEFAULT_PAST_LIMIT
+
+    past_ids = (
+        select(Booking.id)
+        .where(
+            Booking.passenger_id == passenger.id,
+            Booking.status.notin_(OPEN_BOOKING_STATUSES),
+        )
+        .order_by(Booking.created_at.desc(), Booking.id)
+        .limit(past_limit or DEFAULT_PAST_LIMIT)
+    )
     result = await db.execute(
         select(Booking)
         .options(*_load_options())
-        .where(Booking.passenger_id == passenger.id)
+        .where(
+            Booking.passenger_id == passenger.id,
+            or_(Booking.status.in_(OPEN_BOOKING_STATUSES), Booking.id.in_(past_ids)),
+        )
         .order_by(Booking.created_at.desc())
     )
     return result.scalars().all()
 
 
-async def get_driver_bookings(db: AsyncSession, driver: User) -> list[Booking]:
-    """Haydovchi safarlariga kelgan band qilishlar."""
+async def get_driver_bookings(
+    db: AsyncSession, driver: User, past_limit: int | None = None
+) -> list[Booking]:
+    """Haydovchi safarlariga kelgan band qilishlar.
+
+    Panelda ko'rinadigan safarlarnikigina (`my_trips_clause` — xuddi shu
+    `past_limit` bilan) + ochiq bronlarning hammasi: tasdiq kutayotgan bron
+    eski safarga tegishli bo'lsa ham haydovchidan javob kutadi.
+    """
+    from app.services.trip_service import DEFAULT_PAST_LIMIT, my_trips_clause
+
     result = await db.execute(
         select(Booking)
         .options(*_load_options())
         .join(Trip, Booking.trip_id == Trip.id)
-        .where(Trip.driver_id == driver.id)
+        .where(
+            Trip.driver_id == driver.id,
+            or_(
+                Booking.status.in_(OPEN_BOOKING_STATUSES),
+                my_trips_clause(driver.id, past_limit or DEFAULT_PAST_LIMIT),
+            ),
+        )
         .order_by(Booking.created_at.desc())
     )
     return result.scalars().all()
+
+
+def _tashkent_to_utc(dt: datetime) -> datetime:
+    """Toshkent chegarasini (oy/yil boshi) bazadagi UTC vaqtiga o'tkazadi."""
+    return dt - timedelta(hours=5)
+
+
+async def get_passenger_summary(db: AsyncSession, passenger: User) -> dict:
+    """Yo'lovchi sahifasidagi raqamlar — BUTUN tarix bo'yicha.
+
+    Ro'yxat endi faqat oxirgi bronlarni beradi, shuning uchun brauzerda
+    sanab bo'lmaydi: «jami safarlar» 30 da to'xtab qolardi.
+    """
+    year_start = _tashkent_to_utc(now_tashkent_naive().replace(
+        month=1, day=1, hour=0, minute=0, second=0, microsecond=0
+    ))
+    done_at = func.coalesce(Booking.completed_at, Booking.created_at)
+    row = (await db.execute(
+        select(
+            func.count(),
+            func.coalesce(func.sum(Booking.total_price), 0),
+            func.count().filter(done_at >= year_start),
+        ).where(
+            Booking.passenger_id == passenger.id,
+            Booking.status == BookingStatus.completed,
+        )
+    )).one()
+
+    from app.models.location import Region
+    from_r = Region.__table__.alias("from_r")
+    to_r = Region.__table__.alias("to_r")
+    fav = (await db.execute(
+        select(from_r.c.name_uz, to_r.c.name_uz, func.count().label("n"))
+        .select_from(Booking)
+        .join(Trip, Booking.trip_id == Trip.id)
+        .join(from_r, from_r.c.id == Trip.from_region_id)
+        .join(to_r, to_r.c.id == Trip.to_region_id)
+        .where(Booking.passenger_id == passenger.id)
+        .group_by(from_r.c.name_uz, to_r.c.name_uz)
+        .order_by(func.count().desc(), from_r.c.name_uz, to_r.c.name_uz)
+        .limit(1)
+    )).first()
+
+    return {
+        "completed_count": row[0],
+        "total_paid": int(row[1]),
+        "completed_this_year": row[2],
+        "favorite_route": (
+            {"from_region": fav[0], "to_region": fav[1], "count": fav[2]} if fav else None
+        ),
+    }
+
+
+async def get_driver_summary(db: AsyncSession, driver: User) -> dict:
+    """Haydovchi panelidagi daromad raqamlari — BUTUN tarix bo'yicha."""
+    month_start = _tashkent_to_utc(now_tashkent_naive().replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    ))
+    done_at = func.coalesce(Booking.completed_at, Booking.created_at)
+    row = (await db.execute(
+        select(
+            func.coalesce(func.sum(Booking.driver_amount), 0),
+            func.count().filter(done_at >= month_start),
+        )
+        .join(Trip, Booking.trip_id == Trip.id)
+        .where(Trip.driver_id == driver.id, Booking.status == BookingStatus.completed)
+    )).one()
+    return {"total_earnings": int(row[0]), "completed_this_month": row[1]}
 
 
 async def get_booking(db: AsyncSession, booking_id: str, user: User) -> Booking:

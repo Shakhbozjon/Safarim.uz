@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -7,6 +7,7 @@ from app.schemas.booking import (
     BookingCreate, BookingResponse, CancelBookingRequest, ConfirmBookingRequest, PickupUpdate,
 )
 from app.services import booking_service
+from app.services.trip_service import DEFAULT_PAST_LIMIT, MAX_PAST_LIMIT
 from app.core.dependencies import get_current_user, get_current_driver
 
 router = APIRouter()
@@ -31,11 +32,24 @@ async def create_booking(
     summary="Mening band qilishlarim (yo'lovchi sifatida)",
 )
 async def get_my_bookings(
+    past_limit: int = Query(DEFAULT_PAST_LIMIT, ge=1, le=MAX_PAST_LIMIT,
+                            description="Yopilgan bronlardan nechtasi (ochiqlari doim to'liq)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    bookings = await booking_service.get_my_bookings(db, current_user)
+    bookings = await booking_service.get_my_bookings(db, current_user, past_limit)
     return [booking_service.serialize_booking(b, current_user) for b in bookings]
+
+
+@router.get(
+    "/my/summary",
+    summary="Yo'lovchi statistikasi (butun tarix bo'yicha)",
+)
+async def get_my_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await booking_service.get_passenger_summary(db, current_user)
 
 
 @router.get(
@@ -43,11 +57,24 @@ async def get_my_bookings(
     summary="Mening safarlarimga kelgan band qilishlar (haydovchi sifatida)",
 )
 async def get_driver_bookings(
+    past_limit: int = Query(DEFAULT_PAST_LIMIT, ge=1, le=MAX_PAST_LIMIT,
+                            description="`/trips/my` dagi bilan bir xil qiymat bering"),
     current_user: User = Depends(get_current_driver),
     db: AsyncSession = Depends(get_db),
 ):
-    bookings = await booking_service.get_driver_bookings(db, current_user)
+    bookings = await booking_service.get_driver_bookings(db, current_user, past_limit)
     return [booking_service.serialize_booking(b, current_user) for b in bookings]
+
+
+@router.get(
+    "/driver/summary",
+    summary="Haydovchi daromadi (butun tarix bo'yicha)",
+)
+async def get_driver_summary(
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    return await booking_service.get_driver_summary(db, current_user)
 
 
 @router.get(

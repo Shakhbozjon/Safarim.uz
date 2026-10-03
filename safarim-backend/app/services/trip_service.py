@@ -566,14 +566,45 @@ async def get_trip_by_share_token(db: AsyncSession, token: str) -> Trip:
     return trip
 
 
-async def get_my_trips(db: AsyncSession, user: User) -> list[Trip]:
+# Hali tugamagan safar — haydovchi u bilan ishlayapti, ro'yxatdan tushmasin
+LIVE_TRIP_STATUSES = (TripStatus.active, TripStatus.full, TripStatus.started)
+# Tugagan (yakunlangan, bekor qilingan, muddati o'tgan) safarlardan nechtasi
+# birinchi yuklanishda keladi. Qolgani «Ko'proq ko'rsatish» bilan.
+DEFAULT_PAST_LIMIT = 30
+MAX_PAST_LIMIT = 500
+
+
+def my_trips_clause(driver_id, past_limit: int):
+    """Haydovchi panelida ko'rinadigan safarlar: hamma faollari + oxirgi
+    `past_limit` ta tugagani.
+
+    Ilgari butun tarix birdaniga yuklanardi: har kuni qatnaydigan haydovchida
+    bir yilda ~700 safar, har biri mashina, viloyat va to'xtash joylari bilan.
+    Bron ro'yxati ham shu shartdan foydalanadi — panel safar ostida uning
+    yo'lovchilarini ko'rsatadi, ikkala ro'yxat bir-biriga mos kelishi kerak.
+    """
+    past_ids = (
+        select(Trip.id)
+        .where(Trip.driver_id == driver_id, Trip.status.notin_(LIVE_TRIP_STATUSES))
+        .order_by(Trip.departure_date.desc(), Trip.departure_time.desc(), Trip.id)
+        .limit(past_limit)
+    )
+    return and_(
+        Trip.driver_id == driver_id,
+        or_(Trip.status.in_(LIVE_TRIP_STATUSES), Trip.id.in_(past_ids)),
+    )
+
+
+async def get_my_trips(
+    db: AsyncSession, user: User, past_limit: int = DEFAULT_PAST_LIMIT
+) -> list[Trip]:
     # Lazy expiry — Celery ishlamasa ham vaqti o'tgan bo'sh safarlar tozalanadi
     await expire_due_trips(db, driver_id=user.id)
 
     result = await db.execute(
         select(Trip)
         .options(*_load_options())
-        .where(Trip.driver_id == user.id)
+        .where(my_trips_clause(user.id, past_limit))
         .order_by(Trip.departure_date.desc(), Trip.departure_time.desc())
     )
     return result.scalars().all()

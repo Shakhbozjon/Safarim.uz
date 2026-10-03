@@ -95,6 +95,7 @@ export default function TripDetailPage() {
       setBookingModal(false);
       qc.invalidateQueries({ queryKey: ["trip", id] });
       qc.invalidateQueries({ queryKey: ["my-bookings"] });
+      qc.invalidateQueries({ queryKey: ["my-bookings-summary"] });
       router.push(`/my-trips?booked=${booking.id}`);
     },
     onError: (err: any) => {
