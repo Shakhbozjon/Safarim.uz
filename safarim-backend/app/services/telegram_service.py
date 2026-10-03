@@ -14,6 +14,7 @@ o'zi tekshirgan bo'ladi, shuning uchun kod terish ham shart emas.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import secrets
@@ -33,6 +34,9 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 
 API = "https://api.telegram.org/bot{token}/{method}"
+
+# Ulanish o'rnatilmasa shuncha soniya kutib qayta uriniladi (jami 3 urinish)
+_CONNECT_RETRY_PAUSES: tuple[float, ...] = (1.0, 3.0)
 
 
 def is_configured() -> bool:
@@ -55,16 +59,30 @@ async def _call(method: str, payload: dict, token: str | None = None) -> dict | 
     token = token or settings.TELEGRAM_BOT_TOKEN
     if not token:
         return None
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(API.format(token=token, method=method), json=payload)
-            if r.status_code != 200:
-                logger.warning("Telegram %s xatosi: %s %s", method, r.status_code, r.text[:200])
+    # Serverdan tashqariga yo'lda paket yo'qoladi va ulanish ba'zan birinchi
+    # urinishda o'rnatilmaydi — ilgari xabar shu bilan yo'qolardi (guruhga
+    # e'lon tushmasdi). Faqat ULANISH xatosida qayta uriniladi: so'rov
+    # Telegramga yetib bormagan, demak xabar ikki marta ketmaydi. Javobni
+    # kutishdagi taymautda qayta urinilmaydi — xabar yetib borgan bo'lishi mumkin.
+    for attempt, pause in enumerate(_CONNECT_RETRY_PAUSES + (None,)):
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10, connect=5)) as client:
+                r = await client.post(API.format(token=token, method=method), json=payload)
+                if r.status_code != 200:
+                    logger.warning("Telegram %s xatosi: %s %s", method, r.status_code, r.text[:200])
+                    return None
+                if attempt:
+                    logger.info("Telegram %s %d-urinishda o'tdi", method, attempt + 1)
+                return r.json()
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            if pause is None:
+                logger.error("Telegram %s ulanish xatosi (%d urinish): %s", method, attempt + 1, exc)
                 return None
-            return r.json()
-    except Exception as exc:
-        logger.error("Telegram %s ulanish xatosi: %s", method, exc)
-        return None
+            await asyncio.sleep(pause)
+        except Exception as exc:
+            logger.error("Telegram %s ulanish xatosi: %s", method, exc)
+            return None
+    return None
 
 
 async def send_message(chat_id: str | int, text: str, remove_keyboard: bool = False) -> bool:
