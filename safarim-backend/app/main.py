@@ -33,6 +33,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Qidiruvdagi umumiy son — brauzer boshqa domendan (lokal dev) o'qiy olsin
+    expose_headers=["X-Total-Count"],
 )
 
 

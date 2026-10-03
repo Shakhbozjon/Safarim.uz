@@ -163,6 +163,13 @@ class TripSearchParams(BaseModel):
     payment_type: PaymentType | None = None
     women_only: bool | None = None
     max_price: int | None = None
+    # Jo'nash vaqti oralig'i ("06:00"–"12:00" kabi), ikkala chegara ham kiradi
+    departure_from: time | None = None
+    departure_to: time | None = None
+    # Haydovchi reytingi kamida shuncha (baholanmagan haydovchi = 0)
+    min_rating: float | None = None
+    # Faqat katta yuk sig'adigan safarlar
+    large_luggage: bool | None = None
     sort: str = "time_asc"  # time_asc | price_asc | price_desc | rating_desc
 
 

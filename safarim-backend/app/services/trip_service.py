@@ -11,7 +11,7 @@ from app.models.booking import Booking
 from app.models.location import Region
 from app.models.enums import (
     TripStatus, BookingStatus, BookingPaymentStatus, DriverStatus, CancelledBy,
-    PaymentType, PaymentMethod, NotificationRefType,
+    PaymentType, PaymentMethod, NotificationRefType, LuggageSize,
 )
 from app.schemas.trip import TripCreate, TripSearchParams, TripDriverInfo, TripResponse, WaypointResponse, LocationBrief
 from app.core.timeutils import format_day_uz, now_tashkent_naive
@@ -476,7 +476,8 @@ async def nearest_dates(
     return [{"date": d, "count": c} for d, c in rows.all()]
 
 
-async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]:
+def _search_query(params: TripSearchParams):
+    """Qidiruv sharti — ro'yxat ham, umumiy son ham shundan olinadi."""
     # Sana ham, vaqt ham Toshkent bo'yicha. `date.today()` server (UTC) kunini
     # berardi — soat 19:00 dan yarim tungacha u kechagi kunni ko'rsatib turadi.
     now_local = now_tashkent_naive()
@@ -484,7 +485,6 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
 
     query = (
         select(Trip)
-        .options(*_load_options())
         # Hujjat darajasi bo'yicha saralash uchun profil kerak. `outerjoin`:
         # profili yo'q haydovchi (bo'lmasligi kerak, lekin) safarini
         # ro'yxatdan butunlay tushirib qoldirmasin.
@@ -520,6 +520,35 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
     if params.max_price:
         query = query.where(Trip.price_per_seat <= params.max_price)
 
+    # Bu uchtasi ilgari brauzerda, kelgan ro'yxat ustida qo'llanardi. Natija
+    # sahifalab berilgach bunday qilib bo'lmaydi: filtr faqat yuklangan
+    # birinchi sahifani ko'rardi va «N ta safar» soni ham noto'g'ri chiqardi.
+    if params.departure_from:
+        query = query.where(Trip.departure_time >= params.departure_from)
+    if params.departure_to:
+        # "18:00" gacha deganda 18:00:30 ham kiradi — daqiqa oxirigacha
+        query = query.where(Trip.departure_time <= params.departure_to.replace(second=59))
+    if params.min_rating:
+        query = query.where(func.coalesce(DriverProfile.rating_avg, 0) >= params.min_rating)
+    if params.large_luggage:
+        query = query.where(Trip.luggage_size == LuggageSize.large)
+    return query
+
+
+async def count_search(db: AsyncSession, params: TripSearchParams) -> int:
+    """Qidiruvdagi safarlarning umumiy soni (sahifalashdan qat'i nazar)."""
+    q = _search_query(params).with_only_columns(func.count(Trip.id)).order_by(None)
+    return (await db.execute(q)).scalar_one()
+
+
+async def search_trips(
+    db: AsyncSession,
+    params: TripSearchParams,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[Trip]:
+    query = _search_query(params).options(*_load_options())
+
     # ── Saralash ────────────────────────────────────────────────────────────
     # Asosiy mezon foydalanuvchi tanlagani (vaqt yoki narx). Undan keyingi
     # ikkitasi TENG qiymatlarni ajratadi:
@@ -536,6 +565,11 @@ async def search_trips(db: AsyncSession, params: TripSearchParams) -> list[Trip]
     else:  # time_asc (default)
         query = query.order_by(Trip.departure_time.asc(), *tie_break)
 
+    # Saralash to'liq (oxirida `created_at` va id), shuning uchun sahifalar
+    # bir-birini takrorlamaydi va safar ikki sahifa orasida yo'qolmaydi
+    query = query.order_by(Trip.id)
+    if limit is not None:
+        query = query.limit(limit).offset(offset)
     result = await db.execute(query)
     return result.scalars().all()
 

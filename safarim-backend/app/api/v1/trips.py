@@ -1,5 +1,5 @@
-from datetime import date
-from fastapi import APIRouter, Depends, Query
+from datetime import date, time
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -13,6 +13,10 @@ from app.services import trip_service
 from app.core.dependencies import get_current_user, get_current_driver
 
 router = APIRouter()
+
+# Qidiruv natijasi shu bo'laklarda beriladi; «Yana ko'rsatish» keyingisini oladi
+SEARCH_PAGE_SIZE = 20
+SEARCH_MAX_PAGE_SIZE = 50
 
 
 @router.post(
@@ -36,6 +40,7 @@ async def create_trip(
     summary="Safarlarni qidirish",
 )
 async def search_trips(
+    response: Response,
     from_region_id: int = Query(..., description="Qayerdan (viloyat ID)"),
     to_region_id: int = Query(..., description="Qayerga (viloyat ID)"),
     from_district_id: int | None = Query(None, description="Qayerdan (tuman ID) — berilmasa barcha tumanlar"),
@@ -45,9 +50,17 @@ async def search_trips(
     payment_type: PaymentType | None = Query(None, description="To'lov turi"),
     women_only: bool | None = Query(None, description="Faqat ayollar"),
     max_price: int | None = Query(None, description="Maksimal narx (so'm)"),
+    departure_from: time | None = Query(None, description="Jo'nash vaqti shundan (HH:MM)"),
+    departure_to: time | None = Query(None, description="Jo'nash vaqti shugacha (HH:MM, daqiqa oxirigacha)"),
+    min_rating: float | None = Query(None, ge=0, le=5, description="Haydovchi reytingi kamida"),
+    large_luggage: bool | None = Query(None, description="Faqat katta yuk sig'adigan safarlar"),
     sort: str = Query("time_asc", description="Saralash: time_asc | price_asc | price_desc"),
+    limit: int = Query(SEARCH_PAGE_SIZE, ge=1, le=SEARCH_MAX_PAGE_SIZE, description="Sahifadagi safarlar soni"),
+    offset: int = Query(0, ge=0, description="Shuncha safar o'tkazib yuboriladi"),
     db: AsyncSession = Depends(get_db),
 ):
+    """Javob — safarlar ro'yxati (bir sahifa). Umumiy son `X-Total-Count`
+    sarlavhasida: «N ta safar» va «yana bormi» shundan bilinadi."""
     params = TripSearchParams(
         from_region_id=from_region_id,
         to_region_id=to_region_id,
@@ -58,9 +71,19 @@ async def search_trips(
         payment_type=payment_type,
         women_only=women_only,
         max_price=max_price,
+        departure_from=departure_from,
+        departure_to=departure_to,
+        min_rating=min_rating,
+        large_luggage=large_luggage,
         sort=sort,
     )
-    trips = await trip_service.search_trips(db, params)
+    trips = await trip_service.search_trips(db, params, limit=limit, offset=offset)
+    # Birinchi sahifa to'lmagan bo'lsa — son ma'lum, qo'shimcha so'rov shart emas
+    if offset == 0 and len(trips) < limit:
+        total = len(trips)
+    else:
+        total = await trip_service.count_search(db, params)
+    response.headers["X-Total-Count"] = str(total)
     return [trip_service.serialize_trip(t) for t in trips]
 
 
