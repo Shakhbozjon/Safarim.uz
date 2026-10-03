@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, MessageCircle, User, Ticket } from "lucide-react";
+import { Home, Search, MessageCircle, User } from "lucide-react";
 import { clsx } from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { isAuthenticated } from "@/lib/auth";
@@ -41,11 +41,10 @@ export default function MobileBottomNav() {
     : [
         // "+" (safar qo'shish) yo'q: yo'lovchi safar e'lon qilmaydi, u
         // tugma "Haydovchi bo'ling" ekraniga olib borardi — funnel profilda.
-        // "Bosh sahifa" ham yo'q: bosh sahifaning o'zi qidiruv formasi va
-        // unga logotip olib boradi. O'rniga bronlar — yo'lovchi eng ko'p
-        // qaytadigan joy, ilgari faqat Profil orqali topilardi.
-        { href: "/trips",    icon: Search,        label: "Qidirish" },
-        { href: "/my-trips", icon: Ticket,        label: "Safarlarim" },
+        // "Bosh sahifa" bosh sahifaning o'zida ko'rsatilmaydi: odam allaqachon
+        // shu yerda, band faqat joy egallab turardi.
+        ...(pathname === "/" ? [] : [{ href: "/", icon: Home, label: "Bosh sahifa" }]),
+        { href: "/trips",    icon: Search,        label: "Safarlar" },
         { href: "/messages", icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
         { href: "/profile",  icon: User,          label: "Profil" },
       ];
