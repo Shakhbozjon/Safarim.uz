@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, MessageCircle, User } from "lucide-react";
+import { Home, LayoutDashboard, MessageCircle, User } from "lucide-react";
 import { clsx } from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { isAuthenticated } from "@/lib/auth";
@@ -44,7 +44,10 @@ export default function MobileBottomNav() {
         // "Bosh sahifa" bosh sahifaning o'zida ko'rsatilmaydi: odam allaqachon
         // shu yerda, band faqat joy egallab turardi.
         ...(pathname === "/" ? [] : [{ href: "/", icon: Home, label: "Bosh sahifa" }]),
-        { href: "/trips",    icon: Search,        label: "Safarlar" },
+        // Qidiruv alohida band emas: bosh sahifaning o'zi qidiruv formasi.
+        // O'rniga yo'lovchi paneli — bronlar, haydovchi telefoni, chat;
+        // ilgari unga faqat Profil orqali yetib borilardi.
+        { href: "/my-trips", icon: LayoutDashboard, label: "Panel" },
         { href: "/messages", icon: MessageCircle, label: "Xabarlar", badge: totalUnread },
         { href: "/profile",  icon: User,          label: "Profil" },
       ];
