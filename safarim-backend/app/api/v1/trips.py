@@ -14,6 +14,12 @@ from app.core.dependencies import get_current_user, get_current_driver
 
 router = APIRouter()
 
+# Bazadagi `integer` ustunining chegaralari. Undan katta son so'rovga tushsa
+# Postgres xato beradi va javob 500 bo'lardi — chegara FastAPI'da tekshirilsa
+# odatiy 422 qaytadi. Oddiy foydalanuvchi bunday songa hech qachon yetmaydi.
+DB_INT_MIN = -2_147_483_648
+DB_INT_MAX = 2_147_483_647
+
 # Qidiruv natijasi shu bo'laklarda beriladi; «Yana ko'rsatish» keyingisini oladi
 SEARCH_PAGE_SIZE = 20
 SEARCH_MAX_PAGE_SIZE = 50
@@ -41,22 +47,22 @@ async def create_trip(
 )
 async def search_trips(
     response: Response,
-    from_region_id: int = Query(..., description="Qayerdan (viloyat ID)"),
-    to_region_id: int = Query(..., description="Qayerga (viloyat ID)"),
-    from_district_id: int | None = Query(None, description="Qayerdan (tuman ID) — berilmasa barcha tumanlar"),
-    to_district_id: int | None = Query(None, description="Qayerga (tuman ID) — berilmasa barcha tumanlar"),
+    from_region_id: int = Query(..., ge=DB_INT_MIN, le=DB_INT_MAX, description="Qayerdan (viloyat ID)"),
+    to_region_id: int = Query(..., ge=DB_INT_MIN, le=DB_INT_MAX, description="Qayerga (viloyat ID)"),
+    from_district_id: int | None = Query(None, ge=DB_INT_MIN, le=DB_INT_MAX, description="Qayerdan (tuman ID) — berilmasa barcha tumanlar"),
+    to_district_id: int | None = Query(None, ge=DB_INT_MIN, le=DB_INT_MAX, description="Qayerga (tuman ID) — berilmasa barcha tumanlar"),
     departure_date: date = Query(..., description="Sana (YYYY-MM-DD)"),
     seats: int = Query(1, ge=1, le=4, description="O'rinlar soni"),
     payment_type: PaymentType | None = Query(None, description="To'lov turi"),
     women_only: bool | None = Query(None, description="Faqat ayollar"),
-    max_price: int | None = Query(None, description="Maksimal narx (so'm)"),
+    max_price: int | None = Query(None, ge=DB_INT_MIN, le=DB_INT_MAX, description="Maksimal narx (so'm)"),
     departure_from: time | None = Query(None, description="Jo'nash vaqti shundan (HH:MM)"),
     departure_to: time | None = Query(None, description="Jo'nash vaqti shugacha (HH:MM, daqiqa oxirigacha)"),
     min_rating: float | None = Query(None, ge=0, le=5, description="Haydovchi reytingi kamida"),
     large_luggage: bool | None = Query(None, description="Faqat katta yuk sig'adigan safarlar"),
     sort: str = Query("time_asc", description="Saralash: time_asc | price_asc | price_desc"),
     limit: int = Query(SEARCH_PAGE_SIZE, ge=1, le=SEARCH_MAX_PAGE_SIZE, description="Sahifadagi safarlar soni"),
-    offset: int = Query(0, ge=0, description="Shuncha safar o'tkazib yuboriladi"),
+    offset: int = Query(0, ge=0, le=DB_INT_MAX, description="Shuncha safar o'tkazib yuboriladi"),
     db: AsyncSession = Depends(get_db),
 ):
     """Javob — safarlar ro'yxati (bir sahifa). Umumiy son `X-Total-Count`
@@ -92,10 +98,10 @@ async def search_trips(
     summary="Yaqin kunlardagi safarli sanalar (bo'sh natija uchun)",
 )
 async def nearest_dates(
-    from_region_id: int = Query(..., description="Qayerdan (viloyat ID)"),
-    to_region_id: int = Query(..., description="Qayerga (viloyat ID)"),
-    from_district_id: int | None = Query(None, description="Qayerdan (tuman ID)"),
-    to_district_id: int | None = Query(None, description="Qayerga (tuman ID)"),
+    from_region_id: int = Query(..., ge=DB_INT_MIN, le=DB_INT_MAX, description="Qayerdan (viloyat ID)"),
+    to_region_id: int = Query(..., ge=DB_INT_MIN, le=DB_INT_MAX, description="Qayerga (viloyat ID)"),
+    from_district_id: int | None = Query(None, ge=DB_INT_MIN, le=DB_INT_MAX, description="Qayerdan (tuman ID)"),
+    to_district_id: int | None = Query(None, ge=DB_INT_MIN, le=DB_INT_MAX, description="Qayerga (tuman ID)"),
     after: date = Query(..., description="Shu sanadan keyingi kunlar"),
     seats: int = Query(1, ge=1, le=4),
     db: AsyncSession = Depends(get_db),

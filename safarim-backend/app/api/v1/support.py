@@ -63,12 +63,16 @@ async def send_support_message(data: SupportRequest, request: Request):
             detail="Hozircha xabar yuborib bo'lmaydi. Birozdan keyin urinib ko'ring.",
         )
 
+    # Xabar HTML rejimida ketadi, matn esa login qilmagan istalgan odamdan
+    # keladi. Tozalanmasa, adminning chatiga botimiz nomidan soxta havola
+    # (<a href=...>) tushirish mumkin edi, `<` belgili xabar esa umuman ketmasdi.
+    esc = telegram_service._esc
     kimdan = data.name or "ism yozilmagan"
     text = (
         "📩 Saytdan xabar\n\n"
-        f"Kimdan: {kimdan}\n"
-        f"Aloqa: {data.contact}\n\n"
-        f"{data.message}"
+        f"Kimdan: {esc(kimdan)}\n"
+        f"Aloqa: {esc(data.contact)}\n\n"
+        f"{esc(data.message)}"
     )
     sent = await telegram_service.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, text)
     if not sent:

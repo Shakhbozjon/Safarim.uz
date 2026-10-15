@@ -516,13 +516,28 @@ async def _confirmed_seats(db: AsyncSession, trip_id) -> int:
     ) or 0
 
 
-async def _trip_card(db: AsyncSession, chat_id, message_id, trip_id: str) -> None:
-    """Bitta safar: holati va mumkin bo'lgan amallar."""
+async def _own_trip(db: AsyncSession, user: User, trip_id: str):
+    """Haydovchining O'Z safari, aks holda None.
+
+    Tugma ma'lumoti (`callback_data`) Telegram tomonidan tekshirilmaydi —
+    maxsus mijoz orqali istalgan safar ID sini yuborish mumkin. Amallar
+    (boshlash, bekor qilish) `trip_service` da egasi tekshiriladi, lekin
+    ko'rish ekranlari ham begona safarni (tasdiqlangan yo'lovchilar sonini)
+    ochmasligi kerak. Begona safar «topilmadi» bilan bir xil ko'rinadi.
+    """
     from app.services import trip_service
 
     try:
         trip = await trip_service.get_trip(db, trip_id)
     except HTTPException:
+        return None
+    return trip if trip.driver_id == user.id else None
+
+
+async def _trip_card(db: AsyncSession, user: User, chat_id, message_id, trip_id: str) -> None:
+    """Bitta safar: holati va mumkin bo'lgan amallar."""
+    trip = await _own_trip(db, user, trip_id)
+    if trip is None:
         await _edit(chat_id, message_id, "Safar topilmadi.")
         return
 
@@ -557,12 +572,9 @@ async def _trip_card(db: AsyncSession, chat_id, message_id, trip_id: str) -> Non
 
 # ─── Safarni boshlash ────────────────────────────────────────────────────────
 
-async def _ask_start(db: AsyncSession, chat_id, message_id, trip_id: str) -> None:
-    from app.services import trip_service
-
-    try:
-        trip = await trip_service.get_trip(db, trip_id)
-    except HTTPException:
+async def _ask_start(db: AsyncSession, user: User, chat_id, message_id, trip_id: str) -> None:
+    trip = await _own_trip(db, user, trip_id)
+    if trip is None:
         await _edit(chat_id, message_id, "Safar topilmadi.")
         return
 
@@ -603,11 +615,8 @@ async def _do_start(db: AsyncSession, user: User, chat_id, message_id, trip_id: 
 # ─── Bekor qilish ────────────────────────────────────────────────────────────
 
 async def _ask_cancel(db: AsyncSession, user: User, chat_id, message_id, trip_id: str) -> None:
-    from app.services import trip_service
-
-    try:
-        trip = await trip_service.get_trip(db, trip_id)
-    except HTTPException:
+    trip = await _own_trip(db, user, trip_id)
+    if trip is None:
         await _edit(chat_id, message_id, "Safar topilmadi.")
         return
 
@@ -780,9 +789,9 @@ async def handle_callback(db: AsyncSession, cq: dict, data: str) -> None:
         elif data == f"{MT}list":
             await _my_trips(db, user, chat_id, message_id)
         elif parts[1] == "v":                       # mt:v:<trip_id>
-            await _trip_card(db, chat_id, message_id, parts[2])
+            await _trip_card(db, user, chat_id, message_id, parts[2])
         elif parts[1] == "s":                       # mt:s:<trip_id>
-            await _ask_start(db, chat_id, message_id, parts[2])
+            await _ask_start(db, user, chat_id, message_id, parts[2])
         elif parts[1] == "ss":                      # mt:ss:<trip_id>
             await _do_start(db, user, chat_id, message_id, parts[2])
         elif parts[1] == "x":                       # mt:x:<trip_id>

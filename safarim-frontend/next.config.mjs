@@ -2,6 +2,8 @@
 const nextConfig = {
   // Docker uchun minimal mustaqil (standalone) build → .next/standalone/server.js
   output: "standalone",
+  // `X-Powered-By: Next.js` sarlavhasi yuborilmasin — texnologiyani oshkor qiladi
+  poweredByHeader: false,
   images: {
     // Optimizator kesh yozuvini HAR BIR (kenglik × format) uchun alohida
     // saqlaydi — ro'yxat uzun bo'lsa, tashqaridan har xil `w` qiymatlari

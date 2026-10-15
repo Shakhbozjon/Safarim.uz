@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -25,7 +25,11 @@ async def get_regions(db: AsyncSession = Depends(get_db)):
     response_model=list[DistrictResponse],
     summary="Viloyat tumanlari",
 )
-async def get_districts(region_id: int, db: AsyncSession = Depends(get_db)):
+async def get_districts(
+    # Bazadagi integer chegarasi — undan katta son 500 o'rniga 422 bersin
+    region_id: int = Path(..., ge=-2_147_483_648, le=2_147_483_647),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(Region).where(Region.id == region_id))
     region = result.scalar_one_or_none()
     if not region:
