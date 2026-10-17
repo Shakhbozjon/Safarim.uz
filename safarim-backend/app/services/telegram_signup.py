@@ -161,6 +161,8 @@ async def passenger_menu(chat_id, full_name: str | None = None) -> None:
         f"{hello}Safarni saytda qidirib, joy band qilasiz. Bron tasdig'i va "
         "haydovchi raqami shu yerga keladi."
     ), {"inline_keyboard": [
+        # Mini App — sayt Telegramning ichida, avtomatik kirgan holda ochiladi
+        [{"text": "📱 UzSafar ilovasi", "web_app": {"url": f"{settings.PUBLIC_SITE_URL.rstrip('/')}/tg"}}],
         # Oddiy havola emas: botda ro'yxatdan o'tganning paroli yo'q va joy band
         # qilishda sayt login so'rab to'xtatib qo'yardi. Bu tugma kirish
         # havolasini beradi — sayt kirgan holda qidiruvda ochiladi.

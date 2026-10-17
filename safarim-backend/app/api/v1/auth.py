@@ -114,6 +114,56 @@ async def telegram_login(
     )
 
 
+class TelegramWebAppRequest(BaseModel):
+    init_data: str = Field(..., min_length=1, max_length=4096)
+
+
+@router.post(
+    "/telegram-webapp",
+    summary="Telegram Mini App — imzolangan initData orqali avtomatik kirish",
+)
+async def telegram_webapp_login(
+    data: TelegramWebAppRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Mini App ochilganda chaqiriladi: login va parolsiz kiritadi.
+
+    Foydalanuvchi Telegram ID si bo'yicha topiladi (shaxsiy chat ID = user ID —
+    botda ro'yxatdan o'tganda yoki raqamni tasdiqlaganda saqlangan). Topilmasa
+    `registered: false` — sahifa botdagi ro'yxatdan o'tishga yo'naltiradi.
+    """
+    await limit_login(request)
+    from sqlalchemy import select
+    from app.models.user import User
+    from app.services.telegram_webapp import verify_init_data
+
+    tg_user = verify_init_data(data.init_data, settings.TELEGRAM_BOT_TOKEN)
+    if tg_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Telegram ma'lumotlari tasdiqlanmadi. Ilovani bot orqali qayta oching.",
+        )
+
+    user = (await db.execute(
+        select(User).where(User.telegram_chat_id == str(tg_user["id"]))
+    )).scalar_one_or_none()
+    if user is None or user.is_blocked or not user.is_active:
+        return {
+            "registered": False,
+            "bot_username": settings.TELEGRAM_BOT_USERNAME.lstrip("@"),
+        }
+
+    from datetime import datetime
+    user.last_login_at = datetime.utcnow()
+    await db.commit()
+    return {
+        "registered": True,
+        "access_token": create_access_token(str(user.id), user.token_version),
+        "refresh_token": create_refresh_token(str(user.id), user.token_version),
+        "token_type": "bearer",
+        "start_param": tg_user.get("_start_param", ""),
+    }
+
+
 @router.get(
     "/telegram-entry",
     summary="Saytdagi «Telegram orqali kirish» tugmasi uchun bot havolasi",

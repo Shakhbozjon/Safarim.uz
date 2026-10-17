@@ -1,13 +1,14 @@
-import Cookies from "js-cookie";
 import api from "./api";
 import type { User } from "@/types";
 import { toE164 } from "./phone";
+import { getAccessToken } from "./tokens";
 
 // Token cookie'lari `tokens.ts` da — import halqasi bo'lmasin uchun
 export { saveTokens, clearTokens, getAccessToken } from "./tokens";
 
 export function isAuthenticated(): boolean {
-  return !!Cookies.get("access_token");
+  // `getAccessToken` — cookie, Mini App ichida esa zaxira joy ham (tokens.ts)
+  return !!getAccessToken();
 }
 
 export async function getMe(): Promise<User> {
