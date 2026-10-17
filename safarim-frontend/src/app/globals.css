@@ -82,3 +82,11 @@ body {
     @apply route-dot bg-gray-800 ring-gray-200;
   }
 }
+
+/* Telegram Mini App: sayt sarlavhasi yashiriladi — Telegram oynasining o'zida
+   nom allaqachon bor (ikki marta chiqmasin). `tg-app` klassini
+   TelegramBackButton qo'yadi, oddiy brauzerda u yo'q. */
+.tg-app [data-site-header],
+.tg-app [data-site-header-spacer] {
+  display: none;
+}

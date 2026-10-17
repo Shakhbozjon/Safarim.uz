@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +26,7 @@ import { isAuthenticated, getApiError } from "@/lib/auth";
 import type { TripResponse, BookingResponse } from "@/types";
 import { clsx } from "clsx";
 import { formatPrice } from "@/lib/format";
+import { getWebApp } from "@/lib/telegram";
 
 const MONTHS = [
   "yanvar", "fevral", "mart", "aprel", "may", "iyun",
@@ -103,6 +104,32 @@ export default function TripDetailPage() {
     },
   });
 
+  // ── Telegram Mini App: «Band qilish» Telegramning pastki asosiy tugmasida ──
+  // Hook erta `return`lardan oldin turishi shart; band qilish funksiyasi esa
+  // ulardan keyin e'lon qilinadi — shuning uchun eng so'nggisi ref orqali.
+  const startBookingRef = useRef<() => void>(() => {});
+  const canTelegramBook =
+    !!trip && trip.status === "active" && !(user && user.id === trip.driver.id);
+  const [tgMain, setTgMain] = useState(false);
+  useEffect(() => {
+    const wa = getWebApp();
+    if (!wa) return;
+    setTgMain(canTelegramBook);
+    // Modal ochiq bo'lsa yashiriladi — modalning o'z «Tasdiqlash» tugmasi bor
+    if (!canTelegramBook || bookingModal || verifyModal || genderModal) {
+      wa.MainButton.hide();
+      return;
+    }
+    const onClick = () => startBookingRef.current();
+    wa.MainButton.setText(`Joy band qilish · ${formatPrice(trip!.price_per_seat)} so'm`);
+    wa.MainButton.show();
+    wa.MainButton.onClick(onClick);
+    return () => {
+      wa.MainButton.offClick(onClick);
+      wa.MainButton.hide();
+    };
+  }, [canTelegramBook, trip, bookingModal, verifyModal, genderModal]);
+
   function handleBook() {
     if (!isAuthenticated()) {
       router.push("/login?next=/trips/" + id);
@@ -164,6 +191,7 @@ export default function TripDetailPage() {
     }
     setBookingModal(true);
   }
+  startBookingRef.current = startBooking;
 
   return (
     <div className="max-w-[640px] mx-auto sm:px-6 sm:py-6">
@@ -433,9 +461,12 @@ export default function TripDetailPage() {
                   Yozish
                 </Button>
               </Link>
-              <Button onClick={startBooking} className="flex-[1.4] !rounded-full">
-                Band qilish
-              </Button>
+              {/* Mini App'da bu tugma Telegramning pastki tugmasiga ko'chgan */}
+              {!tgMain && (
+                <Button onClick={startBooking} className="flex-[1.4] !rounded-full">
+                  Band qilish
+                </Button>
+              )}
             </div>
           ) : (
             <Link href="/trips" className="block">

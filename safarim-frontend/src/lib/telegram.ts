@@ -18,6 +18,39 @@ export interface TelegramWebApp {
     onClick(cb: () => void): void;
     offClick(cb: () => void): void;
   };
+  MainButton: {
+    setText(text: string): void;
+    show(): void;
+    hide(): void;
+    onClick(cb: () => void): void;
+    offClick(cb: () => void): void;
+  };
+  setHeaderColor(color: string): void;
+  setBackgroundColor(color: string): void;
+}
+
+/**
+ * Mini App ichida ochilganmi — `/tg` kirgizgach shu tabda eslab qolinadi.
+ * Telegram skripti faqat `/tg` da yuklanadi; sahifa to'liq qayta yuklansa
+ * obyekt yo'qoladi, lekin ko'rinish (sarlavhasiz) saqlanib qolishi kerak.
+ */
+const TG_FLAG = "tg_app";
+
+export function markTelegramApp() {
+  try {
+    sessionStorage.setItem(TG_FLAG, "1");
+  } catch {
+    /* storage yopiq — faqat shu sahifa davomida */
+  }
+}
+
+export function isTelegramApp(): boolean {
+  if (getWebApp()) return true;
+  try {
+    return typeof window !== "undefined" && sessionStorage.getItem(TG_FLAG) === "1";
+  } catch {
+    return false;
+  }
 }
 
 declare global {

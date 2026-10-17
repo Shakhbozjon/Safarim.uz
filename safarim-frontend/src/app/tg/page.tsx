@@ -5,7 +5,7 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { saveTokens, getApiError } from "@/lib/auth";
-import { getWebApp } from "@/lib/telegram";
+import { getWebApp, markTelegramApp } from "@/lib/telegram";
 
 /**
  * Telegram Mini App kirish nuqtasi: botdagi «📱 UzSafar ilovasi» shu yerni ochadi.
@@ -53,6 +53,7 @@ export default function TelegramMiniApp() {
         return;
       }
       saveTokens({ access_token: data.access_token, refresh_token: data.refresh_token, token_type: "bearer" });
+      markTelegramApp();
       const target = pathFromStartParam(data.start_param || wa.initDataUnsafe.start_param);
       if (target) {
         router.replace(target);

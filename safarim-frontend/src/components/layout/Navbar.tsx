@@ -71,6 +71,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
   return (
     <>
       <header
+        data-site-header
         ref={headerRef}
         className={clsx(
           "fixed top-0 inset-x-0 z-40 transition-all duration-300",
@@ -302,7 +303,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
         )}
       </header>
 
-      {!transparent && <div className="h-16" />}
+      {!transparent && <div data-site-header-spacer className="h-16" />}
     </>
   );
 }
