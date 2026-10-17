@@ -25,6 +25,7 @@ import re
 import secrets
 import uuid
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -48,6 +49,33 @@ RG = "rg:"
 # Deep-link: t.me/<bot>?start=haydovchi — guruhdagi taklifdan to'g'ri haydovchi oqimiga
 START_DRIVER = "haydovchi"
 START_PASSENGER = "royxat"
+# Saytdagi «Telegram orqali kirish»: t.me/<bot>?start=kirish[_<safar id, 32 hex>].
+# Start payload faqat 64 ta [A-Za-z0-9_-] belgi — ixtiyoriy manzil sig'maydi,
+# shuning uchun faqat safar sahifasi kodlanadi (joy band qilishdan kelgan holat).
+START_LOGIN = "kirish"
+_LOGIN_PAYLOAD_RE = re.compile(r"^kirish(?:_([0-9a-f]{32}))?$")
+
+
+def login_payload(next_path: str | None) -> str:
+    """Saytdan kelgan qaytish manzilini start payloadga aylantiradi."""
+    match = re.fullmatch(r"/trips/([0-9a-fA-F-]{36})", next_path or "")
+    if match:
+        try:
+            return f"{START_LOGIN}_{uuid.UUID(match.group(1)).hex}"
+        except ValueError:
+            pass
+    return START_LOGIN
+
+
+def login_next(payload: str) -> str | None:
+    """`kirish[_hex]` → qaytish manzili (`/trips/<id>`). Login payload bo'lmasa — None.
+
+    Bo'sh qator — payload login, lekin aniq manzil yo'q.
+    """
+    match = _LOGIN_PAYLOAD_RE.match(payload or "")
+    if match is None:
+        return None
+    return f"/trips/{uuid.UUID(match.group(1))}" if match.group(1) else ""
 
 LOGIN_TTL_MINUTES = 5
 
@@ -129,15 +157,30 @@ async def start_screen(db: AsyncSession, chat_id) -> None:
 
 async def passenger_menu(chat_id, full_name: str | None = None) -> None:
     hello = f"Assalomu alaykum, {tg._esc(full_name)}!\n\n" if full_name else ""
-    site = settings.PUBLIC_SITE_URL.rstrip("/")
     await _send(chat_id, (
         f"{hello}Safarni saytda qidirib, joy band qilasiz. Bron tasdig'i va "
         "haydovchi raqami shu yerga keladi."
     ), {"inline_keyboard": [
+        # Oddiy havola emas: botda ro'yxatdan o'tganning paroli yo'q va joy band
+        # qilishda sayt login so'rab to'xtatib qo'yardi. Bu tugma kirish
+        # havolasini beradi — sayt kirgan holda qidiruvda ochiladi.
+        [{"text": "🔍 Safar qidirish", "callback_data": f"{RG}search"}],
         [{"text": "🌐 Saytga kirish", "callback_data": f"{RG}login"}],
-        [{"text": "🔍 Safar qidirish", "url": f"{site}/trips"}],
         [{"text": "🚗 Haydovchi bo'lish", "callback_data": f"{RG}d"}],
     ]})
+
+
+async def login_entry(db: AsyncSession, chat_id, next_path: str, tg_name: str = "") -> None:
+    """Saytdagi «Telegram orqali kirish» → bot. Ulangan bo'lsa — darrov havola,
+    aks holda avval ro'yxatdan o'tadi va havola oxirida avtomatik keladi."""
+    if await _user_for_chat(db, chat_id) is not None:
+        await send_login_link(db, chat_id, next_path or None)
+        return
+    await begin(db, chat_id, "passenger", tg_name)
+    draft = await _draft(db, chat_id)
+    if draft is not None:
+        draft.data = {**(draft.data or {}), "next": next_path}
+        await db.commit()
 
 
 async def begin(db: AsyncSession, chat_id, role: str, tg_name: str = "") -> None:
@@ -218,8 +261,14 @@ async def handle_contact(db: AsyncSession, chat_id, phone_raw: str) -> bool:
             f"✅ Hisobingiz topildi va Telegram ulandi, {tg._esc(existing.full_name)}."
         ), {"remove_keyboard": True})
         role = draft.role
+        came_from_site = "next" in (draft.data or {})
+        next_path = (draft.data or {}).get("next") or None
         await _drop_draft(db, chat_id)
-        await begin(db, chat_id, role)
+        if came_from_site:
+            # Saytdan kirish uchun kelgan — menyu emas, darrov kirish havolasi
+            await send_login_link(db, chat_id, next_path)
+        else:
+            await begin(db, chat_id, role)
         return True
 
     await _set_step(db, draft, "name", phone=phone)
@@ -285,9 +334,15 @@ async def _accept_name(db: AsyncSession, chat_id, draft: TelegramSignup, name: s
 
     user = await _create_user(db, chat_id, draft.data["phone"], name)
     if draft.role == "passenger":
+        # Saytdan «Telegram orqali kirish» bilan kelgan bo'lsa — o'sha sahifaga qaytaradi
+        came_from_site = "next" in (draft.data or {})
+        next_path = (draft.data or {}).get("next") or None
         await _drop_draft(db, chat_id)
         await _send(chat_id, f"🎉 Ro'yxatdan o'tdingiz, {tg._esc(name)}!")
-        await passenger_menu(chat_id)
+        if came_from_site:
+            await send_login_link(db, chat_id, next_path)
+        else:
+            await passenger_menu(chat_id)
         return
 
     await _set_step(db, draft, "make", user_id=str(user.id))
@@ -462,6 +517,9 @@ async def handle_callback(db: AsyncSession, cq: dict, data: str) -> None:
     if action == "login":
         await send_login_link(db, chat_id)
         return
+    if action == "search":
+        await send_login_link(db, chat_id, "/trips")
+        return
 
     draft = await _draft(db, chat_id)
     if draft is None:
@@ -500,8 +558,11 @@ async def handle_callback(db: AsyncSession, cq: dict, data: str) -> None:
 
 # ─── Saytga kirish ───────────────────────────────────────────────────────────
 
-async def send_login_link(db: AsyncSession, chat_id) -> None:
-    """Bir martalik, qisqa muddatli havola — bosilsa sayt parolsiz ochiladi."""
+async def send_login_link(db: AsyncSession, chat_id, next_path: str | None = None) -> None:
+    """Bir martalik, qisqa muddatli havola — bosilsa sayt parolsiz ochiladi.
+
+    `next_path` — kirgandan keyin ochiladigan sahifa (faqat sayt ichidagi
+    yo'l; tekshiruvi sahifaning o'zida ham bor)."""
     user = await _user_for_chat(db, chat_id)
     if user is None:
         await start_screen(db, chat_id)
@@ -522,6 +583,9 @@ async def send_login_link(db: AsyncSession, chat_id) -> None:
     await db.commit()
 
     site = settings.PUBLIC_SITE_URL.rstrip("/")
+    url = f"{site}/auth/telegram?t={token}"
+    if next_path and next_path.startswith("/") and not next_path.startswith("//"):
+        url += f"&next={quote(next_path, safe='/')}"
     await tg._call("sendMessage", {
         "chat_id": str(chat_id),
         "text": (
@@ -531,7 +595,7 @@ async def send_login_link(db: AsyncSession, chat_id) -> None:
         ),
         "link_preview_options": {"is_disabled": True},
         "reply_markup": {"inline_keyboard": [[
-            {"text": "🌐 Saytni ochish", "url": f"{site}/auth/telegram?t={token}"},
+            {"text": "🌐 Saytni ochish", "url": url},
         ]]},
     })
 

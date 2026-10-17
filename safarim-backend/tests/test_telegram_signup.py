@@ -287,3 +287,73 @@ async def test_bloklangan_foydalanuvchi_kira_olmaydi(client, db, sent):
     await db.commit()
     r = await client.post("/api/v1/auth/telegram-login", json={"token": token})
     assert r.status_code == 400
+
+
+# ─── Saytdan «Telegram orqali kirish» va «Safar qidirish» ────────────────────
+
+TRIP_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+TRIP_HEX = TRIP_ID.replace("-", "")
+
+
+async def test_safar_qidirish_tugmasi_kirgan_holda_qidiruvga_olib_boradi(db, sent):
+    await _go(db, _cq("rg:p"), _contact(PHONE), _cq("rg:nm"))
+    assert "rg:search" in _callbacks(sent)          # oddiy havola emas
+    sent.clear()
+    await _go(db, _cq("rg:search"))
+    url = _urls(sent)[0]
+    assert "/auth/telegram?t=" in url and url.endswith("&next=/trips")
+
+
+async def test_saytdan_kelgan_ulangan_foydalanuvchiga_darrov_havola(db, sent):
+    await _go(db, _cq("rg:p"), _contact(PHONE), _cq("rg:nm"))
+    sent.clear()
+    await _go(db, _msg(f"/start kirish_{TRIP_HEX}"))
+    url = _urls(sent)[0]
+    assert url.endswith(f"&next=/trips/{TRIP_ID}")
+
+
+async def test_saytdan_kelgan_yangi_odam_royxatdan_otib_havola_oladi(db, sent):
+    await _go(db, _msg(f"/start kirish_{TRIP_HEX}"))
+    draft = await db.get(TelegramSignup, str(CHAT))
+    assert draft.role == "passenger" and draft.step == "contact"
+
+    sent.clear()
+    await _go(db, _contact(PHONE), _cq("rg:nm"))
+    assert await _user_by_phone(db) is not None
+    # Menyu emas — darrov o'sha safarga qaytaradigan kirish havolasi
+    urls = _urls(sent)
+    assert urls and urls[-1].endswith(f"&next=/trips/{TRIP_ID}")
+
+
+async def test_saytdan_kelgan_mavjud_hisob_egasi_havola_oladi(db, sent):
+    db.add(User(id=uuid.uuid4(), phone=PHONE, full_name="Saytdagi Ali",
+                password_hash=_TEST_PASSWORD_HASH))
+    await db.commit()
+    await _go(db, _msg("/start kirish"), _contact(PHONE))
+    urls = _urls(sent)
+    assert urls and "/auth/telegram?t=" in urls[-1] and "next=" not in urls[-1]
+
+
+async def test_telegram_entry_havolasi(client, monkeypatch):
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_USERNAME", "uzsafar_uz_bot")
+
+    r = await client.get(f"/api/v1/auth/telegram-entry?next=/trips/{TRIP_ID}")
+    assert r.json()["url"] == f"https://t.me/uzsafar_uz_bot?start=kirish_{TRIP_HEX}"
+
+    # Boshqa manzillar sig'maydi — oddiy kirish
+    for nxt in ("/profile", "https://evil.example", "//evil.example", ""):
+        r = await client.get("/api/v1/auth/telegram-entry", params={"next": nxt})
+        assert r.json()["url"] == "https://t.me/uzsafar_uz_bot?start=kirish"
+
+
+async def test_telegram_entry_sozlanmagan_bolsa_503(client, monkeypatch):
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_USERNAME", "")
+    r = await client.get("/api/v1/auth/telegram-entry")
+    assert r.status_code == 503
+
+
+async def test_kirish_payloadi_boshqa_qiymatda_ishlamaydi(db, sent):
+    """Soxta payload login oqimiga kirmasin (havola token sifatida tekshiriladi)."""
+    await _go(db, _msg("/start kirish_salom"))
+    assert await db.get(TelegramSignup, str(CHAT)) is None

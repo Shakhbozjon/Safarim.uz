@@ -263,9 +263,16 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
             await telegram_signup.start_screen(db, chat_id)
             return
 
+        tg_name = " ".join(filter(None, [sender.get("first_name"), sender.get("last_name")]))
+
+        # Saytdagi «Telegram orqali kirish»: t.me/<bot>?start=kirish[_<safar id>]
+        next_path = telegram_signup.login_next(payload)
+        if next_path is not None:
+            await telegram_signup.login_entry(db, chat_id, next_path, tg_name)
+            return
+
         # Guruhdagi taklif kabi havolalar: t.me/<bot>?start=haydovchi
         if payload in (telegram_signup.START_DRIVER, telegram_signup.START_PASSENGER):
-            tg_name = " ".join(filter(None, [sender.get("first_name"), sender.get("last_name")]))
             role = "driver" if payload == telegram_signup.START_DRIVER else "passenger"
             await telegram_signup.begin(db, chat_id, role, tg_name)
             return

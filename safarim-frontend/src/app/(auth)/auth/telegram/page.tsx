@@ -14,6 +14,12 @@ import { saveTokens, getApiError } from "@/lib/auth";
  * brauzerdagi skript POST bilan almashtiradi. Shunda Telegram havolani
  * oldindan ko'rish uchun ochsa ham token sarflanib ketmaydi.
  */
+/** Faqat sayt ichidagi yo'l — `//begona.sayt` yoki `https://...` ga yo'naltirib bo'lmasin */
+function safeNext(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return null;
+  return raw;
+}
+
 function TelegramLogin() {
   const params = useSearchParams();
   const router = useRouter();
@@ -36,6 +42,12 @@ function TelegramLogin() {
       try {
         const { data: tokens } = await api.post("/auth/telegram-login", { token });
         saveTokens(tokens);
+        // Bot «Safar qidirish» yoki joy band qilishdan kelgan bo'lsa — o'sha sahifaga
+        const next = safeNext(params.get("next"));
+        if (next) {
+          router.replace(next);
+          return;
+        }
         const { data: me } = await api.get("/auth/me");
         router.replace(me.is_driver ? "/driver" : "/my-trips");
       } catch (err: any) {

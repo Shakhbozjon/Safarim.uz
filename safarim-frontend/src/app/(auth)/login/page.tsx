@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Phone, Lock } from "lucide-react";
+import { Eye, EyeOff, Phone, Lock, Send } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,6 +34,23 @@ export default function LoginPage() {
   } = useForm<FormData>({ resolver: zodResolver(schema) });
   const phoneField = register("phone");
 
+  const [tgLoading, setTgLoading] = useState(false);
+  const [tgError, setTgError] = useState("");
+
+  async function openTelegram() {
+    setTgError("");
+    setTgLoading(true);
+    try {
+      const { data } = await api.get("/auth/telegram-entry", {
+        params: nextUrl ? { next: nextUrl } : {},
+      });
+      window.location.href = data.url;
+    } catch (err: any) {
+      setTgError(getApiError(err));
+      setTgLoading(false);
+    }
+  }
+
   async function onSubmit(data: FormData) {
     setApiError("");
     try {
@@ -63,6 +80,25 @@ export default function LoginPage() {
           Ro'yxatdan o'ting
         </Link>
       </p>
+
+      {/* Botda ro'yxatdan o'tganning paroli yo'q — u shu yo'l bilan kiradi.
+          Bot kirish havolasini yuboradi, havola esa shu sahifaga (next) qaytaradi. */}
+      <button
+        type="button"
+        onClick={openTelegram}
+        disabled={tgLoading}
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#229ED9] hover:bg-[#1c8cc2] text-white font-semibold py-3 transition-colors disabled:opacity-60"
+      >
+        <Send size={17} />
+        {tgLoading ? "Ochilmoqda…" : "Telegram orqali kirish"}
+      </button>
+      {tgError && <p className="text-xs text-red-600 mt-2 text-center">{tgError}</p>}
+
+      <div className="flex items-center gap-3 my-5 text-xs text-gray-400">
+        <span className="flex-1 h-px bg-gray-200" />
+        yoki parol bilan
+        <span className="flex-1 h-px bg-gray-200" />
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input

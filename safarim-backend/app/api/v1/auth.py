@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,6 +112,29 @@ async def telegram_login(
         access_token=create_access_token(str(user.id), user.token_version),
         refresh_token=create_refresh_token(str(user.id), user.token_version),
     )
+
+
+@router.get(
+    "/telegram-entry",
+    summary="Saytdagi «Telegram orqali kirish» tugmasi uchun bot havolasi",
+)
+async def telegram_entry(next: str | None = Query(None, max_length=200)):
+    """Botga havola qaytaradi. Bot kirgan foydalanuvchiga darrov kirish
+    havolasini yuboradi, yangisini esa avval ro'yxatdan o'tkazadi.
+
+    Hech narsa yaratmaydi va hech narsa bermaydi — shuning uchun ochiq.
+    Qaytish manzili havolaga faqat safar sahifasi bo'lsa qo'shiladi
+    (Telegram start payloadi 64 belgi bilan cheklangan).
+    """
+    from app.services import telegram_signup
+
+    if not telegram_service.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram orqali kirish hozircha mavjud emas.",
+        )
+    payload = telegram_signup.login_payload(next)
+    return {"url": f"https://t.me/{settings.TELEGRAM_BOT_USERNAME.lstrip('@')}?start={payload}"}
 
 
 @router.post(
