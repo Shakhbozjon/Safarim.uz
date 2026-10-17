@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -72,6 +73,41 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
 async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     await limit_login(request)
     user = await auth_service.login_user(db, data.phone, data.password)
+    return TokenResponse(
+        access_token=create_access_token(str(user.id), user.token_version),
+        refresh_token=create_refresh_token(str(user.id), user.token_version),
+    )
+
+
+class TelegramLoginRequest(BaseModel):
+    token: str = Field(..., min_length=1, max_length=64)
+
+
+@router.post(
+    "/telegram-login",
+    response_model=TokenResponse,
+    summary="Botdagi «Saytga kirish» havolasi orqali kirish (parolsiz)",
+)
+async def telegram_login(
+    data: TelegramLoginRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Botda ro'yxatdan o'tgan odamning paroli yo'q — u botdan bir martalik,
+    5 daqiqalik havola oladi. Havoladagi token shu yerda kirish tokenlariga
+    almashtiriladi va boshqa ishlatib bo'lmaydi.
+
+    Token GET emas, POST bilan yuboriladi: Telegram havolani oldindan ko'rish
+    uchun ochsa ham token sarflanib ketmaydi (sahifaning o'zi hech narsa qilmaydi,
+    almashtirishni brauzerdagi skript bajaradi).
+    """
+    await limit_login(request)
+    from app.services import telegram_signup
+
+    user = await telegram_signup.redeem_login_token(db, data.token)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Havola eskirgan yoki allaqachon ishlatilgan. Botdan yangisini oling.",
+        )
     return TokenResponse(
         access_token=create_access_token(str(user.id), user.token_version),
         refresh_token=create_refresh_token(str(user.id), user.token_version),

@@ -253,16 +253,21 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
     if text.startswith("/start"):
         parts = text.split(maxsplit=1)
         payload = parts[1].strip() if len(parts) > 1 else ""
+        from app.services import telegram_signup
         if not payload:
             # Raqami tasdiqlangan haydovchi uchun bu bot ish quroli — unga
             # yo'riqnoma emas, menyu kerak.
             if await _driver_menu(db, chat_id):
                 return
-            await send_message(chat_id, (
-                "Bu — <b>UzSafar</b> tasdiqlash boti.\n\n"
-                "Raqamni tasdiqlash uchun saytdagi <b>«Telegram orqali tasdiqlash»</b> "
-                "tugmasi orqali qayting."
-            ))
+            # Qolganlarga — ro'yxatdan o'tish (yoki ulangan yo'lovchiga menyu)
+            await telegram_signup.start_screen(db, chat_id)
+            return
+
+        # Guruhdagi taklif kabi havolalar: t.me/<bot>?start=haydovchi
+        if payload in (telegram_signup.START_DRIVER, telegram_signup.START_PASSENGER):
+            tg_name = " ".join(filter(None, [sender.get("first_name"), sender.get("last_name")]))
+            role = "driver" if payload == telegram_signup.START_DRIVER else "passenger"
+            await telegram_signup.begin(db, chat_id, role, tg_name)
             return
 
         link = await _get_valid_token(db, token=payload)
@@ -279,6 +284,12 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
         await db.commit()
         await _ask_for_contact(chat_id, link.user.full_name, link.purpose)
         return
+
+    # 1.4) Botda ro'yxatdan o'tish jarayoni (ism, mashina, davlat raqami...)
+    if text and not contact:
+        from app.services import telegram_signup
+        if await telegram_signup.handle_text(db, chat_id, text):
+            return
 
     # 1.5) Menyu tugmasi bosildi (safar e'lon qilish / safarlarim)
     if text:
@@ -299,6 +310,10 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
 
         link = await _get_valid_token(db, chat_id=str(chat_id))
         if link is None:
+            # Saytdan kelgan havola yo'q — balki botda ro'yxatdan o'tyapti
+            from app.services import telegram_signup
+            if await telegram_signup.handle_contact(db, chat_id, contact.get("phone_number", "")):
+                return
             await send_message(chat_id, (
                 "Avval saytdagi tasdiqlash havolasini oching, so'ng raqamni ulashing."
             ), remove_keyboard=True)
@@ -342,10 +357,8 @@ async def handle_update(db: AsyncSession, update: dict) -> None:
     if await _driver_menu(db, chat_id):
         return
 
-    await send_message(chat_id, (
-        "Raqamni tasdiqlash uchun saytdagi <b>«Telegram orqali tasdiqlash»</b> "
-        "tugmasi orqali qayting."
-    ))
+    from app.services import telegram_signup
+    await telegram_signup.start_screen(db, chat_id)
 
 
 async def _driver_menu(db: AsyncSession, chat_id) -> bool:
@@ -505,6 +518,12 @@ async def _handle_callback(db: AsyncSession, cq: dict) -> None:
     if data.startswith(("pb:", "mt:", "rt:")):
         from app.services import telegram_driver_bot
         await telegram_driver_bot.handle_callback(db, cq, data)
+        return
+
+    # Botda ro'yxatdan o'tish va «Saytga kirish»
+    if data.startswith("rg:"):
+        from app.services import telegram_signup
+        await telegram_signup.handle_callback(db, cq, data)
         return
 
     if data.startswith(CONFIRM_YES_PREFIX):

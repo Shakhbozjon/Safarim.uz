@@ -11,12 +11,12 @@ from app.models.payment import Payment, DriverMonthlyCommission
 from app.models.notification import Notification
 from app.models.admin import AdminAction
 from app.models.wallet import DriverWallet, WalletTransaction, WalletTopupPayment
-from app.models.telegram import TelegramLinkToken
+from app.models.telegram import TelegramLinkToken, TelegramLoginToken, TelegramSignup
 
 __all__ = [
     "User", "OtpCode", "Region", "District", "DriverProfile",
     "Trip", "TripWaypoint", "TripGroupPost", "DriverRoute", "Booking", "Message", "Review",
     "Payment", "DriverMonthlyCommission", "Notification", "AdminAction",
     "DriverWallet", "WalletTransaction", "WalletTopupPayment",
-    "TelegramLinkToken",
+    "TelegramLinkToken", "TelegramLoginToken", "TelegramSignup",
 ]
