@@ -114,6 +114,16 @@ async def _post(client, update, secret=SECRET):
     "Ташкент Самарканд есть места, выезжаю в 7:00",
     "Qarshi Toshkent pochta olaman",
     "Yo`lovchi kerak Buxoroga 2 kishilik joy, tel 991234567 ketaman",
+    # Guruhlardagi haqiqiy e'lonlar uslubi (raqamlar o'zgartirilgan)
+    "Тошкент шахарга ✍\n➖➖➖\nЙурамз ✍\n 1 та кам ✍\nПошта оламз ✍\n+998900000001 ☎️",
+    "TOSHKENGA YURAMIZ\n\n\n3  ta Odam kam\n\n\nPochta olamiz\n\nAvto koblt\n\n+998900000002",
+    "ТОШКЕНТГА ЮРАМИЗ ХОЗИРГА\n -- 2 - ОДАМ ПОЧТА ОЛАМИЗ\nБАГДОД БУВАЙДА УЧКУПРИК АТРОФИДАН\nАВТО КОБАЛЬТ ☎️. 900000003",
+    "кадишва рохат атрофидан 1та одам пошта оламиз бувайда атрофига аел киши бор Хозирга\nБагаж хам бор 900000004",
+    "ТОШКЕНТДАН бувайда янгикургон атрофига одам пушта оламан багаж бор\n900000005",
+    "ЧИЛОНЗОР--СЕРГИЛИ-КУЙЛУК АТРОФИДАН\nБУВАЙДА ЯНГИКУРГОНГА ОДАМ ПУЧТА БУЛСА ОБ ЧИКИБ КЕТАМИЗ\n2-ТА КАМ. ХОЗИРГА\nАЁЛЛАР БОР\n900000006",
+    "Сергили ту́йтепа атрофидан бувайдага одам оламиз тел 900000007",
+    "ТОШКЕНТ ДАН\nБУВАЙДА\nЯНГИКУРГОН ГА\n1 Дона ОДАМ ВА\nПОЧТА\nОЛАМИЗ.\n900000008",
+    "TOSHKENTGA\n\n    ODAM   POCHTA\n         OLAMAN\n\nTOM    BAGAJ   BOOOR\nXOZIRGA     +998900000009",
 ])
 def test_driver_ads_detected(text):
     assert nudge.looks_like_driver_ad(text)
@@ -129,6 +139,15 @@ def test_driver_ads_detected(text):
     "ketaman",                         # juda qisqa
     "Bugun havo yaxshi, Toshkentda yomg'ir yo'q",  # haydovchi iborasi yo'q
     "Ketaman ketaman ketaman ketaman ketaman",     # shahar ham, raqam ham yo'q
+    # Guruh uslubidagi yo'lovchi xabarlari
+    "Toshkentga 2 kishi bormiz hozirga 900000010",
+    "Бувайдадан Тошкентга одам бор хозирга 998900000011",
+    "Тошкентга почта бор, олиб кетадиган борми 900000012",
+    "Toshkentga pochta bor 900000013",
+    "1 ta odam Toshkentga, kim olib ketadi? 900000014",
+    "Тошкентга юрадиган машина борми хозирга",
+    "Хозирга Тошкентга кетадиган машина керак 900000015",
+    "Нужна машина до Ташкента, 2 человека",
 ])
 def test_non_driver_messages_ignored(text):
     assert not nudge.looks_like_driver_ad(text)
@@ -224,7 +243,8 @@ async def test_private_chat_ignored(client, redis, sent):
 
 @pytest.mark.parametrize("extra", [
     {"sender_chat": {"id": -100, "type": "channel"}},
-    {"forward_origin": {"type": "user"}},
+    {"forward_origin": {"type": "user", "sender_user": {"id": 123}}},   # boshqaning e'loni
+    {"forward_origin": {"type": "hidden_user", "sender_user_name": "X"}},
     {"forward_date": 1700000000},
     {"via_bot": {"id": 1, "is_bot": True}},
     {"reply_to_message": {"message_id": 100}},
@@ -232,6 +252,12 @@ async def test_private_chat_ignored(client, redis, sent):
 async def test_non_plain_posts_ignored(client, redis, sent, extra):
     await _post(client, _update(**extra))
     assert sent == []
+
+
+async def test_own_forwarded_ad_gets_reply(client, redis, sent):
+    # Haydovchilar o'z e'lonini forward qilib qayta tashlaydi
+    await _post(client, _update(forward_origin={"type": "user", "sender_user": {"id": SENDER}}))
+    assert len(sent) == 1
 
 
 async def test_bot_messages_ignored(client, redis, sent):

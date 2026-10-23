@@ -51,49 +51,70 @@ DELETE_QUEUE_KEY = "feednudge:delete"
 _APOSTROPHES = re.compile(r"['’‘ʻʼ`´ʹ]")
 _SPACES = re.compile(r"\s+")
 
-# Shahar/viloyat nomining boshi: «toshkentdan», «toshkentga» ham mos keladi
+# Shahar/tuman nomining boshi: «toshkentdan», «toshkentga» ham mos keladi.
+# «toshken» — guruhlarda «TOSHKENGA» deb ko'p yoziladi.
 _PLACES = (
     # lotin
-    "toshkent", "tashkent", "samarqand", "samarkand", "buxoro", "bukhara",
+    "toshken", "tashken", "samarqand", "samarkand", "buxoro", "bukhara",
     "fargona", "fergana", "andijon", "andijan", "namangan", "qoqon", "kokand",
     "margilon", "jizzax", "jizzak", "navoiy", "navoi", "qarshi", "karshi",
     "termiz", "termez", "urganch", "urgench", "xiva", "nukus", "guliston",
     "sirdaryo", "xorazm", "surxondaryo", "qashqadaryo", "qoraqalpog",
     "chirchiq", "olmaliq", "angren", "zarafshon", "denov", "shahrisabz",
     "kosonsoy", "chust", "yangiyer", "bekobod", "uchqorgon", "rishton",
+    "buvayda", "yangiqorgon", "uchkoprik", "bagdod", "quva", "oltiariq",
+    "chilonzor", "sergeli", "sergili", "yunusobod", "quyliq", "qoyliq",
     # kirill (o'zbek va rus)
-    "тошкент", "ташкент", "самарқанд", "самарканд", "бухоро", "бухара",
+    "тошкен", "ташкен", "самарқанд", "самарканд", "бухоро", "бухара",
     "фарғона", "фаргона", "фергана", "андижон", "андижан", "наманган",
     "қўқон", "кўкон", "коканд", "марғилон", "маргилан", "жиззах", "джизак",
     "навоий", "навои", "қарши", "карши", "термиз", "термез", "урганч",
     "ургенч", "хива", "нукус", "гулистон", "гулистан", "сирдарё", "хоразм",
     "сурхондарё", "қашқадарё", "қорақалпоғ", "чирчиқ", "чирчик", "олмалиқ",
     "алмалык", "ангрен", "зарафшон", "денов", "шаҳрисабз", "шахрисабз",
+    "бувайда", "янгикургон", "янгиқўрғон", "учкуприк", "учкўприк", "багдод",
+    "бағдод", "қува", "кува", "олтиариқ", "чилонзор", "сергели", "сергили",
+    "юнусобод", "куйлук", "қўйлиқ",
 )
 
-# Haydovchi yozadigan iboralar (apostrofsiz)
+# Haydovchi yozadigan iboralar (apostrofsiz). Ro'yxat guruhlardagi haqiqiy
+# e'lonlardan olingan: «yuramiz», «1 ta kam», «odam pochta olamiz».
 _DRIVER_WORDS = (
     "joy bor", "joylar bor", "joyim bor", "bosh joy", "orin bor", "joy qoldi",
-    "yolovchi olaman", "yolovchi olamiz", "yolovchi kerak", "yolovchilar kerak",
-    "yolovchi bormi", "pochta olaman", "pochta olamiz", "pochta ham olaman",
+    "yolovchi kerak", "yolovchilar kerak", "yolovchi bormi",
     "ketaman", "ketamiz", "ketyapman", "ketyapmiz", "ketvomman", "ketvommiz",
-    "jonayman", "jonaymiz", "chiqaman", "chiqamiz",
+    "jonayman", "jonaymiz", "chiqaman", "chiqamiz", "chiqib ketamiz",
+    "yuramiz", "yuramz", "yuraman", "yuryapmiz",
     "жой бор", "жойлар бор", "бўш жой", "буш жой", "ўрин бор",
-    "йўловчи оламан", "йўловчи керак", "йуловчи керак", "йўловчи борми",
-    "почта оламан", "кетаман", "кетамиз", "кетяпман", "жўнайман", "чиқаман",
+    "йўловчи керак", "йуловчи керак", "йўловчи борми",
+    "кетаман", "кетамиз", "кетяпман", "кетяпмиз", "жўнайман", "чиқаман",
+    "чиқамиз", "чикамиз", "юрамиз", "юрамз", "йурамиз", "йурамз", "юраман",
     "есть места", "есть место", "свободные места", "свободное место",
     "возьму пассаж", "беру пассаж", "возьму попут", "беру попут", "выезжаю",
 )
 
-# Yo'lovchi yozadigan iboralar — bittasi bo'lsa ham javob yozilmaydi
+# «olamiz/olaman» + kimni/nimani: «odam pochta olamiz», «одам оламиз»
+_TAKE = re.compile(r"(?<!\w)(?:olamiz|olaman|olamz|оламиз|оламан|оламз)(?!\w)")
+_CARGO = re.compile(
+    r"(?<!\w)(?:odam|pochta|pushta|puchta|posilka|yolovchi|kishi|"
+    r"одам|почта|пошта|пушта|пучта|посилка|йўловчи|йуловчи|киши)"
+)
+# «1 ta kam», «2-ТА КАМ», «3 ta odam kam» — nechta o'rin bo'shligi
+_SEATS_LEFT = re.compile(
+    r"\d+\s*-?\s*(?:ta|та|dona|дона)?\s*(?:odam|одам|kishi|киши|joy|жой|orin|ўрин)?\s*(?:kam|кам)(?!\w)"
+)
+
+# Yo'lovchi yozadigan iboralar — bittasi bo'lsa ham javob yozilmaydi.
+# «odam bor», «kishi bor» bu yerda ataylab yo'q: haydovchilar «аёллар бор»
+# (mashinada ayol yo'lovchi bor) deb yozadi.
 _PASSENGER_WORDS = (
     "mashina kerak", "moshina kerak", "mashina bormi", "moshina bormi",
     "taksi kerak", "haydovchi kerak", "joy bormi", "kim bor", "kim ketyapti",
     "kim ketadi", "ketadigan bormi", "ketadiganlar bormi", "boradigan bormi",
-    "olib ketadigan", "kishi bor", "kishimiz", "odam bor", "odammiz",
+    "olib ketadigan", "olib ketadi", "kishimiz", "odammiz", "bormiz",
     "машина керак", "мошина керак", "машина борми", "такси керак",
     "ҳайдовчи керак", "хайдовчи керак", "жой борми", "ким бор", "ким кетяпти",
-    "кетадиган борми", "олиб кетадиган", "киши бор", "кишимиз",
+    "кетадиган борми", "олиб кетадиган", "олиб кетади", "кишимиз", "бормиз",
     "нужна машина", "нужен водитель", "нужно такси", "ищу машину",
     "ищу водителя", "кто едет", "есть кто",
 )
@@ -102,13 +123,15 @@ _PHONE = re.compile(r"(?:\+?998[\s\-]?)?\(?\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-
 
 
 def _normalize(text: str) -> str:
-    return _SPACES.sub(" ", _APOSTROPHES.sub("", (text or "").lower()))
+    # U+0301 — urg'u belgisi («ту́йтепа»), so'zni bo'lib qo'ymasin
+    t = (text or "").lower().replace("́", "")
+    return _SPACES.sub(" ", _APOSTROPHES.sub("", t))
 
 
 def looks_like_driver_ad(text: str) -> bool:
     """Xabar haydovchi e'loniga o'xshaydimi.
 
-    Kerak: haydovchi iborasi + (shahar nomi yoki telefon raqami) va birorta
+    Kerak: haydovchi belgisi + (joy nomi yoki telefon raqami) va birorta
     ham yo'lovchi iborasi bo'lmasligi.
     """
     if not text or not (15 <= len(text) <= 2000):
@@ -116,7 +139,12 @@ def looks_like_driver_ad(text: str) -> bool:
     t = _normalize(text)
     if any(w in t for w in _PASSENGER_WORDS):
         return False
-    if not any(w in t for w in _DRIVER_WORDS):
+    is_driver = (
+        any(w in t for w in _DRIVER_WORDS)
+        or bool(_SEATS_LEFT.search(t))
+        or bool(_TAKE.search(t) and _CARGO.search(t))
+    )
+    if not is_driver:
         return False
     return any(p in t for p in _PLACES) or bool(_PHONE.search(text))
 
@@ -140,9 +168,17 @@ def _is_plain_post(message: dict) -> bool:
     # Anonim admin yoki kanal nomidan yozilgan
     if message.get("sender_chat"):
         return False
-    # Uzatilgan xabar — muallif boshqa odam bo'lishi mumkin
-    if message.get("forward_origin") or message.get("forward_date") or message.get("via_bot"):
+    if message.get("via_bot"):
         return False
+    # Uzatilgan xabar faqat o'zinikini qayta tashlagan bo'lsa (haydovchilar
+    # e'lonini shunday takrorlaydi); boshqaning e'loni — muallif boshqa odam
+    origin = message.get("forward_origin")
+    if origin is not None:
+        if (origin.get("sender_user") or {}).get("id") != sender["id"]:
+            return False
+    elif message.get("forward_date"):
+        if (message.get("forward_from") or {}).get("id") != sender["id"]:
+            return False
     reply = message.get("reply_to_message")
     if reply:
         # Mavzuli guruhda har xabar mavzu boshiga «javob» bo'lib keladi
