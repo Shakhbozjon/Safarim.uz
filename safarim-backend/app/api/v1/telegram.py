@@ -1,3 +1,4 @@
+import logging
 import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -10,6 +11,8 @@ from app.db.session import get_db
 from app.models.enums import TelegramLinkPurpose
 from app.models.user import User
 from app.services import telegram_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -40,6 +43,32 @@ async def telegram_webhook(
     update = await request.json()
     await telegram_service.handle_update(db, update)
     # Telegram 200 dan boshqa javobda yangilanishni qayta-qayta yuboraveradi
+    return {"ok": True}
+
+
+@router.post(
+    "/feed-webhook",
+    summary="Lenta boti webhook'i — guruhdagi xabarlar (faqat Telegram chaqiradi)",
+    include_in_schema=False,
+)
+async def telegram_feed_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    x_telegram_bot_api_secret_token: str | None = Header(default=None),
+):
+    secret = settings.TELEGRAM_FEED_WEBHOOK_SECRET
+    if not secret or not secrets.compare_digest(
+        (x_telegram_bot_api_secret_token or "").encode(), secret.encode()
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ruxsat yo'q")
+
+    from app.services import telegram_feed_nudge
+
+    try:
+        await telegram_feed_nudge.handle_group_update(db, await request.json())
+    except Exception as exc:
+        # Xato bo'lsa ham 200: aks holda Telegram shu xabarni qayta-qayta yuboradi
+        logger.warning("Lenta webhook xatosi: %s", exc)
     return {"ok": True}
 
 

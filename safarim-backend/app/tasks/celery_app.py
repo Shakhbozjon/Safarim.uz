@@ -12,7 +12,7 @@ celery_app = Celery(
     "safarim",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.notification_tasks", "app.tasks.trip_tasks"],
+    include=["app.tasks.notification_tasks", "app.tasks.trip_tasks", "app.tasks.telegram_tasks"],
 )
 
 celery_app.conf.update(
@@ -43,5 +43,9 @@ celery_app.conf.beat_schedule = {
     "process-confirmations": {
         "task": "app.tasks.trip_tasks.process_confirmations",
         "schedule": 1200.0,  # har 20 daqiqada — tasdiq oynalari + avtomatik hal
+    },
+    "purge-feed-replies": {
+        "task": "app.tasks.telegram_tasks.purge_feed_replies",
+        "schedule": 120.0,  # har 2 daqiqada — guruhdagi «botdan bering» javoblari
     },
 }

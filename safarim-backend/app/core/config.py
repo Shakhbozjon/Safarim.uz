@@ -95,6 +95,12 @@ class Settings(BaseSettings):
     # u bilan birga bron tasdiqlash va telefon tekshiruvi ham to'xtardi.
     # Bo'sh bo'lsa asosiy bot ishlatiladi (eski xatti-harakat).
     TELEGRAM_FEED_BOT_TOKEN: str = ""
+    # Lenta botining o'z webhook'i (guruhdagi xabarlarni o'qish uchun).
+    # Bo'sh bo'lsa webhook qabul qilinmaydi.
+    TELEGRAM_FEED_WEBHOOK_SECRET: str = ""
+    # Guruhda e'lon tashlagan haydovchiga «botdan bering» javobi. Sukut
+    # bo'yicha O'CHIQ: deploy'ning o'zi guruhga hech narsa yozmaydi.
+    TELEGRAM_FEED_NUDGE_ENABLED: bool = False
 
     # Tashqariga ketadigan havolalar shu manzildan quriladi (Telegram lentasi).
     PUBLIC_SITE_URL: str = "https://uzsafar.uz"
